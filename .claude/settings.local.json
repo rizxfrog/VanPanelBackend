@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(F:/github/CLI-Anything/drawio/agent-harness *)",
+      "Bash(python *)",
+      "Bash(git reset *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git status *)",
+      "Bash(git rm *)"
+    ]
+  }
+}

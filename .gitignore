@@ -1,0 +1,118 @@
+# If you prefer the allow list template instead of the deny list, see community template:
+# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+#
+# Binaries for programs and plugins
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+terraform
+# Output of the go coverage tool, specifically when used with LiteIDE
+*.out
+
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+bin
+volumes
+tmp/
+storage
+data/mysql
+data/redis
+data/nginx/log
+# .env file
+.env
+
+# debug file
+__debug_bin*
+
+node_modules
+.DS_Store
+dist
+dist-ssr
+dist.zip
+dist.tar
+dist.war
+.nitro
+.output
+*-dist.zip
+*-dist.tar
+*-dist.war
+coverage
+*.local
+**/.vitepress/cache
+.cache
+.turbo
+.temp
+dev-dist
+vector_db
+.stylelintcache
+yarn.lock
+package-lock.json
+.VSCodeCounter
+**/backend-mock/data
+time_qps_auto_scaling_model_metadata.json
+# 模型文件
+*.pkl
+*.model
+*.h5
+*.pb
+*.onnx
+*.pt
+*.pth
+
+# 设计文档
+doc/license_system_design.md
+
+# local .env files
+.env.local
+.env.*.local
+.eslintcache
+local_yaml
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+vite.config.mts.*
+vite.config.mjs.*
+vite.config.js.*
+vite.config.ts.*
+__pycache__
+venv
+.venv
+# Editor directories and files
+.idea
+# .vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.history
+#config/config.yaml
+data/prometheus
+Prompt1.md
+Prompt2.md
+docs/docs.go
+docs/swagger.json
+docs/swagger.yaml
+tools/swagger-auto-gen/swagger-auto-gen
+#config
+
+edge
+internal/model/edge_*
+internal/model/kubeedge_types.go
+
+# AI-CloudOps executable
+AI-CloudOps
+.cursor.claude/
