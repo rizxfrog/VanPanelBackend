@@ -1,0 +1,387 @@
+/*
+ * MIT License
+ *
+ * Copyright (c) 2024 Bamboo
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
+ * THE SOFTWARE.
+ *
+ */
+
+package utils
+
+import (
+	"fmt"
+	"strings"
+	"time"
+
+	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
+	networkingv1 "k8s.io/api/networking/v1"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"sigs.k8s.io/yaml"
+)
+
+func ConvertToK8sIngress(ingress *networkingv1.Ingress, clusterID int) *model.K8sIngress {
+	if ingress == nil {
+		return nil
+	}
+
+	hosts := make([]string, 0)
+	for _, rule := range ingress.Spec.Rules {
+		if rule.Host != "" {
+			hosts = append(hosts, rule.Host)
+		}
+	}
+
+	age := base.GetAge(ingress.CreationTimestamp.Time)
+	status := IngressStatus(ingress)
+
+	rules := make([]model.IngressRule, 0, len(ingress.Spec.Rules))
+	for _, rule := range ingress.Spec.Rules {
+		ingressRule := model.IngressRule{
+			Host: rule.Host,
+		}
+
+		if rule.HTTP != nil {
+			paths := make([]model.IngressHTTPIngressPath, 0, len(rule.HTTP.Paths))
+			for _, path := range rule.HTTP.Paths {
+				ingressPath := model.IngressHTTPIngressPath{
+					Path:    path.Path,
+					Backend: path.Backend,
+				}
+				if path.PathType != nil {
+					ingressPath.PathType = path.PathType
+				}
+				paths = append(paths, ingressPath)
+			}
+			ingressRule.HTTP = model.IngressHTTPRuleValue{
+				Paths: paths,
+			}
+		}
+
+		rules = append(rules, ingressRule)
+	}
+
+	tls := make([]model.IngressTLS, 0, len(ingress.Spec.TLS))
+	for _, tlsConfig := range ingress.Spec.TLS {
+		ingressTLS := model.IngressTLS{
+			Hosts:      tlsConfig.Hosts,
+			SecretName: tlsConfig.SecretName,
+		}
+		tls = append(tls, ingressTLS)
+	}
+
+	labels := ingress.Labels
+	if labels == nil {
+		labels = map[string]string{}
+	}
+
+	annotations := ingress.Annotations
+	if annotations == nil {
+		annotations = map[string]string{}
+	}
+
+	// LoadBalancer信息从Status字段读取
+	loadBalancer := model.IngressLoadBalancer{}
+	if len(ingress.Status.LoadBalancer.Ingress) > 0 {
+		lbIngresses := make([]model.IngressLoadBalancerIngress, 0, len(ingress.Status.LoadBalancer.Ingress))
+		for _, lbIngress := range ingress.Status.LoadBalancer.Ingress {
+			lbIngressItem := model.IngressLoadBalancerIngress{
+				IP:       lbIngress.IP,
+				Hostname: lbIngress.Hostname,
+			}
+
+			if len(lbIngress.Ports) > 0 {
+				ports := make([]model.IngressPortStatus, 0, len(lbIngress.Ports))
+				for _, port := range lbIngress.Ports {
+					portStatus := model.IngressPortStatus{
+						Port:     port.Port,
+						Protocol: string(port.Protocol),
+					}
+					if port.Error != nil {
+						portStatus.Error = *port.Error
+					}
+					ports = append(ports, portStatus)
+				}
+				lbIngressItem.Ports = ports
+			}
+
+			lbIngresses = append(lbIngresses, lbIngressItem)
+		}
+		loadBalancer.Ingress = lbIngresses
+	}
+
+	// IngressClassName 字段处理
+	var ingressClassNamePtr *string
+	if ingress.Spec.IngressClassName != nil {
+		ingressClassNamePtr = ingress.Spec.IngressClassName
+	}
+
+	return &model.K8sIngress{
+		Name:             ingress.Name,
+		Namespace:        ingress.Namespace,
+		ClusterID:        clusterID,
+		UID:              string(ingress.UID),
+		IngressClassName: ingressClassNamePtr,
+		Rules:            rules,
+		TLS:              tls,
+		LoadBalancer:     loadBalancer,
+		Labels:           labels,
+		Annotations:      annotations,
+		CreatedAt:        ingress.CreationTimestamp.Time,
+		Age:              age,
+		Status:           convertIngressStatusToEnum(status),
+		Hosts:            hosts,
+		RawIngress:       ingress,
+	}
+}
+
+// IngressStatus 获取Ingress状态
+func IngressStatus(item *networkingv1.Ingress) string {
+	if item == nil {
+		return StatusUnknown
+	}
+	// 如果正在删除
+	if item.DeletionTimestamp != nil {
+		return StatusTerminating
+	}
+	lb := item.Status.LoadBalancer
+	ingressList := lb.Ingress
+	if len(ingressList) == 0 {
+		return StatusPending
+	}
+	for _, entry := range ingressList {
+		if entry.IP != "" || entry.Hostname != "" {
+			return StatusReady
+		}
+	}
+	return StatusUnknown
+}
+
+func ValidateIngress(ingress *networkingv1.Ingress) error {
+	if ingress == nil {
+		return fmt.Errorf("ingress不能为空")
+	}
+
+	if ingress.Name == "" {
+		return fmt.Errorf("ingress名称不能为空")
+	}
+
+	if ingress.Namespace == "" {
+		return fmt.Errorf("namespace不能为空")
+	}
+
+	for i, rule := range ingress.Spec.Rules {
+		if rule.HTTP != nil {
+			for j, path := range rule.HTTP.Paths {
+				if path.Backend.Service == nil {
+					return fmt.Errorf("规则%d路径%d的后端服务不能为空", i, j)
+				}
+				if path.Backend.Service.Name == "" {
+					return fmt.Errorf("规则%d路径%d的后端服务名称不能为空", i, j)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// IngressToYAML 将Ingress转换为YAML
+func IngressToYAML(ingress *networkingv1.Ingress) (string, error) {
+	if ingress == nil {
+		return "", fmt.Errorf("ingress不能为空")
+	}
+
+	cleanIngress := ingress.DeepCopy()
+	cleanIngress.Status = networkingv1.IngressStatus{}
+	cleanIngress.ManagedFields = nil
+	cleanIngress.ResourceVersion = ""
+	cleanIngress.UID = ""
+	cleanIngress.CreationTimestamp = metav1.Time{}
+	cleanIngress.Generation = 0
+	cleanIngress.SelfLink = ""
+
+	yamlBytes, err := yaml.Marshal(cleanIngress)
+	if err != nil {
+		return "", fmt.Errorf("转换为YAML失败: %w", err)
+	}
+
+	return string(yamlBytes), nil
+}
+
+// YAMLToIngress 将YAML转换为Ingress
+func YAMLToIngress(yamlContent string) (*networkingv1.Ingress, error) {
+	if yamlContent == "" {
+		return nil, fmt.Errorf("YAML内容不能为空")
+	}
+
+	var ingress networkingv1.Ingress
+	err := yaml.Unmarshal([]byte(yamlContent), &ingress)
+	if err != nil {
+		return nil, fmt.Errorf("解析YAML失败: %w", err)
+	}
+
+	return &ingress, nil
+}
+
+// IsIngressReady 判断Ingress是否就绪
+func IsIngressReady(ingress networkingv1.Ingress) bool {
+	return IngressStatus(&ingress) == StatusReady
+}
+
+func GetIngressAge(ingress networkingv1.Ingress) string {
+	age := time.Since(ingress.CreationTimestamp.Time)
+	days := int(age.Hours() / 24)
+	if days > 0 {
+		return fmt.Sprintf("%dd", days)
+	}
+	hours := int(age.Hours())
+	if hours > 0 {
+		return fmt.Sprintf("%dh", hours)
+	}
+	minutes := int(age.Minutes())
+	return fmt.Sprintf("%dm", minutes)
+}
+
+// BuildIngressFromSpec 根据请求构建Ingress对象
+func BuildIngressFromSpec(req *model.CreateIngressReq) (*networkingv1.Ingress, error) {
+	if req == nil {
+		return nil, fmt.Errorf("请求不能为空")
+	}
+
+	labels := req.Labels
+	if labels == nil {
+		labels = make(map[string]string)
+	}
+
+	annotations := req.Annotations
+	if annotations == nil {
+		annotations = make(map[string]string)
+	}
+
+	// 创建Ingress对象，只设置Spec部分
+	// Status部分（包括LoadBalancer）由Kubernetes自动管理
+	ingress := &networkingv1.Ingress{
+		ObjectMeta: metav1.ObjectMeta{
+			Name:        req.Name,
+			Namespace:   req.Namespace,
+			Labels:      labels,
+			Annotations: annotations,
+		},
+		Spec: networkingv1.IngressSpec{
+			IngressClassName: req.IngressClassName,
+		},
+	}
+
+	if len(req.Rules) > 0 {
+		ingress.Spec.Rules = make([]networkingv1.IngressRule, 0, len(req.Rules))
+		for _, rule := range req.Rules {
+			ingressRule := networkingv1.IngressRule{
+				Host: rule.Host,
+			}
+
+			if len(rule.HTTP.Paths) > 0 {
+				httpRule := &networkingv1.HTTPIngressRuleValue{
+					Paths: make([]networkingv1.HTTPIngressPath, 0, len(rule.HTTP.Paths)),
+				}
+
+				for _, path := range rule.HTTP.Paths {
+					httpPath := networkingv1.HTTPIngressPath{
+						Path:    path.Path,
+						Backend: path.Backend,
+					}
+					if path.PathType != nil {
+						pathType := networkingv1.PathType(*path.PathType)
+						httpPath.PathType = &pathType
+					}
+					httpRule.Paths = append(httpRule.Paths, httpPath)
+				}
+				ingressRule.HTTP = httpRule
+			}
+
+			ingress.Spec.Rules = append(ingress.Spec.Rules, ingressRule)
+		}
+	}
+
+	if len(req.TLS) > 0 {
+		ingress.Spec.TLS = make([]networkingv1.IngressTLS, 0, len(req.TLS))
+		for _, tls := range req.TLS {
+			ingress.Spec.TLS = append(ingress.Spec.TLS, networkingv1.IngressTLS{
+				Hosts:      tls.Hosts,
+				SecretName: tls.SecretName,
+			})
+		}
+	}
+
+	return ingress, nil
+}
+
+// convertIngressStatusToEnum 转换状态字符串为枚举值
+func convertIngressStatusToEnum(status string) model.K8sIngressStatus {
+	switch status {
+	case StatusRunning, StatusReady:
+		return model.K8sIngressStatusRunning
+	case StatusPending:
+		return model.K8sIngressStatusPending
+	case StatusTerminating, StatusFailed:
+		return model.K8sIngressStatusFailed
+	default:
+		return model.K8sIngressStatusPending
+	}
+}
+
+func BuildIngressListOptions(req *model.GetIngressListReq) metav1.ListOptions {
+	options := metav1.ListOptions{}
+
+	var labelSelectors []string
+	for key, value := range req.Labels {
+		labelSelectors = append(labelSelectors, fmt.Sprintf("%s=%s", key, value))
+	}
+	if len(labelSelectors) > 0 {
+		options.LabelSelector = strings.Join(labelSelectors, ",")
+	}
+
+	return options
+}
+
+// PaginateK8sIngresses 对 K8sIngress 列表进行分页
+func PaginateK8sIngresses(ingresses []*model.K8sIngress, page, size int) ([]*model.K8sIngress, int64) {
+	total := int64(len(ingresses))
+	if total == 0 {
+		return []*model.K8sIngress{}, 0
+	}
+
+	// 如果没有设置分页参数，返回所有数据
+	if page <= 0 || size <= 0 {
+		return ingresses, total
+	}
+
+	start := int64((page - 1) * size)
+	end := start + int64(size)
+
+	if start >= total {
+		return []*model.K8sIngress{}, total
+	}
+	if end > total {
+		end = total
+	}
+
+	return ingresses[start:end], total
+}
