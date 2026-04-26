@@ -1,0 +1,23 @@
+webhook:
+  alert_receive_queue_size: 100  # Alert receive queue size
+  common_map_renew_interval_seconds: 10  # Common map refresh interval in seconds
+  http_request_global_timeout_seconds: 30  # HTTP request timeout in seconds
+  alert_manager_api: "http://localhost:9093"  # Alertmanager API
+  default_upgrade_minutes: 30
+  front_domain: "localhost:3000"  # Frontend domain
+  backend_domain: "localhost:8889/api/v1/alerts"  # Backend domain
+  im_feishu:
+    group_message_api: "https://open.feishu.cn/open-apis/bot/v2/hook/"  # Group message API
+    private_message_api: "https://open.feishu.cn/open-apis/im/v1/messages"  # Private message API
+    tenant_access_token_api: "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"  # Tenant token API
+    private_robot_app_id: "xxx"  # Private robot App ID
+    private_robot_app_secret: "xxx"  # Private robot App Secret
+    request_timeout_seconds: 10  # Request timeout in seconds
+  port: "8889"  # HTTP listen port
+  min_workers: 1  # Minimum worker count
+  max_workers: 2  # Maximum worker count
+  scale_threshold: 0.5  # Auto-scale threshold
+  scale_interval: 5  # Auto-scale interval
+database:
+  driver: "mysql"
+  dsn: "root:root@tcp(mysql:3306)/CloudOps?charset=utf8mb4&parseTime=True&loc=Local"  # Database DSN

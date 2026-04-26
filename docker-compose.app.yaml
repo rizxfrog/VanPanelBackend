@@ -1,0 +1,28 @@
+networks:
+  1panel-network:
+    external: true
+services:
+  cloudops-backend:
+    container_name: cloudops-backend
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GOPROXY: https://goproxy.cn,direct
+        HTTP_PROXY: http://host.docker.internal:10808
+        HTTPS_PROXY: http://host.docker.internal:10808
+    image: cloudops-backend:local
+    ports:
+      - "8889:8889"
+    volumes:
+      - ./logs:/app/logs
+      - ./config:/app/config:ro
+    env_file:
+      - ./.env
+    environment:
+      - ENV=test
+#      - GOPROXY=https://goproxy.cn,direct
+      - TZ=Asia/Shanghai
+    networks:
+      - 1panel-network
+    restart: no
