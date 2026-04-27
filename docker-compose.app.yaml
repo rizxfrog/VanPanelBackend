@@ -9,8 +9,8 @@ services:
       dockerfile: Dockerfile
       args:
         GOPROXY: https://goproxy.cn,direct
-        HTTP_PROXY: http://host.docker.internal:10808
-        HTTPS_PROXY: http://host.docker.internal:10808
+        #HTTP_PROXY: http://host.docker.internal:10808
+        #HTTPS_PROXY: http://host.docker.internal:10808
     image: cloudops-backend:local
     ports:
       - "8889:8889"

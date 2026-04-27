@@ -28,6 +28,7 @@ package dao
 import (
 	"context"
 	"errors"
+	"fmt"
 
 	"github.com/GoSimplicity/AI-CloudOps/internal/model"
 	userutils "github.com/GoSimplicity/AI-CloudOps/internal/system/utils"
@@ -54,6 +55,20 @@ type userDAO struct {
 	l  *zap.Logger
 }
 
+func (d *userDAO) dbWithContext(ctx context.Context) (*gorm.DB, error) {
+	if d == nil {
+		return nil, fmt.Errorf("user dao is nil")
+	}
+	if d.db == nil {
+		if d.l != nil {
+			d.l.Error("database connection is not initialized")
+		}
+		return nil, fmt.Errorf("database connection is not initialized")
+	}
+
+	return d.db.WithContext(ctx), nil
+}
+
 func NewUserDAO(db *gorm.DB, l *zap.Logger) UserDAO {
 	return &userDAO{
 		db: db,
@@ -71,7 +86,12 @@ func (d *userDAO) Create(ctx context.Context, user *model.User) error {
 	}
 
 	// 使用事务和一次性查询检查唯一性约束
-	err := d.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	db, err := d.dbWithContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = db.Transaction(func(tx *gorm.DB) error {
 		var count int64
 		query := tx.Model(&model.User{}).Where("deleted_at = ?", 0).
 			Where("username = ? OR (mobile = ? AND mobile != '') OR (fei_shu_user_id = ? AND fei_shu_user_id != '')",
@@ -118,8 +138,13 @@ func (d *userDAO) GetByUsername(ctx context.Context, username string) (*model.Us
 		return nil, err
 	}
 
+	db, err := d.dbWithContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var user model.User
-	if err := d.db.WithContext(ctx).Where("username = ?", username).First(&user).Error; err != nil {
+	if err := db.Where("username = ?", username).First(&user).Error; err != nil {
 		d.l.Error("根据用户名获取用户失败", zap.String("username", username), zap.Error(err))
 		return nil, err
 	}
@@ -139,7 +164,12 @@ func (d *userDAO) List(ctx context.Context, page, size int, search string, enabl
 		size = 10
 	}
 
-	query := d.db.WithContext(ctx).Model(&model.User{})
+	db, err := d.dbWithContext(ctx)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	query := db.Model(&model.User{})
 	if search != "" {
 		query = query.Where("username LIKE ? OR real_name LIKE ?", "%"+search+"%", "%"+search+"%")
 	}
@@ -171,8 +201,13 @@ func (d *userDAO) GetByID(ctx context.Context, id int) (*model.User, error) {
 		return nil, err
 	}
 
+	db, err := d.dbWithContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var user model.User
-	if err := d.db.WithContext(ctx).
+	if err := db.
 		Where("id = ?", id).
 		Preload("Apis").
 		First(&user).Error; err != nil {
@@ -189,8 +224,13 @@ func (d *userDAO) GetPermCodes(ctx context.Context, uid int) ([]string, error) {
 		return nil, err
 	}
 
+	db, err := d.dbWithContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var codes []string
-	if err := d.db.WithContext(ctx).
+	if err := db.
 		Table("cl_system_apis AS a").
 		Joins("JOIN cl_system_role_apis AS ra ON a.id = ra.api_id").
 		Joins("JOIN cl_system_roles AS r ON ra.role_id = r.id").
@@ -214,7 +254,12 @@ func (d *userDAO) ChangePassword(ctx context.Context, uid int, password string) 
 		return err
 	}
 
-	result := d.db.WithContext(ctx).
+	db, err := d.dbWithContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	result := db.
 		Model(&model.User{}).
 		Where("id = ?", uid).
 		Updates(map[string]interface{}{
@@ -243,7 +288,12 @@ func (d *userDAO) Update(ctx context.Context, user *model.User) error {
 	}
 
 	// 使用事务和一次性查询检查唯一性约束
-	err := d.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	db, err := d.dbWithContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	err = db.Transaction(func(tx *gorm.DB) error {
 		var count int64
 		query := tx.Model(&model.User{}).
 			Where("id != ? AND ((mobile = ? AND mobile != '') OR (fei_shu_user_id = ? AND fei_shu_user_id != ''))",
@@ -306,7 +356,12 @@ func (d *userDAO) WriteOff(ctx context.Context, uid int) error {
 		return err
 	}
 
-	result := d.db.WithContext(ctx).
+	db, err := d.dbWithContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	result := db.
 		Model(&model.User{}).
 		Where("id = ?", uid).
 		Delete(&model.User{})
@@ -329,7 +384,12 @@ func (d *userDAO) Delete(ctx context.Context, uid int) error {
 		return err
 	}
 
-	return d.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+	db, err := d.dbWithContext(ctx)
+	if err != nil {
+		return err
+	}
+
+	return db.Transaction(func(tx *gorm.DB) error {
 		// 删除用户API关联
 		if err := tx.Table("user_apis").Where("user_id = ?", uid).Delete(nil).Error; err != nil {
 			d.l.Warn("删除用户API关联失败", zap.Int("uid", uid), zap.Error(err))
@@ -367,8 +427,13 @@ func (d *userDAO) GetByIDs(ctx context.Context, ids []int) ([]*model.User, error
 		}
 	}
 
+	db, err := d.dbWithContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var users []*model.User
-	if err := d.db.WithContext(ctx).
+	if err := db.
 		Where("id in (?)", ids).
 		Find(&users).Error; err != nil {
 		d.l.Error("批量获取用户失败", zap.Ints("ids", ids), zap.Error(err))
@@ -379,16 +444,21 @@ func (d *userDAO) GetByIDs(ctx context.Context, ids []int) ([]*model.User, error
 }
 
 func (d *userDAO) GetStatistics(ctx context.Context) (*model.UserStatistics, error) {
+	db, err := d.dbWithContext(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	var statistics model.UserStatistics
 
 	// 获取管理员总数
-	if err := d.db.WithContext(ctx).Model(&model.User{}).Count(&statistics.AdminCount).Error; err != nil {
+	if err := db.Model(&model.User{}).Count(&statistics.AdminCount).Error; err != nil {
 		d.l.Error("获取管理员总数失败", zap.Error(err))
 		return nil, err
 	}
 
 	// 获取活跃用户数量
-	if err := d.db.WithContext(ctx).Model(&model.User{}).Where("enable = ?", 1).Count(&statistics.ActiveUserCount).Error; err != nil {
+	if err := db.Model(&model.User{}).Where("enable = ?", 1).Count(&statistics.ActiveUserCount).Error; err != nil {
 		d.l.Error("获取活跃用户数量失败", zap.Error(err))
 		return nil, err
 	}

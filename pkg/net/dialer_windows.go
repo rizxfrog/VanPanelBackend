@@ -1,14 +1,12 @@
+//go:build windows
+// +build windows
+
 package net
 
 import (
 	"net"
 	"syscall"
-
-	"golang.org/x/sys/unix"
 )
-
-// go: build windows
-// + build windows
 
 func CheckDialer() *net.Dialer {
 	return &net.Dialer{
@@ -18,7 +16,7 @@ func CheckDialer() *net.Dialer {
 					Onoff:  1,
 					Linger: 1,
 				}
-				_ = syscall.SetsockoptLinger(int(fd), unix.SOL_SOCKET, unix.SO_LINGER, linger)
+				_ = syscall.SetsockoptLinger(syscall.Handle(fd), syscall.SOL_SOCKET, syscall.SO_LINGER, linger)
 			})
 		},
 	}

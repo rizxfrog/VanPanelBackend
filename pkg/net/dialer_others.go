@@ -1,7 +1,7 @@
-package net
+//go:build !windows
+// +build !windows
 
-// go: build !windows
-// + build !windows
+package net
 
 import (
 	"net"

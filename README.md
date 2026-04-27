@@ -87,12 +87,11 @@ AI-CloudOps 是一个现代化的云原生运维管理平台，旨在通过人�
 
 ## 在线演示
 
-**演示地址**: <http://68.64.177.180>
 
 **登录信息**:
 
-- 用户名: `demo`
-- 密码: `Demo@2025`
+- 用户名: `admin`
+- 密码: `admin`
 
 *注意：演示环境仅供测试使用，请勿上传敏感信息*
 
@@ -100,19 +99,14 @@ AI-CloudOps 是一个现代化的云原生运维管理平台，旨在通过人�
 
 感谢以下开发者对项目的重要贡献：
 
-- **[GoSimplicity](https://github.com/GoSimplicity)** - 项目发起人和核心维护者
-- **[Penge666](https://github.com/Penge666)** - 资深开发者
-- **[shixiaocaia](https://github.com/shixiaocaia)** - 核心贡献者
-- **[daihao4371](https://github.com/daihao4371)** - 功能开发者
-
-[![Contributors](https://contrib.rocks/image?repo=GoSimplicity/AI-CloudOps)](https://github.com/GoSimplicity/AI-CloudOps/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=rizxfrog/VanPanelBackend)](https://github.com/GoSimplicity/AI-CloudOps/graphs/contributors)
 
 ## 快速开始
 
 ### 环境要求
 
-- Go 1.21+
-- Node.js 21.x
+- Go 1.26.1
+- Node.js 24
 - pnpm latest
 - Docker & Docker Compose
 - Python 3.11+ (AI 模块)
@@ -323,20 +317,6 @@ AI-CloudOps-aiops/
 - 确保测试覆盖率
 - 遵循最佳实践
 
-## 开源许可
-
-本项目基于 [MIT License](LICENSE) 开源。
-
-## 联系我们
-
-- **邮箱**: <bamboocloudops@gmail.com>
-- **微信**: GoSimplicity (添加请备注 "AI-CloudOps")
-- **GitHub**: [提交 Issue](https://github.com/GoSimplicity/AI-CloudOps/issues)
-
-### 微信交流群
-
-![微信群二维码](![image](https://github.com/user-attachments/assets/c6112b5d-0333-4f3f-8359-f9f2b1916b72))
-
 ## 致谢
 
 感谢所有为项目做出贡献的开发者和用户，以及以下开源项目：
@@ -351,4 +331,4 @@ AI-CloudOps-aiops/
 
 **如果觉得项目对您有帮助，请给我们一个 Star ⭐**
 
-[![Star History Chart](https://api.star-history.com/svg?repos=GoSimplicity/AI-CloudOps&type=Date)](https://star-history.com/#GoSimplicity/AI-CloudOps&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=rizxfrog/VanPanelBackend&type=Date)](https://star-history.com/#rizxfrog/VanPanelBackend&Date)

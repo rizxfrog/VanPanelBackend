@@ -302,19 +302,245 @@ func (s *systemService) collectWindowsSystemInfo(ctx context.Context, systemInfo
 	default:
 	}
 
-	// Windows系统信息采集实现
-	// 这里可以使用WMI或者其他Windows API来获取系统信息
-	s.l.Info("Windows系统信息采集功能待实现")
+	// CPU使用率
+	if cpuUsage, err := s.getCPUUsage(ctx); err == nil {
+		systemInfo.CPUUsage = cpuUsage
+	} else {
+		s.l.Warn("获取Windows CPU使用率失败", zap.Error(err))
+	}
+
+	// CPU型号
+	if cpuModel, err := s.getCPUModel(ctx); err == nil {
+		systemInfo.CPUModel = cpuModel
+	} else {
+		s.l.Warn("获取Windows CPU型号失败", zap.Error(err))
+	}
+
+	// 内存信息
+	if memInfo, err := s.getMemoryInfo(ctx); err == nil {
+		systemInfo.MemoryTotal = memInfo["total"]
+		systemInfo.MemoryUsed = memInfo["used"]
+		systemInfo.MemoryUsage = utils.GetMemoryUsagePercentage(systemInfo)
+	} else {
+		s.l.Warn("获取Windows内存信息失败", zap.Error(err))
+	}
+
+	// 磁盘信息
+	if diskInfo, err := s.getDiskInfo(ctx); err == nil {
+		systemInfo.DiskTotal = diskInfo["total"]
+		systemInfo.DiskUsed = diskInfo["used"]
+		systemInfo.DiskUsage = utils.GetDiskUsagePercentage(systemInfo)
+	} else {
+		s.l.Warn("获取Windows磁盘信息失败", zap.Error(err))
+	}
+
+	// 负载（Windows下使用CPU使用率近似）
+	if loadAvg, err := s.getLoadAverage(ctx); err == nil {
+		systemInfo.LoadAvg1 = loadAvg[0]
+		systemInfo.LoadAvg5 = loadAvg[1]
+		systemInfo.LoadAvg15 = loadAvg[2]
+	}
+
+	// 运行时间
+	if uptime, err := s.getUptime(ctx); err == nil {
+		systemInfo.Uptime = uptime
+	}
+
+	// 进程数
+	if processCount, err := s.getProcessCount(ctx); err == nil {
+		systemInfo.ProcessCount = processCount
+	} else {
+		s.l.Warn("获取Windows进程数失败", zap.Error(err))
+	}
+
+	// 操作系统版本
+	if osVersion, err := s.getOSVersion(ctx); err == nil {
+		systemInfo.OSVersion = osVersion
+	}
+
+	// 网络流量
+	if networkInfo, err := s.getNetworkTraffic(ctx); err == nil {
+		systemInfo.NetworkIn = networkInfo["in"]
+		systemInfo.NetworkOut = networkInfo["out"]
+	}
+
 	return nil
 }
 
+func runPowerShellCommand(ctx context.Context, script string) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "powershell", "-NoProfile", "-Command", script)
+	if output, err := cmd.Output(); err == nil {
+		return output, nil
+	}
+
+	cmd = exec.CommandContext(ctx, "pwsh", "-NoProfile", "-Command", script)
+	return cmd.Output()
+}
+
+func parseFirstTextLine(output []byte) (string, bool) {
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.Contains(line, "CLIXML") || strings.HasPrefix(line, "<Objs") {
+			continue
+		}
+		line = strings.Trim(line, "\"'")
+		if line != "" {
+			return line, true
+		}
+	}
+	return "", false
+}
+
+func parseWindowsMemoryInfoFromJSON(jsonText string) (map[string]uint64, error) {
+	type memoryInfo struct {
+		FreePhysicalMemory     uint64 `json:"FreePhysicalMemory"`
+		TotalVisibleMemorySize uint64 `json:"TotalVisibleMemorySize"`
+	}
+
+	var item memoryInfo
+	if err := json.Unmarshal([]byte(strings.TrimSpace(jsonText)), &item); err != nil {
+		return nil, err
+	}
+	if item.TotalVisibleMemorySize == 0 {
+		return nil, fmt.Errorf("invalid memory info")
+	}
+
+	return map[string]uint64{
+		"total": item.TotalVisibleMemorySize / 1024,
+		"used":  (item.TotalVisibleMemorySize - item.FreePhysicalMemory) / 1024,
+	}, nil
+}
+
+func parseWindowsDiskInfoFromJSON(jsonText string) (map[string]uint64, error) {
+	type diskInfo struct {
+		Size      uint64 `json:"Size"`
+		FreeSpace uint64 `json:"FreeSpace"`
+	}
+
+	trimmed := strings.TrimSpace(jsonText)
+	if trimmed == "" {
+		return nil, fmt.Errorf("empty disk info")
+	}
+
+	var list []diskInfo
+	if err := json.Unmarshal([]byte(trimmed), &list); err != nil {
+		var single diskInfo
+		if err2 := json.Unmarshal([]byte(trimmed), &single); err2 != nil {
+			return nil, err
+		}
+		list = []diskInfo{single}
+	}
+
+	var totalSize, totalFree uint64
+	for _, item := range list {
+		totalSize += item.Size
+		totalFree += item.FreeSpace
+	}
+	if totalSize == 0 {
+		return nil, fmt.Errorf("invalid disk info")
+	}
+
+	return map[string]uint64{
+		"total": totalSize / 1024 / 1024 / 1024,
+		"used":  (totalSize - totalFree) / 1024 / 1024 / 1024,
+	}, nil
+}
+
+func parseWindowsLastBootUptime(raw string, now time.Time) (uint64, error) {
+	value := strings.TrimSpace(raw)
+	if len(value) < 14 {
+		return 0, fmt.Errorf("invalid last boot time")
+	}
+	boot, err := time.ParseInLocation("20060102150405", value[:14], time.Local)
+	if err != nil {
+		return 0, err
+	}
+	if now.Before(boot) {
+		return 0, nil
+	}
+	return uint64(now.Unix() - boot.Unix()), nil
+}
+
+func parseUintRelaxed(raw string) (uint64, error) {
+	digitsOnly := strings.Map(func(r rune) rune {
+		if r >= '0' && r <= '9' {
+			return r
+		}
+		return -1
+	}, raw)
+	if digitsOnly == "" {
+		return 0, fmt.Errorf("invalid uint value: %q", raw)
+	}
+	return strconv.ParseUint(digitsOnly, 10, 64)
+}
+
+func parseWindowsNetworkInfoFromJSON(jsonText string) (map[string]uint64, error) {
+	type adapterStats struct {
+		ReceivedBytes uint64 `json:"ReceivedBytes"`
+		SentBytes     uint64 `json:"SentBytes"`
+	}
+
+	trimmed := strings.TrimSpace(jsonText)
+	if trimmed == "" {
+		return nil, fmt.Errorf("empty network info")
+	}
+
+	var list []adapterStats
+	if err := json.Unmarshal([]byte(trimmed), &list); err != nil {
+		var single adapterStats
+		if err2 := json.Unmarshal([]byte(trimmed), &single); err2 != nil {
+			return nil, err
+		}
+		list = []adapterStats{single}
+	}
+
+	var in, out uint64
+	for _, item := range list {
+		in += item.ReceivedBytes
+		out += item.SentBytes
+	}
+
+	if in == 0 && out == 0 {
+		return nil, fmt.Errorf("invalid network info")
+	}
+
+	return map[string]uint64{"in": in, "out": out}, nil
+}
+
+func parseWindowsNetworkTrafficFromNetstat(output string) (map[string]uint64, error) {
+	lines := strings.Split(output, "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if !(strings.HasPrefix(line, "Bytes") || strings.HasPrefix(line, "字节")) {
+			continue
+		}
+
+		fields := strings.Fields(line)
+		if len(fields) < 3 {
+			continue
+		}
+
+		in, errIn := parseUintRelaxed(fields[len(fields)-2])
+		out, errOut := parseUintRelaxed(fields[len(fields)-1])
+		if errIn == nil && errOut == nil {
+			return map[string]uint64{"in": in, "out": out}, nil
+		}
+	}
+
+	return nil, fmt.Errorf("unable to parse netstat output")
+}
+
 // getCPUUsage 获取CPU使用率
+
 func (s *systemService) getCPUUsage(ctx context.Context) (float64, error) {
 	switch runtime.GOOS {
 	case "linux":
 		return s.getLinuxCPUUsage(ctx)
 	case "darwin":
 		return s.getMacOSCPUUsage(ctx)
+	case "windows":
+		return s.getWindowsCPUUsage(ctx)
 	default:
 		return 0, fmt.Errorf("不支持的操作系统")
 	}
@@ -444,6 +670,26 @@ func (s *systemService) getCPUModel(ctx context.Context) (string, error) {
 			return "", err
 		}
 		return strings.TrimSpace(string(output)), nil
+	case "windows":
+		output, err := runPowerShellCommand(ctx, "Get-CimInstance Win32_Processor | Select-Object -First 1 -ExpandProperty Name")
+		if err == nil {
+			if line, ok := parseFirstTextLine(output); ok {
+				return line, nil
+			}
+		}
+
+		cmd := exec.CommandContext(ctx, "wmic", "cpu", "get", "name")
+		output, err = cmd.Output()
+		if err != nil {
+			return "", err
+		}
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line != "" && line != "Name" {
+				return line, nil
+			}
+		}
 	}
 
 	return "Unknown", nil
@@ -456,6 +702,8 @@ func (s *systemService) getMemoryInfo(ctx context.Context) (map[string]uint64, e
 		return s.getLinuxMemoryInfo(ctx)
 	case "darwin":
 		return s.getMacOSMemoryInfo(ctx)
+	case "windows":
+		return s.getWindowsMemoryInfo(ctx)
 	default:
 		return nil, fmt.Errorf("不支持的操作系统")
 	}
@@ -553,6 +801,8 @@ func (s *systemService) getDiskInfo(ctx context.Context) (map[string]uint64, err
 	switch runtime.GOOS {
 	case "darwin":
 		return s.getMacOSDiskInfo(ctx)
+	case "windows":
+		return s.getWindowsDiskInfo(ctx)
 	default:
 		return s.getLinuxDiskInfo(ctx)
 	}
@@ -713,6 +963,8 @@ func (s *systemService) getLoadAverage(ctx context.Context) ([]float64, error) {
 		return s.getLinuxLoadAverage(ctx)
 	case "darwin":
 		return s.getMacOSLoadAverage(ctx)
+	case "windows":
+		return s.getWindowsLoadAverage(ctx)
 	default:
 		return []float64{0, 0, 0}, nil
 	}
@@ -818,6 +1070,8 @@ func (s *systemService) getUptime(ctx context.Context) (uint64, error) {
 		return s.getLinuxUptime(ctx)
 	case "darwin":
 		return s.getMacOSUptime(ctx)
+	case "windows":
+		return s.getWindowsUptime(ctx)
 	default:
 		return 0, fmt.Errorf("不支持的操作系统")
 	}
@@ -928,20 +1182,51 @@ func (s *systemService) getMacOSUptimeFromUptime(ctx context.Context) (uint64, e
 
 // getProcessCount 获取进程数
 func (s *systemService) getProcessCount(ctx context.Context) (int, error) {
-	cmd := exec.CommandContext(ctx, "ps", "aux")
-	output, err := cmd.Output()
+	switch runtime.GOOS {
+	case "windows":
+		return s.getWindowsProcessCount(ctx)
+	default:
+		cmd := exec.CommandContext(ctx, "ps", "aux")
+		output, err := cmd.Output()
+		if err != nil {
+			return 0, err
+		}
+
+		lines := strings.Split(string(output), "\n")
+		count := len(lines) - 2
+		if count < 0 {
+			count = 0
+		}
+		return count, nil
+	}
+}
+
+func parseWindowsProcessCount(output []byte) (int, error) {
+	if line, ok := parseFirstTextLine(output); ok {
+		return strconv.Atoi(strings.TrimSpace(line))
+	}
+	return 0, fmt.Errorf("invalid process count output")
+}
+
+func (s *systemService) getWindowsProcessCount(ctx context.Context) (int, error) {
+	output, err := runPowerShellCommand(ctx, "(Get-Process | Measure-Object).Count")
+	if err == nil {
+		if count, parseErr := parseWindowsProcessCount(output); parseErr == nil {
+			return count, nil
+		}
+	}
+
+	cmd := exec.CommandContext(ctx, "tasklist")
+	output, err = cmd.Output()
 	if err != nil {
 		return 0, err
 	}
 
-	lines := strings.Split(string(output), "\n")
-	// 减去标题行和最后的空行
-	count := len(lines) - 2
-	if count < 0 {
-		count = 0
+	lines := strings.Split(strings.TrimSpace(string(output)), "\n")
+	if len(lines) <= 3 {
+		return 0, fmt.Errorf("invalid tasklist output")
 	}
-
-	return count, nil
+	return len(lines) - 3, nil
 }
 
 // getOSVersion 获取操作系统版本
@@ -974,6 +1259,12 @@ func (s *systemService) getOSVersion(ctx context.Context) (string, error) {
 		if err == nil {
 			return "macOS " + strings.TrimSpace(string(output)), nil
 		}
+	case "windows":
+		cmd := exec.CommandContext(ctx, "cmd", "/c", "ver")
+		output, err := cmd.Output()
+		if err == nil {
+			return strings.TrimSpace(string(output)), nil
+		}
 	}
 
 	return "Unknown", nil
@@ -986,6 +1277,8 @@ func (s *systemService) getNetworkTraffic(ctx context.Context) (map[string]uint6
 		return s.getLinuxNetworkTraffic(ctx)
 	case "darwin":
 		return s.getMacOSNetworkTraffic(ctx)
+	case "windows":
+		return s.getWindowsNetworkTraffic(ctx)
 	default:
 		return map[string]uint64{"in": 0, "out": 0}, nil
 	}
@@ -1083,9 +1376,206 @@ func (s *systemService) getMacOSNetworkTraffic(ctx context.Context) (map[string]
 	}
 
 	result := map[string]uint64{
-		"in":  totalRxBytes / 1024 / 1024, // 转换为MB
-		"out": totalTxBytes / 1024 / 1024, // 转换为MB
+		"in":  totalRxBytes,
+		"out": totalTxBytes,
 	}
 
 	return result, nil
+}
+
+// getWindowsCPUUsage 获取Windows CPU使用率
+
+func (s *systemService) getWindowsCPUUsage(ctx context.Context) (float64, error) {
+	parseSingleValue := func(output []byte) (float64, bool) {
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.Contains(line, "CLIXML") {
+				continue
+			}
+			line = strings.Trim(line, "\"'")
+			if v, err := strconv.ParseFloat(line, 64); err == nil && v >= 0 {
+				return v, true
+			}
+		}
+		return 0, false
+	}
+
+	// 优先使用PowerShell CIM（兼容新Windows，wmic已在新版本移除）
+	cmd := exec.CommandContext(ctx, "powershell", "-NoProfile", "-Command", "Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average | Select-Object -ExpandProperty Average")
+	if output, err := cmd.Output(); err == nil {
+		if usage, ok := parseSingleValue(output); ok {
+			return usage, nil
+		}
+	}
+
+	// 回退到 typeperf 性能计数器
+	cmd = exec.CommandContext(ctx, "typeperf", `\\Processor Information(_Total)\\% Processor Time`, "-sc", "1")
+	if output, err := cmd.Output(); err == nil {
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if !strings.Contains(line, `","`) {
+				continue
+			}
+			parts := strings.Split(line, `","`)
+			if len(parts) < 2 {
+				continue
+			}
+			valueStr := strings.Trim(parts[len(parts)-1], "\" ")
+			if usage, err := strconv.ParseFloat(valueStr, 64); err == nil && usage >= 0 {
+				return usage, nil
+			}
+		}
+	}
+
+	// 最后尝试旧版WMIC（兼容旧系统）
+	cmd = exec.CommandContext(ctx, "wmic", "cpu", "get", "loadpercentage")
+	if output, err := cmd.Output(); err == nil {
+		lines := strings.Split(string(output), "\n")
+		for _, line := range lines {
+			line = strings.TrimSpace(line)
+			if line == "" || strings.EqualFold(line, "LoadPercentage") {
+				continue
+			}
+			if usage, err := strconv.ParseFloat(line, 64); err == nil && usage >= 0 {
+				return usage, nil
+			}
+		}
+	}
+
+	return 0, fmt.Errorf("无法获取Windows CPU使用率")
+}
+
+// getWindowsMemoryInfo 获取Windows内存信息
+func (s *systemService) getWindowsMemoryInfo(ctx context.Context) (map[string]uint64, error) {
+	output, err := runPowerShellCommand(ctx, "Get-CimInstance Win32_OperatingSystem | Select-Object -First 1 FreePhysicalMemory,TotalVisibleMemorySize | ConvertTo-Json -Compress")
+	if err == nil {
+		if parsed, parseErr := parseWindowsMemoryInfoFromJSON(string(output)); parseErr == nil {
+			return parsed, nil
+		}
+	}
+
+	cmd := exec.CommandContext(ctx, "wmic", "OS", "get", "FreePhysicalMemory,TotalVisibleMemorySize", "/Value")
+	output, err = cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	result := make(map[string]uint64)
+	var free, total uint64
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "FreePhysicalMemory=") {
+			valStr := strings.TrimPrefix(line, "FreePhysicalMemory=")
+			free, _ = strconv.ParseUint(valStr, 10, 64)
+		} else if strings.HasPrefix(line, "TotalVisibleMemorySize=") {
+			valStr := strings.TrimPrefix(line, "TotalVisibleMemorySize=")
+			total, _ = strconv.ParseUint(valStr, 10, 64)
+		}
+	}
+
+	if total > 0 {
+		result["total"] = total / 1024
+		result["used"] = (total - free) / 1024
+	}
+	return result, nil
+}
+
+// getWindowsDiskInfo 获取Windows磁盘信息
+func (s *systemService) getWindowsDiskInfo(ctx context.Context) (map[string]uint64, error) {
+	output, err := runPowerShellCommand(ctx, "Get-CimInstance Win32_LogicalDisk -Filter \"DriveType=3\" | Select-Object Size,FreeSpace | ConvertTo-Json -Compress")
+	if err == nil {
+		if parsed, parseErr := parseWindowsDiskInfoFromJSON(string(output)); parseErr == nil {
+			return parsed, nil
+		}
+	}
+
+	cmd := exec.CommandContext(ctx, "wmic", "logicaldisk", "where", "drivetype=3", "get", "size,freespace", "/Value")
+	output, err = cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	var totalSize, totalFree uint64
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "FreeSpace=") {
+			valStr := strings.TrimPrefix(line, "FreeSpace=")
+			val, _ := strconv.ParseUint(valStr, 10, 64)
+			totalFree += val
+		} else if strings.HasPrefix(line, "Size=") {
+			valStr := strings.TrimPrefix(line, "Size=")
+			val, _ := strconv.ParseUint(valStr, 10, 64)
+			totalSize += val
+		}
+	}
+
+	result := make(map[string]uint64)
+	if totalSize > 0 {
+		result["total"] = totalSize / 1024 / 1024 / 1024
+		result["used"] = (totalSize - totalFree) / 1024 / 1024 / 1024
+	}
+	return result, nil
+}
+
+// getWindowsLoadAverage 获取Windows系统负载
+func (s *systemService) getWindowsLoadAverage(ctx context.Context) ([]float64, error) {
+	// Windows不直接提供load average, 用CPU使用率替代或者返回0
+	usage, _ := s.getWindowsCPUUsage(ctx)
+	// 转换成类似负载的形式，非精确
+	return []float64{usage / 100.0, usage / 100.0, usage / 100.0}, nil
+}
+
+// getWindowsUptime 获取Windows系统运行时间
+func (s *systemService) getWindowsUptime(ctx context.Context) (uint64, error) {
+	output, err := runPowerShellCommand(ctx, "Get-CimInstance Win32_OperatingSystem | Select-Object -First 1 -ExpandProperty LastBootUpTime")
+	if err == nil {
+		if line, ok := parseFirstTextLine(output); ok {
+			if uptime, parseErr := parseWindowsLastBootUptime(line, time.Now()); parseErr == nil {
+				return uptime, nil
+			}
+		}
+	}
+
+	cmd := exec.CommandContext(ctx, "wmic", "os", "get", "lastbootuptime", "/Value")
+	output, err = cmd.Output()
+	if err != nil {
+		return 0, err
+	}
+	for _, line := range strings.Split(string(output), "\n") {
+		line = strings.TrimSpace(line)
+		if strings.HasPrefix(line, "LastBootUpTime=") {
+			val := strings.TrimPrefix(line, "LastBootUpTime=")
+			if uptime, parseErr := parseWindowsLastBootUptime(val, time.Now()); parseErr == nil {
+				return uptime, nil
+			}
+		}
+	}
+	return 0, nil
+}
+
+// getWindowsNetworkTraffic 获取Windows网络流量
+func (s *systemService) getWindowsNetworkTraffic(ctx context.Context) (map[string]uint64, error) {
+	output, err := runPowerShellCommand(ctx, "Get-NetAdapterStatistics | Select-Object ReceivedBytes,SentBytes | ConvertTo-Json -Compress")
+	if err == nil {
+		if parsed, parseErr := parseWindowsNetworkInfoFromJSON(string(output)); parseErr == nil {
+			return parsed, nil
+		}
+	}
+
+	cmd := exec.CommandContext(ctx, "netstat", "-e")
+	output, err = cmd.Output()
+	if err != nil {
+		return nil, err
+	}
+
+	parsed, parseErr := parseWindowsNetworkTrafficFromNetstat(string(output))
+	if parseErr != nil {
+		return nil, parseErr
+	}
+	return parsed, nil
 }
