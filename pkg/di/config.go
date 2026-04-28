@@ -46,6 +46,7 @@ type Config struct {
 	Mock         MockConfig         `mapstructure:"mock"`
 	Notification NotificationConfig `mapstructure:"notification"`
 	Webhook      WebhookConfig      `mapstructure:"webhook"`
+	FileManager  FileManagerConfig  `mapstructure:"file_manager"`
 }
 
 type ServerConfig struct {
@@ -100,6 +101,20 @@ type PrometheusConfig struct {
 
 type MockConfig struct {
 	Enabled bool `mapstructure:"enabled" .env:"MOCK_ENABLED" default:"true"`
+}
+
+type FileManagerRootConfig struct {
+	Name string `mapstructure:"name" .env:"FILE_MANAGER_ROOT_NAME" default:"VanPanel"`
+	Path string `mapstructure:"path" .env:"FILE_MANAGER_ROOT_PATH" default:"."`
+}
+
+type FileManagerConfig struct {
+	Enabled             bool                    `mapstructure:"enabled" .env:"FILE_MANAGER_ENABLED" default:"true"`
+	AllowFullDisk       bool                    `mapstructure:"allow_full_disk" .env:"FILE_MANAGER_ALLOW_FULL_DISK" default:"false"`
+	Roots               []FileManagerRootConfig `mapstructure:"roots"`
+	MaxEditSizeMB       int                     `mapstructure:"max_edit_size_mb" .env:"FILE_MANAGER_MAX_EDIT_SIZE_MB" default:"5"`
+	MaxPreviewSizeMB    int                     `mapstructure:"max_preview_size_mb" .env:"FILE_MANAGER_MAX_PREVIEW_SIZE_MB" default:"10"`
+	AllowedArchiveTypes []string                `mapstructure:"allowed_archive_types"`
 }
 
 type NotificationConfig struct {
