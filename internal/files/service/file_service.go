@@ -38,10 +38,6 @@ func NewFileService(l *zap.Logger, config ManagerConfig) FileService {
 	}
 }
 
-func ProvideFileManagerConfig() ManagerConfig {
-	return NewManagerConfigFromGlobal()
-}
-
 func (s *fileService) ensureLocal(target filemodel.TargetRequest) error {
 	if target.TargetType == "" || target.TargetType == filemodel.TargetTypeLocal {
 		return nil

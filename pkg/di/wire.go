@@ -34,6 +34,8 @@ import (
 	cronHandler "github.com/GoSimplicity/AI-CloudOps/internal/cron/handler"
 	cronScheduler "github.com/GoSimplicity/AI-CloudOps/internal/cron/scheduler"
 	cronService "github.com/GoSimplicity/AI-CloudOps/internal/cron/service"
+	filesHandler "github.com/GoSimplicity/AI-CloudOps/internal/files/api"
+	filesService "github.com/GoSimplicity/AI-CloudOps/internal/files/service"
 	k8sHandler "github.com/GoSimplicity/AI-CloudOps/internal/k8s/api"
 	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/client"
 	k8sDao "github.com/GoSimplicity/AI-CloudOps/internal/k8s/dao"
@@ -133,6 +135,7 @@ var HandlerSet = wire.NewSet(
 	treeHandler.NewCloudAccountRegionHandler,
 	terminal.NewTerminalHandler,
 	cronApi.NewCronJobHandler,
+	filesHandler.NewFileHandler,
 )
 
 var ServiceSet = wire.NewSet(
@@ -189,6 +192,8 @@ var ServiceSet = wire.NewSet(
 	treeService.NewCloudAccountService,
 	treeService.NewCloudAccountRegionService,
 	cronService.NewCronService,
+	filesService.NewFileService,
+	ProvideFileManagerConfig,
 )
 
 var DaoSet = wire.NewSet(
