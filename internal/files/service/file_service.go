@@ -3,8 +3,10 @@ package service
 import (
 	"context"
 	"os"
+	"os/user"
 	"path/filepath"
 	"runtime"
+	"strconv"
 
 	localfs "github.com/GoSimplicity/AI-CloudOps/internal/files/fs"
 	filemodel "github.com/GoSimplicity/AI-CloudOps/internal/files/model"
@@ -20,6 +22,11 @@ type FileService interface {
 	Rename(ctx context.Context, req filemodel.RenameRequest) error
 	Delete(ctx context.Context, req filemodel.DeleteRequest) error
 	Move(ctx context.Context, req filemodel.MoveRequest) error
+	Chmod(ctx context.Context, req filemodel.ChmodRequest) error
+	Chown(ctx context.Context, req filemodel.ChownRequest) error
+	Compress(ctx context.Context, req filemodel.CompressRequest) error
+	Decompress(ctx context.Context, req filemodel.DecompressRequest) error
+	ResolveUploadPath(ctx context.Context, target filemodel.TargetRequest, dir string, filename string) (string, error)
 }
 
 type fileService struct {
@@ -188,4 +195,120 @@ func (s *fileService) Move(ctx context.Context, req filemodel.MoveRequest) error
 		}
 	}
 	return nil
+}
+
+func (s *fileService) Chmod(ctx context.Context, req filemodel.ChmodRequest) error {
+	if runtime.GOOS == "windows" {
+		return ErrFileOperationUnsupported
+	}
+	if err := s.ensureLocal(req.TargetRequest); err != nil {
+		return err
+	}
+	pathValue, err := s.policy.Resolve(req.Path)
+	if err != nil {
+		return err
+	}
+	return s.fs.Chmod(pathValue, req.Mode)
+}
+
+func (s *fileService) Chown(ctx context.Context, req filemodel.ChownRequest) error {
+	if runtime.GOOS == "windows" {
+		return ErrFileOperationUnsupported
+	}
+	if err := s.ensureLocal(req.TargetRequest); err != nil {
+		return err
+	}
+	pathValue, err := s.policy.Resolve(req.Path)
+	if err != nil {
+		return err
+	}
+	u, err := user.Lookup(req.User)
+	if err != nil {
+		return err
+	}
+	g, err := user.LookupGroup(req.Group)
+	if err != nil {
+		return err
+	}
+	uid, err := strconv.Atoi(u.Uid)
+	if err != nil {
+		return err
+	}
+	gid, err := strconv.Atoi(g.Gid)
+	if err != nil {
+		return err
+	}
+	return s.fs.Chown(pathValue, uid, gid)
+}
+
+func (s *fileService) Compress(ctx context.Context, req filemodel.CompressRequest) error {
+	if err := s.ensureLocal(req.TargetRequest); err != nil {
+		return err
+	}
+	if _, ok := s.config.AllowedArchiveTypes[req.Type]; !ok {
+		return ErrFileArchiveUnsupported
+	}
+	targetDir, err := s.policy.Resolve(req.TargetPath)
+	if err != nil {
+		return err
+	}
+	dst := filepath.Join(targetDir, req.Name)
+	if _, err := os.Stat(dst); err == nil && !req.Overwrite {
+		return ErrFileAlreadyExists
+	}
+	paths := make([]string, 0, len(req.Paths))
+	for _, item := range req.Paths {
+		resolved, err := s.policy.Resolve(item)
+		if err != nil {
+			return err
+		}
+		paths = append(paths, resolved)
+	}
+	switch req.Type {
+	case filemodel.ArchiveZip:
+		return localfs.CompressZip(paths, dst)
+	case filemodel.ArchiveTarGz:
+		return localfs.CompressTarGz(paths, dst)
+	default:
+		return ErrFileArchiveUnsupported
+	}
+}
+
+func (s *fileService) Decompress(ctx context.Context, req filemodel.DecompressRequest) error {
+	if err := s.ensureLocal(req.TargetRequest); err != nil {
+		return err
+	}
+	if _, ok := s.config.AllowedArchiveTypes[req.Type]; !ok {
+		return ErrFileArchiveUnsupported
+	}
+	src, err := s.policy.Resolve(req.Path)
+	if err != nil {
+		return err
+	}
+	dst, err := s.policy.Resolve(req.TargetPath)
+	if err != nil {
+		return err
+	}
+	switch req.Type {
+	case filemodel.ArchiveZip:
+		return localfs.ExtractZip(src, dst, req.Overwrite)
+	case filemodel.ArchiveTarGz:
+		return localfs.ExtractTarGz(src, dst, req.Overwrite)
+	default:
+		return ErrFileArchiveUnsupported
+	}
+}
+
+func (s *fileService) ResolveUploadPath(ctx context.Context, target filemodel.TargetRequest, dir string, filename string) (string, error) {
+	if err := s.ensureLocal(target); err != nil {
+		return "", err
+	}
+	if filename == "" || filepath.Base(filename) != filename {
+		return "", ErrFileInvalidName
+	}
+	targetDir, err := s.policy.Resolve(dir)
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(targetDir, filename), nil
 }

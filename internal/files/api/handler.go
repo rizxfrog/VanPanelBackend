@@ -28,6 +28,11 @@ func (h *FileHandler) RegisterRouters(server *gin.Engine) {
 	group.POST("/rename", h.Rename)
 	group.POST("/delete", h.Delete)
 	group.POST("/move", h.Move)
+	group.POST("/chmod", h.Chmod)
+	group.POST("/chown", h.Chown)
+	group.POST("/compress", h.Compress)
+	group.POST("/decompress", h.Decompress)
+	group.POST("/upload", h.Upload)
 	group.GET("/download", h.Download)
 }
 
@@ -84,6 +89,57 @@ func (h *FileHandler) Move(ctx *gin.Context) {
 	base.HandleRequest(ctx, &req, func() (interface{}, error) {
 		return nil, h.svc.Move(ctx, req)
 	})
+}
+
+func (h *FileHandler) Chmod(ctx *gin.Context) {
+	var req filemodel.ChmodRequest
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return nil, h.svc.Chmod(ctx, req)
+	})
+}
+
+func (h *FileHandler) Chown(ctx *gin.Context) {
+	var req filemodel.ChownRequest
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return nil, h.svc.Chown(ctx, req)
+	})
+}
+
+func (h *FileHandler) Compress(ctx *gin.Context) {
+	var req filemodel.CompressRequest
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return nil, h.svc.Compress(ctx, req)
+	})
+}
+
+func (h *FileHandler) Decompress(ctx *gin.Context) {
+	var req filemodel.DecompressRequest
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return nil, h.svc.Decompress(ctx, req)
+	})
+}
+
+func (h *FileHandler) Upload(ctx *gin.Context) {
+	targetPath := ctx.PostForm("path")
+	if targetPath == "" {
+		base.BadRequestError(ctx, "path is required")
+		return
+	}
+	fileHeader, err := ctx.FormFile("file")
+	if err != nil {
+		base.BadRequestError(ctx, err.Error())
+		return
+	}
+	dst, err := h.svc.ResolveUploadPath(ctx, filemodel.TargetRequest{TargetType: ctx.PostForm("target_type")}, targetPath, fileHeader.Filename)
+	if err != nil {
+		base.ErrorWithMessage(ctx, err.Error())
+		return
+	}
+	if err := ctx.SaveUploadedFile(fileHeader, dst); err != nil {
+		base.ErrorWithMessage(ctx, err.Error())
+		return
+	}
+	base.Success(ctx)
 }
 
 func (h *FileHandler) Download(ctx *gin.Context) {
