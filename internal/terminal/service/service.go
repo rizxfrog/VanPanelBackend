@@ -86,7 +86,8 @@ func (s *terminalService) ListTargets(ctx context.Context) ([]terminalmodel.Targ
 	}
 	sshTargets, err := s.sshAdapter.ListTargets(ctx)
 	if err != nil {
-		return targets, err
+		s.logger.Warn("list ssh terminal targets failed", zap.Error(err))
+		return targets, nil
 	}
 	return append(targets, sshTargets...), nil
 }

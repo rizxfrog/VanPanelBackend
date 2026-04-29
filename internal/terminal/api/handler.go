@@ -6,6 +6,7 @@ import (
 
 	terminalmodel "github.com/GoSimplicity/AI-CloudOps/internal/terminal/model"
 	terminalservice "github.com/GoSimplicity/AI-CloudOps/internal/terminal/service"
+	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
 	"github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -34,36 +35,36 @@ func (h *TerminalHandler) RegisterRouters(server *gin.Engine) {
 
 func (h *TerminalHandler) ListTargets(ctx *gin.Context) {
 	if h.service == nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "terminal service unavailable"})
+		base.ErrorWithMessage(ctx, "terminal service unavailable")
 		return
 	}
 	targets, err := h.service.ListTargets(ctx)
 	if err != nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"message": err.Error()})
+		base.ErrorWithMessage(ctx, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, targets)
+	base.SuccessWithData(ctx, targets)
 }
 
 func (h *TerminalHandler) ListSessions(ctx *gin.Context) {
 	if h.service == nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "terminal service unavailable"})
+		base.ErrorWithMessage(ctx, "terminal service unavailable")
 		return
 	}
 	user := ctx.MustGet("user").(jwt.UserClaims)
-	ctx.JSON(http.StatusOK, h.service.ListSessions(user.Uid))
+	base.SuccessWithData(ctx, h.service.ListSessions(user.Uid))
 }
 
 func (h *TerminalHandler) CloseSession(ctx *gin.Context) {
 	if h.service == nil {
-		ctx.JSON(http.StatusInternalServerError, gin.H{"message": "terminal service unavailable"})
+		base.ErrorWithMessage(ctx, "terminal service unavailable")
 		return
 	}
 	if err := h.service.Close(ctx.Param("id"), "api_closed"); err != nil {
-		ctx.JSON(http.StatusNotFound, gin.H{"message": err.Error()})
+		base.ErrorWithMessage(ctx, err.Error())
 		return
 	}
-	ctx.JSON(http.StatusOK, gin.H{"message": "closed"})
+	base.SuccessWithMessage(ctx, "closed")
 }
 
 var upgrader = websocket.Upgrader{CheckOrigin: func(r *http.Request) bool { return true }}

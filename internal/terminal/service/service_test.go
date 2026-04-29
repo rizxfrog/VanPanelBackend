@@ -25,6 +25,16 @@ type fakeStream struct {
 	closed bool
 }
 
+type failingSSHAdapter struct{}
+
+func (failingSSHAdapter) ListTargets(context.Context) ([]terminalmodel.Target, error) {
+	return nil, errors.New("database unavailable")
+}
+
+func (failingSSHAdapter) Start(context.Context, string, int, int) (Stream, terminalmodel.Target, error) {
+	return nil, terminalmodel.Target{}, errors.New("not implemented")
+}
+
 func (f *fakeStream) Read(_ []byte) (int, error)  { return 0, io.EOF }
 func (f *fakeStream) Write(p []byte) (int, error) { return len(p), nil }
 func (f *fakeStream) Close() error {
@@ -42,6 +52,17 @@ func TestListTargetsIncludesLocal(t *testing.T) {
 	}
 	if len(targets) == 0 || targets[0].Type != terminalmodel.TargetTypeLocal {
 		t.Fatalf("targets = %+v", targets)
+	}
+}
+
+func TestListTargetsKeepsLocalWhenSSHListFails(t *testing.T) {
+	svc := NewTerminalService(zap.NewNop(), nil, failingSSHAdapter{}, Config{IdleTimeout: time.Minute})
+	targets, err := svc.ListTargets(context.Background())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(targets) != 1 || targets[0].Type != terminalmodel.TargetTypeLocal {
+		t.Fatalf("targets = %+v, want local fallback", targets)
 	}
 }
 

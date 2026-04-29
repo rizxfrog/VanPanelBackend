@@ -1,10 +1,12 @@
 package api
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -42,7 +44,14 @@ func TestTargetsFailsWithoutService(t *testing.T) {
 	req := httptest.NewRequest(http.MethodGet, "/api/system/terminal/targets", nil)
 	resp := httptest.NewRecorder()
 	router.ServeHTTP(resp, req)
-	if resp.Code != http.StatusInternalServerError {
+	if resp.Code != http.StatusOK {
 		t.Fatalf("status = %d", resp.Code)
+	}
+	var body base.ApiResponse
+	if err := json.Unmarshal(resp.Body.Bytes(), &body); err != nil {
+		t.Fatal(err)
+	}
+	if body.Code != base.StatusError {
+		t.Fatalf("code = %d, want error", body.Code)
 	}
 }
