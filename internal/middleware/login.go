@@ -67,6 +67,7 @@ func (m *JWTMiddleware) CheckLogin() gin.HandlerFunc {
 
 		// WebSocket路径从查询参数获取token
 		if strings.HasPrefix(path, "/api/tree/local/terminal") ||
+			strings.HasPrefix(path, "/api/system/terminal/connect") ||
 			strings.Contains(path, "/exec") {
 			tokenStr = ctx.Query("token")
 		} else {

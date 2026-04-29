@@ -52,3 +52,18 @@ notification:
     max_retries: 3
     retry_interval: "5m"
     timeout: "10s"
+file_manager:
+  enabled: true
+  allow_full_disk: false
+  roots:
+    - name: VanPanel
+      path: .
+    - name: Logs
+      path: ./logs
+    - name: Deploy
+      path: ./deploy
+  max_edit_size_mb: 5
+  max_preview_size_mb: 10
+  allowed_archive_types:
+    - zip
+    - tar.gz
