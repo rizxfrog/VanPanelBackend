@@ -55,6 +55,7 @@ import (
 	authHandler "github.com/GoSimplicity/AI-CloudOps/internal/system/api"
 	authDao "github.com/GoSimplicity/AI-CloudOps/internal/system/dao"
 	authService "github.com/GoSimplicity/AI-CloudOps/internal/system/service"
+	terminalApi "github.com/GoSimplicity/AI-CloudOps/internal/terminal/api"
 	treeHandler "github.com/GoSimplicity/AI-CloudOps/internal/tree/api"
 	treeDao "github.com/GoSimplicity/AI-CloudOps/internal/tree/dao"
 	treeService "github.com/GoSimplicity/AI-CloudOps/internal/tree/service"
@@ -133,6 +134,7 @@ var HandlerSet = wire.NewSet(
 	treeHandler.NewTreeCloudHandler,
 	treeHandler.NewCloudAccountHandler,
 	treeHandler.NewCloudAccountRegionHandler,
+	terminalApi.NewTerminalHandler,
 	terminal.NewTerminalHandler,
 	cronApi.NewCronJobHandler,
 	filesHandler.NewFileHandler,
@@ -194,6 +196,10 @@ var ServiceSet = wire.NewSet(
 	cronService.NewCronService,
 	filesService.NewFileService,
 	ProvideFileManagerConfig,
+	ProvideTerminalConfig,
+	ProvideTerminalLocalAdapter,
+	ProvideTerminalSSHAdapter,
+	ProvideTerminalService,
 )
 
 var DaoSet = wire.NewSet(

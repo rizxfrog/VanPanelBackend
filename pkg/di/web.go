@@ -32,6 +32,7 @@ import (
 	notAuthHandler "github.com/GoSimplicity/AI-CloudOps/internal/not_auth/api"
 	prometheusApi "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/api"
 	systemApi "github.com/GoSimplicity/AI-CloudOps/internal/system/api"
+	terminalApi "github.com/GoSimplicity/AI-CloudOps/internal/terminal/api"
 	resourceApi "github.com/GoSimplicity/AI-CloudOps/internal/tree/api"
 	workorderApi "github.com/GoSimplicity/AI-CloudOps/internal/workorder/api"
 	"github.com/gin-gonic/gin"
@@ -91,6 +92,7 @@ func InitGinServer(
 	k8sPVHdl *k8sApi.K8sPVHandler,
 	k8sPVCHdl *k8sApi.K8sPVCHandler,
 	cronJobHdl *cronApi.CronJobHandler,
+	terminalHdl *terminalApi.TerminalHandler,
 	fileHdl *filesApi.FileHandler,
 ) *gin.Engine {
 	server := gin.Default()
@@ -146,6 +148,7 @@ func InitGinServer(
 	cronJobHdl.RegisterRouters(server)
 	k8sPVHdl.RegisterRouters(server)
 	k8sPVCHdl.RegisterRouters(server)
+	terminalHdl.RegisterRouters(server)
 	fileHdl.RegisterRouters(server)
 	return server
 }
