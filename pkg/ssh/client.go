@@ -65,6 +65,8 @@ type Client interface {
 	CreateSession(userID int) error
 	// GetSession 获取用户会话
 	GetSession(userID int) *ssh.Session
+	// RawSession creates a fresh SSH session for stream adapters.
+	RawSession() (*ssh.Session, error)
 	// CloseSession 关闭指定用户会话
 	CloseSession(userID int) error
 	// AddPublicKey 添加公钥到远程主机
@@ -218,6 +220,13 @@ func (c *client) GetSession(userID int) *ssh.Session {
 	c.sessionMux.RLock()
 	defer c.sessionMux.RUnlock()
 	return c.sessions[userID]
+}
+
+func (c *client) RawSession() (*ssh.Session, error) {
+	if c.sshClient == nil {
+		return nil, fmt.Errorf("SSH客户端未连接")
+	}
+	return c.sshClient.NewSession()
 }
 
 // CloseSession 关闭指定用户会话
