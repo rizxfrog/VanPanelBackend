@@ -26,6 +26,7 @@
 package di
 
 import (
+	containerApi "github.com/GoSimplicity/AI-CloudOps/internal/container/api"
 	cronApi "github.com/GoSimplicity/AI-CloudOps/internal/cron/api"
 	filesApi "github.com/GoSimplicity/AI-CloudOps/internal/files/api"
 	k8sApi "github.com/GoSimplicity/AI-CloudOps/internal/k8s/api"
@@ -94,6 +95,7 @@ func InitGinServer(
 	cronJobHdl *cronApi.CronJobHandler,
 	terminalHdl *terminalApi.TerminalHandler,
 	fileHdl *filesApi.FileHandler,
+	containerHdl *containerApi.ContainerHandler,
 ) *gin.Engine {
 	server := gin.Default()
 	server.Use(m...)
@@ -150,5 +152,6 @@ func InitGinServer(
 	k8sPVCHdl.RegisterRouters(server)
 	terminalHdl.RegisterRouters(server)
 	fileHdl.RegisterRouters(server)
+	containerHdl.RegisterRouters(server)
 	return server
 }
