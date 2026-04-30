@@ -1,16 +1,174 @@
 package service
 
 import (
+	"context"
+	"encoding/json"
 	"fmt"
+	"io"
 	"sort"
 	"strings"
 	"time"
 
 	containermodel "github.com/GoSimplicity/AI-CloudOps/internal/container/model"
 	dockertypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/client"
 )
 
 const composeProjectLabel = "com.docker.compose.project"
+
+type ContainerService interface {
+	List(ctx context.Context, query containermodel.ListQuery) (containermodel.ListResult, error)
+	Operate(ctx context.Context, id string, operation string) error
+	Stats(ctx context.Context, id string) (containermodel.Stats, error)
+	Logs(ctx context.Context, id string, opts containermodel.LogOptions) (io.ReadCloser, error)
+}
+
+type DockerClient interface {
+	ContainerList(ctx context.Context, options dockertypes.ContainerListOptions) ([]dockertypes.Container, error)
+	ContainerStart(ctx context.Context, containerID string, options dockertypes.ContainerStartOptions) error
+	ContainerStop(ctx context.Context, containerID string, options container.StopOptions) error
+	ContainerRestart(ctx context.Context, containerID string, options container.StopOptions) error
+	ContainerRemove(ctx context.Context, containerID string, options dockertypes.ContainerRemoveOptions) error
+	ContainerStats(ctx context.Context, containerID string, stream bool) (dockertypes.ContainerStats, error)
+	ContainerLogs(ctx context.Context, containerID string, options dockertypes.ContainerLogsOptions) (io.ReadCloser, error)
+	Close() error
+}
+
+type Service struct {
+	newClient func() (DockerClient, error)
+}
+
+func NewContainerService() ContainerService {
+	return &Service{newClient: newDockerClient}
+}
+
+func newDockerClient() (DockerClient, error) {
+	return client.NewClientWithOpts(client.FromEnv, client.WithAPIVersionNegotiation())
+}
+
+func (s *Service) List(ctx context.Context, query containermodel.ListQuery) (containermodel.ListResult, error) {
+	cli, err := s.newClient()
+	if err != nil {
+		return containermodel.ListResult{}, normalizeDockerError(err)
+	}
+	defer cli.Close()
+
+	summaries, err := cli.ContainerList(ctx, dockertypes.ContainerListOptions{All: true})
+	if err != nil {
+		return containermodel.ListResult{}, normalizeDockerError(err)
+	}
+
+	items := make([]containermodel.Container, 0, len(summaries))
+	for _, item := range summaries {
+		items = append(items, mapContainerSummary(item))
+	}
+	items = filterContainers(items, query)
+	total := len(items)
+	if query.Page > 0 && query.PageSize > 0 {
+		start := (query.Page - 1) * query.PageSize
+		if start >= len(items) {
+			items = []containermodel.Container{}
+		} else {
+			end := start + query.PageSize
+			if end > len(items) {
+				end = len(items)
+			}
+			items = items[start:end]
+		}
+	}
+	return containermodel.ListResult{Items: items, Total: total}, nil
+}
+
+func (s *Service) Operate(ctx context.Context, id string, operation string) error {
+	if strings.TrimSpace(id) == "" {
+		return fmt.Errorf("container id is required")
+	}
+	if err := validateOperation(operation); err != nil {
+		return err
+	}
+	cli, err := s.newClient()
+	if err != nil {
+		return normalizeDockerError(err)
+	}
+	defer cli.Close()
+
+	switch operation {
+	case "start":
+		err = cli.ContainerStart(ctx, id, dockertypes.ContainerStartOptions{})
+	case "stop":
+		err = cli.ContainerStop(ctx, id, container.StopOptions{})
+	case "restart":
+		err = cli.ContainerRestart(ctx, id, container.StopOptions{})
+	case "delete":
+		err = cli.ContainerRemove(ctx, id, dockertypes.ContainerRemoveOptions{Force: true, RemoveVolumes: false})
+	}
+	return normalizeDockerError(err)
+}
+
+func (s *Service) Stats(ctx context.Context, id string) (containermodel.Stats, error) {
+	if strings.TrimSpace(id) == "" {
+		return containermodel.Stats{}, fmt.Errorf("container id is required")
+	}
+	cli, err := s.newClient()
+	if err != nil {
+		return containermodel.Stats{}, normalizeDockerError(err)
+	}
+	defer cli.Close()
+
+	reader, err := cli.ContainerStats(ctx, id, false)
+	if err != nil {
+		return containermodel.Stats{}, normalizeDockerError(err)
+	}
+	defer reader.Body.Close()
+
+	var stats dockertypes.StatsJSON
+	if err := json.NewDecoder(reader.Body).Decode(&stats); err != nil {
+		return containermodel.Stats{}, err
+	}
+	return mapStats(stats), nil
+}
+
+func (s *Service) Logs(ctx context.Context, id string, opts containermodel.LogOptions) (io.ReadCloser, error) {
+	if strings.TrimSpace(id) == "" {
+		return nil, fmt.Errorf("container id is required")
+	}
+	if opts.Tail == "" {
+		opts.Tail = "200"
+	}
+	cli, err := s.newClient()
+	if err != nil {
+		return nil, normalizeDockerError(err)
+	}
+
+	logs, err := cli.ContainerLogs(ctx, id, dockertypes.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     opts.Follow,
+		Tail:       opts.Tail,
+		Since:      opts.Since,
+		Timestamps: opts.Timestamps,
+	})
+	if err != nil {
+		_ = cli.Close()
+		return nil, normalizeDockerError(err)
+	}
+	return &dockerReadCloser{ReadCloser: logs, closeClient: cli.Close}, nil
+}
+
+type dockerReadCloser struct {
+	io.ReadCloser
+	closeClient func() error
+}
+
+func (r *dockerReadCloser) Close() error {
+	logErr := r.ReadCloser.Close()
+	clientErr := r.closeClient()
+	if logErr != nil {
+		return logErr
+	}
+	return clientErr
+}
 
 func mapContainerSummary(item dockertypes.Container) containermodel.Container {
 	name := item.ID
@@ -140,4 +298,28 @@ func calculateBlockIO(stats dockertypes.BlkioStats) (uint64, uint64) {
 		}
 	}
 	return read, write
+}
+
+func validateOperation(operation string) error {
+	switch operation {
+	case "start", "stop", "restart", "delete":
+		return nil
+	default:
+		return fmt.Errorf("unsupported container operation: %s", operation)
+	}
+}
+
+func normalizeDockerError(err error) error {
+	if err == nil {
+		return nil
+	}
+	msg := strings.ToLower(err.Error())
+	switch {
+	case strings.Contains(msg, "permission denied"):
+		return fmt.Errorf("Docker permission denied; check Docker socket permissions")
+	case strings.Contains(msg, "cannot connect") || strings.Contains(msg, "connection refused") || strings.Contains(msg, "no such file"):
+		return fmt.Errorf("Docker daemon is unavailable")
+	default:
+		return err
+	}
 }

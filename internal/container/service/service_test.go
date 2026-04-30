@@ -1,11 +1,16 @@
 package service
 
 import (
+	"context"
+	"fmt"
+	"io"
+	"strings"
 	"testing"
 	"time"
 
 	containermodel "github.com/GoSimplicity/AI-CloudOps/internal/container/model"
 	dockertypes "github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
 )
 
@@ -80,4 +85,94 @@ func TestCalculateStats(t *testing.T) {
 	if got.MemoryUsage != 800 || got.MemoryLimit != 2000 || got.MemoryPercent != 40 {
 		t.Fatalf("unexpected memory stats: %#v", got)
 	}
+}
+
+func TestValidateOperation(t *testing.T) {
+	for _, op := range []string{"start", "stop", "restart", "delete"} {
+		if err := validateOperation(op); err != nil {
+			t.Fatalf("expected %s to be valid: %v", op, err)
+		}
+	}
+	if err := validateOperation("exec"); err == nil {
+		t.Fatal("expected invalid operation error")
+	}
+}
+
+func TestNormalizeDockerError(t *testing.T) {
+	got := normalizeDockerError(fmt.Errorf("permission denied while trying to connect to the Docker daemon socket"))
+	if !strings.Contains(got.Error(), "permission") {
+		t.Fatalf("unexpected normalized error: %v", got)
+	}
+}
+
+func TestServiceListFiltersAndPaginates(t *testing.T) {
+	svc := &Service{newClient: func() (DockerClient, error) {
+		return &fakeDockerClient{
+			containers: []dockertypes.Container{
+				{ID: "1", Names: []string{"/web"}, Image: "nginx:latest", State: "running"},
+				{ID: "2", Names: []string{"/db"}, Image: "mysql:8", State: "exited"},
+			},
+		}, nil
+	}}
+
+	got, err := svc.List(context.Background(), containermodel.ListQuery{Name: "nginx", State: "running", Page: 1, PageSize: 10})
+	if err != nil {
+		t.Fatalf("List returned error: %v", err)
+	}
+	if got.Total != 1 || len(got.Items) != 1 || got.Items[0].Name != "web" {
+		t.Fatalf("unexpected list result: %#v", got)
+	}
+}
+
+func TestServiceOperateCallsDocker(t *testing.T) {
+	fake := &fakeDockerClient{}
+	svc := &Service{newClient: func() (DockerClient, error) { return fake, nil }}
+
+	if err := svc.Operate(context.Background(), "abc", "restart"); err != nil {
+		t.Fatalf("Operate returned error: %v", err)
+	}
+	if fake.operation != "restart:abc" {
+		t.Fatalf("unexpected operation: %s", fake.operation)
+	}
+}
+
+type fakeDockerClient struct {
+	containers []dockertypes.Container
+	operation  string
+}
+
+func (f *fakeDockerClient) ContainerList(context.Context, dockertypes.ContainerListOptions) ([]dockertypes.Container, error) {
+	return f.containers, nil
+}
+
+func (f *fakeDockerClient) ContainerStart(_ context.Context, id string, _ dockertypes.ContainerStartOptions) error {
+	f.operation = "start:" + id
+	return nil
+}
+
+func (f *fakeDockerClient) ContainerStop(_ context.Context, id string, _ container.StopOptions) error {
+	f.operation = "stop:" + id
+	return nil
+}
+
+func (f *fakeDockerClient) ContainerRestart(_ context.Context, id string, _ container.StopOptions) error {
+	f.operation = "restart:" + id
+	return nil
+}
+
+func (f *fakeDockerClient) ContainerRemove(_ context.Context, id string, _ dockertypes.ContainerRemoveOptions) error {
+	f.operation = "delete:" + id
+	return nil
+}
+
+func (f *fakeDockerClient) ContainerStats(context.Context, string, bool) (dockertypes.ContainerStats, error) {
+	return dockertypes.ContainerStats{}, nil
+}
+
+func (f *fakeDockerClient) ContainerLogs(context.Context, string, dockertypes.ContainerLogsOptions) (io.ReadCloser, error) {
+	return io.NopCloser(strings.NewReader("ok")), nil
+}
+
+func (f *fakeDockerClient) Close() error {
+	return nil
 }
