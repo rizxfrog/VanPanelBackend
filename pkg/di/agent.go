@@ -1,0 +1,47 @@
+package di
+
+import (
+	"os"
+
+	agentaudit "github.com/GoSimplicity/AI-CloudOps/internal/agent/audit"
+	agentplanner "github.com/GoSimplicity/AI-CloudOps/internal/agent/planner"
+	agentrisk "github.com/GoSimplicity/AI-CloudOps/internal/agent/risk"
+	agentservice "github.com/GoSimplicity/AI-CloudOps/internal/agent/service"
+	agenttools "github.com/GoSimplicity/AI-CloudOps/internal/agent/tools"
+	"go.uber.org/zap"
+)
+
+func ProvideAgentPlanner() agentplanner.Planner {
+	baseURL := os.Getenv("VAN_AGENT_URL")
+	if baseURL == "" {
+		baseURL = "http://localhost:8080"
+	}
+	return agentplanner.NewHTTPPlanner(baseURL)
+}
+
+func ProvideAgentRiskGuard() *agentrisk.Guard {
+	return agentrisk.NewGuard()
+}
+
+func ProvideAgentToolRegistry() *agenttools.Registry {
+	return agenttools.NewRegistry()
+}
+
+func ProvideAgentAuditStore() agentaudit.Store {
+	return agentaudit.NewMemoryStore()
+}
+
+func ProvideAgentApprovalStore() *agentservice.ApprovalStore {
+	return agentservice.NewApprovalStore()
+}
+
+func ProvideAgentService(
+	planner agentplanner.Planner,
+	guard *agentrisk.Guard,
+	registry *agenttools.Registry,
+	auditStore agentaudit.Store,
+	approvalStore *agentservice.ApprovalStore,
+	logger *zap.Logger,
+) *agentservice.Service {
+	return agentservice.NewService(planner, guard, registry, auditStore, approvalStore, logger)
+}

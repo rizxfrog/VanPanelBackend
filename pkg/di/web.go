@@ -26,6 +26,7 @@
 package di
 
 import (
+	agentApi "github.com/GoSimplicity/AI-CloudOps/internal/agent/api"
 	containerApi "github.com/GoSimplicity/AI-CloudOps/internal/container/api"
 	cronApi "github.com/GoSimplicity/AI-CloudOps/internal/cron/api"
 	filesApi "github.com/GoSimplicity/AI-CloudOps/internal/files/api"
@@ -96,6 +97,7 @@ func InitGinServer(
 	terminalHdl *terminalApi.TerminalHandler,
 	fileHdl *filesApi.FileHandler,
 	containerHdl *containerApi.ContainerHandler,
+	agentHdl *agentApi.Handler,
 ) *gin.Engine {
 	server := gin.Default()
 	server.Use(m...)
@@ -153,5 +155,6 @@ func InitGinServer(
 	terminalHdl.RegisterRouters(server)
 	fileHdl.RegisterRouters(server)
 	containerHdl.RegisterRouters(server)
+	agentHdl.RegisterRouters(server)
 	return server
 }

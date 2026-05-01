@@ -28,6 +28,7 @@
 package di
 
 import (
+	agentApi "github.com/GoSimplicity/AI-CloudOps/internal/agent/api"
 	containerApi "github.com/GoSimplicity/AI-CloudOps/internal/container/api"
 	containerService "github.com/GoSimplicity/AI-CloudOps/internal/container/service"
 	cron "github.com/GoSimplicity/AI-CloudOps/internal/cron"
@@ -141,6 +142,7 @@ var HandlerSet = wire.NewSet(
 	cronApi.NewCronJobHandler,
 	filesHandler.NewFileHandler,
 	containerApi.NewContainerHandler,
+	agentApi.NewHandler,
 )
 
 var ServiceSet = wire.NewSet(
@@ -204,6 +206,12 @@ var ServiceSet = wire.NewSet(
 	ProvideTerminalLocalAdapter,
 	ProvideTerminalSSHAdapter,
 	ProvideTerminalService,
+	ProvideAgentPlanner,
+	ProvideAgentRiskGuard,
+	ProvideAgentToolRegistry,
+	ProvideAgentAuditStore,
+	ProvideAgentApprovalStore,
+	ProvideAgentService,
 )
 
 var DaoSet = wire.NewSet(

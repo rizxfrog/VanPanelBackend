@@ -63,6 +63,20 @@ type PlanResponse struct {
 	Risk      RiskLevel  `json:"risk"`
 }
 
+type QueryRequest struct {
+	SessionID string `json:"sessionId"`
+	Message   string `json:"message" binding:"required"`
+}
+
+type QueryResponse struct {
+	SessionID string       `json:"sessionId"`
+	Message   AgentMessage `json:"message"`
+	Intent    string       `json:"intent"`
+	Risk      RiskLevel    `json:"risk"`
+	ToolCalls []ToolCall   `json:"toolCalls"`
+	Approvals []Approval   `json:"approvals,omitempty"`
+}
+
 type ToolResult struct {
 	ToolName string         `json:"toolName"`
 	Output   map[string]any `json:"output,omitempty"`
