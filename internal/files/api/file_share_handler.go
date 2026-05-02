@@ -7,6 +7,7 @@ import (
 	"github.com/GoSimplicity/AI-CloudOps/internal/files/service"
 	"github.com/GoSimplicity/AI-CloudOps/internal/model"
 	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
+	"github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
 )
 
@@ -32,12 +33,15 @@ func (h *FileShareHandler) RegisterRouters(server *gin.Engine) {
 func (h *FileShareHandler) CreateShare(ctx *gin.Context) {
 	var req model.CreateShareReq
 	base.HandleRequest(ctx, &req, func() (interface{}, error) {
-		// 从上下文获取用户ID
-		userID, exists := ctx.Get("user_id")
+		uc, exists := ctx.Get("user")
 		if !exists {
 			return nil, fmt.Errorf("未登录")
 		}
-		return h.svc.CreateShare(ctx, userID.(int), &req)
+		userClaims, ok := uc.(jwt.UserClaims)
+		if !ok {
+			return nil, fmt.Errorf("用户信息异常")
+		}
+		return h.svc.CreateShare(ctx, userClaims.Uid, &req)
 	})
 }
 
@@ -95,11 +99,16 @@ func (h *FileShareHandler) DeleteShare(ctx *gin.Context) {
 	}
 
 	base.HandleRequest(ctx, nil, func() (interface{}, error) {
-		// 从上下文获取用户ID和角色
-		userID, _ := ctx.Get("user_id")
-		accountType, _ := ctx.Get("account_type")
-		isAdmin := accountType.(int8) == 2
-		return nil, h.svc.DeleteShare(ctx, uint(id), userID.(int), isAdmin)
+		uc, exists := ctx.Get("user")
+		if !exists {
+			return nil, fmt.Errorf("未登录")
+		}
+		userClaims, ok := uc.(jwt.UserClaims)
+		if !ok {
+			return nil, fmt.Errorf("用户信息异常")
+		}
+		isAdmin := userClaims.AccountType == 2
+		return nil, h.svc.DeleteShare(ctx, uint(id), userClaims.Uid, isAdmin)
 	})
 }
 

@@ -120,12 +120,12 @@ type ShareDetailResp struct {
 }
 
 // VerifyAccessResp 验证访问响应
+// 字段顺序必须与 PostgreSQL 函数 verify_share_access 返回列顺序一致 (GORM Scan 按位置映射)
 type VerifyAccessResp struct {
-	Valid       bool   `json:"valid"`
-	ShareID     uint   `json:"share_id,omitempty"`
-	ShareCode   string `json:"share_code,omitempty"`
-	AccessLevel string `json:"access_level,omitempty"`
-	ErrorMsg    string `json:"error_msg,omitempty"`
+	ShareID     uint   `json:"share_id" gorm:"column:share_id"`
+	Valid       bool   `json:"valid" gorm:"column:is_valid"`
+	AccessLevel string `json:"access_level" gorm:"column:access_level"`
+	ErrorMsg    string `json:"error_msg" gorm:"column:error_message"`
 }
 
 // CreateShareResp 创建分享响应 (存储过程返回)

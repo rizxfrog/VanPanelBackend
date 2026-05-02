@@ -49,6 +49,7 @@ var skipAuthPaths = map[string]bool{
 var skipPrefixes = []string{
 	"/api/ai/chat/ws",
 	"/api/tree/local/terminal",
+	"/api/share",
 }
 
 // HTTP方法映射

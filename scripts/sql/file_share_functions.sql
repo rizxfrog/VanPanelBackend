@@ -1,6 +1,18 @@
 -- 文件分享系统存储过程
 -- 数据库: PostgreSQL
 
+-- 清理旧函数（CREATE OR REPLACE 无法改变返回类型，需要先 DROP）
+DROP FUNCTION IF EXISTS generate_share_code();
+DROP FUNCTION IF EXISTS generate_access_code();
+DROP FUNCTION IF EXISTS create_file_share(INTEGER, VARCHAR, INTEGER, TIMESTAMPTZ, JSONB);
+DROP FUNCTION IF EXISTS merge_file_shares(INTEGER[]);
+DROP FUNCTION IF EXISTS verify_share_access(VARCHAR, VARCHAR);
+DROP FUNCTION IF EXISTS update_file_share(INTEGER, VARCHAR, INTEGER, TIMESTAMPTZ, VARCHAR);
+DROP FUNCTION IF EXISTS get_share_files(VARCHAR);
+DROP FUNCTION IF EXISTS increment_download_count(INTEGER);
+DROP FUNCTION IF EXISTS get_share_statistics();
+DROP FUNCTION IF EXISTS cleanup_expired_shares();
+
 -- 1. 生成唯一的分享码 (32位)
 CREATE OR REPLACE FUNCTION generate_share_code()
 RETURNS VARCHAR(32) AS $$
@@ -65,11 +77,11 @@ BEGIN
     INSERT INTO cl_file_shares (
         share_code, access_code, creator_id, access_level, 
         max_downloads, download_count, expire_at, status,
-        created_at, updated_at
+        created_at, updated_at, deleted_at
     ) VALUES (
         v_share_code, v_access_code, p_creator_id, p_access_level,
         p_max_downloads, 0, p_expire_at, 'active',
-        NOW(), NOW()
+        NOW(), NOW(), 0
     ) RETURNING id INTO v_share_id;
     
     -- 插入分享项目
@@ -77,14 +89,15 @@ BEGIN
     LOOP
         INSERT INTO cl_file_share_items (
             share_id, file_path, file_type, file_name,
-            created_at, updated_at
+            created_at, updated_at, deleted_at
         ) VALUES (
             v_share_id,
             v_item->>'file_path',
             v_item->>'file_type',
             v_item->>'file_name',
             NOW(),
-            NOW()
+            NOW(),
+            0
         );
     END LOOP;
     
@@ -139,16 +152,16 @@ BEGIN
     INSERT INTO cl_file_shares (
         share_code, access_code, creator_id, access_level,
         max_downloads, download_count, expire_at, status,
-        created_at, updated_at
+        created_at, updated_at, deleted_at
     ) VALUES (
         v_new_share_code, v_new_access_code, v_creator_id, v_access_level,
         0, 0, NULL, 'active',
-        NOW(), NOW()
+        NOW(), NOW(), 0
     ) RETURNING id INTO v_new_share_id;
     
     -- 复制所有项目到新分享
-    INSERT INTO cl_file_share_items (share_id, file_path, file_type, file_name, created_at, updated_at)
-    SELECT v_new_share_id, fsi.file_path, fsi.file_type, fsi.file_name, NOW(), NOW()
+    INSERT INTO cl_file_share_items (share_id, file_path, file_type, file_name, created_at, updated_at, deleted_at)
+    SELECT v_new_share_id, fsi.file_path, fsi.file_type, fsi.file_name, NOW(), NOW(), 0
     FROM cl_file_share_items fsi
     WHERE fsi.share_id = ANY(p_share_ids);
     
@@ -167,8 +180,9 @@ CREATE OR REPLACE FUNCTION verify_share_access(
     p_access_code VARCHAR(6)
 )
 RETURNS TABLE (
-    share_id INTEGER,
+    share_id BIGINT,
     is_valid BOOLEAN,
+    access_level VARCHAR(20),
     error_message VARCHAR(100)
 ) AS $$
 DECLARE
@@ -180,30 +194,30 @@ BEGIN
     WHERE share_code = p_share_code AND status = 'active';
     
     IF NOT FOUND THEN
-        RETURN QUERY SELECT NULL::INTEGER, FALSE, 'Share not found'::VARCHAR(100);
+        RETURN QUERY SELECT NULL::BIGINT, FALSE, ''::VARCHAR(20), 'Share not found'::VARCHAR(100);
         RETURN;
     END IF;
     
     -- 检查是否过期
     IF v_share.expire_at IS NOT NULL AND v_share.expire_at < NOW() THEN
         UPDATE cl_file_shares SET status = 'expired', updated_at = NOW() WHERE id = v_share.id;
-        RETURN QUERY SELECT v_share.id, FALSE, 'Share expired'::VARCHAR(100);
+        RETURN QUERY SELECT v_share.id, FALSE, v_share.access_level::VARCHAR(20), 'Share expired'::VARCHAR(100);
         RETURN;
     END IF;
     
     -- 检查下载次数限制
     IF v_share.max_downloads > 0 AND v_share.download_count >= v_share.max_downloads THEN
-        RETURN QUERY SELECT v_share.id, FALSE, 'Download limit reached'::VARCHAR(100);
+        RETURN QUERY SELECT v_share.id, FALSE, v_share.access_level::VARCHAR(20), 'Download limit reached'::VARCHAR(100);
         RETURN;
     END IF;
     
     -- 验证提取码
     IF v_share.access_code != p_access_code THEN
-        RETURN QUERY SELECT v_share.id, FALSE, 'Invalid access code'::VARCHAR(100);
+        RETURN QUERY SELECT v_share.id, FALSE, v_share.access_level::VARCHAR(20), 'Invalid access code'::VARCHAR(100);
         RETURN;
     END IF;
     
-    RETURN QUERY SELECT v_share.id, TRUE, NULL::VARCHAR(100);
+    RETURN QUERY SELECT v_share.id, TRUE, v_share.access_level::VARCHAR(20), ''::VARCHAR(100);
 END;
 $$ LANGUAGE plpgsql;
 

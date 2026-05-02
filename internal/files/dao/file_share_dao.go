@@ -121,10 +121,18 @@ func (d *fileShareDAO) VerifyAccess(ctx context.Context, shareCode, accessCode s
 		return nil, err
 	}
 
-	var resp model.VerifyAccessResp
-	err = db.Raw("SELECT * FROM verify_share_access(?, ?)", shareCode, accessCode).Scan(&resp).Error
+	rows, err := db.Raw("SELECT * FROM verify_share_access(?, ?)", shareCode, accessCode).Rows()
 	if err != nil {
 		return nil, fmt.Errorf("failed to verify access: %w", err)
+	}
+	defer rows.Close()
+
+	var resp model.VerifyAccessResp
+	if rows.Next() {
+		err = rows.Scan(&resp.ShareID, &resp.Valid, &resp.AccessLevel, &resp.ErrorMsg)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan verify result: %w", err)
+		}
 	}
 
 	return &resp, nil
