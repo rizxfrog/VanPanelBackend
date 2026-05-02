@@ -1,6 +1,7 @@
 package api
 
 import (
+	"fmt"
 	"strconv"
 
 	"github.com/GoSimplicity/AI-CloudOps/internal/files/service"
@@ -34,11 +35,7 @@ func (h *FileShareHandler) CreateShare(ctx *gin.Context) {
 		// 从上下文获取用户ID
 		userID, exists := ctx.Get("user_id")
 		if !exists {
-			return nil, gin.Error{
-				Err:  nil,
-				Type: gin.ErrorTypePublic,
-				Meta: "未登录",
-			}
+			return nil, fmt.Errorf("未登录")
 		}
 		return h.svc.CreateShare(ctx, userID.(int), &req)
 	})
