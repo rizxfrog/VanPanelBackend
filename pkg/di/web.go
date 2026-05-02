@@ -96,6 +96,8 @@ func InitGinServer(
 	cronJobHdl *cronApi.CronJobHandler,
 	terminalHdl *terminalApi.TerminalHandler,
 	fileHdl *filesApi.FileHandler,
+	fileShareHdl *filesApi.FileShareHandler,
+	shareAccessHdl *filesApi.ShareAccessHandler,
 	containerHdl *containerApi.ContainerHandler,
 	agentHdl *agentApi.Handler,
 ) *gin.Engine {
@@ -154,6 +156,8 @@ func InitGinServer(
 	k8sPVCHdl.RegisterRouters(server)
 	terminalHdl.RegisterRouters(server)
 	fileHdl.RegisterRouters(server)
+	fileShareHdl.RegisterRouters(server)
+	shareAccessHdl.RegisterRouters(server)
 	containerHdl.RegisterRouters(server)
 	agentHdl.RegisterRouters(server)
 	return server
