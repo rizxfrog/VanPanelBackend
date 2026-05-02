@@ -83,5 +83,9 @@ func InitTables(db *gorm.DB) error {
 
 		// 定时任务系统
 		&model.CronJob{},
+
+		// 文件分享系统
+		&model.FileShare{},
+		&model.FileShareItem{},
 	)
 }
