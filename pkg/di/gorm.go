@@ -71,6 +71,9 @@ func InitDB() *gorm.DB {
 	if err := InitTables(db); err != nil {
 		log.Printf("failed to initialize database tables: %v", err)
 	}
+	if err := InitStoredProcedures(db); err != nil {
+		log.Printf("failed to initialize stored procedures: %v", err)
+	}
 	return db
 }
 

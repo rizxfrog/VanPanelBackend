@@ -9,11 +9,11 @@ jwt:
   issuer: "K5mBPBYNQeNWEBvCTE5msog3KSGTdhmx"
   expiration: 3600
 redis:
-  addr: "redis:6379"
-  password: "redis_fQHPzE666666"
+  addr: "47.76.189.98:6379"
+  password: "redis_fQHPzE"
 database:
   driver: "postgres"
-  dsn: "host=postgresql port=5432 user=user_RYTz54 password=password_amC7Wx dbname=cloudops sslmode=disable TimeZone=Asia/Shanghai"
+  dsn: "host=47.76.189.98 port=5432 user=user_RYTz54 password=password_amC7Wx dbname=cloudops sslmode=disable TimeZone=Asia/Shanghai"
 #  dsn: "root:mysql_E5A3KY@tcp(localhost:3306)/cloudops?charset=utf8mb4&parseTime=True&loc=Local"
 tree:
   check_status_cron: "@every 300s"
