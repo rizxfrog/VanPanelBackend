@@ -2,6 +2,8 @@ package di
 
 import (
 	"os"
+	"strconv"
+	"time"
 
 	agentaudit "github.com/GoSimplicity/AI-CloudOps/internal/agent/audit"
 	agentplanner "github.com/GoSimplicity/AI-CloudOps/internal/agent/planner"
@@ -16,7 +18,13 @@ func ProvideAgentPlanner() agentplanner.Planner {
 	if baseURL == "" {
 		baseURL = "http://localhost:8080"
 	}
-	return agentplanner.NewHTTPPlanner(baseURL)
+	var timeout time.Duration
+	if s := os.Getenv("VAN_AGENT_TIMEOUT"); s != "" {
+		if secs, err := strconv.Atoi(s); err == nil {
+			timeout = time.Duration(secs) * time.Second
+		}
+	}
+	return agentplanner.NewHTTPPlanner(baseURL, timeout)
 }
 
 func ProvideAgentRiskGuard() *agentrisk.Guard {

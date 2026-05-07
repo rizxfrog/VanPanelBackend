@@ -37,7 +37,7 @@ func TestHTTPPlannerPlanUsesAIFirstAssistantQuery(t *testing.T) {
 	}))
 	defer server.Close()
 
-	planner := NewHTTPPlanner(server.URL)
+	planner := NewHTTPPlanner(server.URL, 0)
 	plan, err := planner.Plan(context.Background(), "hello", nil)
 	if err != nil {
 		t.Fatalf("plan failed: %v", err)
@@ -63,7 +63,7 @@ func TestHTTPPlannerRespondReturnsAIFirstPlanSummary(t *testing.T) {
 	}))
 	defer server.Close()
 
-	planner := NewHTTPPlanner(server.URL)
+	planner := NewHTTPPlanner(server.URL, 0)
 	answer, err := planner.Respond(context.Background(), "hello", agentmodel.PlanResponse{
 		Intent:  "ai_first",
 		Summary: "Hello, how can I help you today?",
@@ -74,5 +74,39 @@ func TestHTTPPlannerRespondReturnsAIFirstPlanSummary(t *testing.T) {
 	}
 	if answer != "Hello, how can I help you today?" {
 		t.Fatalf("unexpected answer: %s", answer)
+	}
+}
+
+func TestHTTPPlannerStreamUsesAssistantStreamEndpoint(t *testing.T) {
+	var requestedPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPath = r.URL.Path
+		if r.URL.Path != "/api/v1/assistant/query/stream" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		if r.Header.Get("Accept") != "text/event-stream" {
+			t.Fatalf("missing stream accept header: %s", r.Header.Get("Accept"))
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		_, _ = w.Write([]byte("event: delta\ndata: {\"content\":\"hello\"}\n\n"))
+	}))
+	defer server.Close()
+
+	planner := NewHTTPPlanner(server.URL, 0)
+	var chunks []byte
+	err := planner.Stream(context.Background(), "hello", nil, func(chunk []byte) error {
+		chunks = append(chunks, chunk...)
+		return nil
+	})
+	if err != nil {
+		t.Fatalf("stream failed: %v", err)
+	}
+
+	if requestedPath != "/api/v1/assistant/query/stream" {
+		t.Fatalf("planner used wrong path: %s", requestedPath)
+	}
+	if string(chunks) != "event: delta\ndata: {\"content\":\"hello\"}\n\n" {
+		t.Fatalf("unexpected stream chunks: %q", string(chunks))
 	}
 }

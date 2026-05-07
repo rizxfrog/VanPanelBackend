@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"strconv"
 
 	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
@@ -23,6 +24,7 @@ func (h *Handler) RegisterRouters(server *gin.Engine) {
 	group.GET("/tools", h.Tools)
 	group.POST("/sessions", h.CreateSession)
 	group.POST("/query", h.Query)
+	group.POST("/query/stream", h.QueryStream)
 	group.GET("/sessions/:id/events", h.Events)
 	group.POST("/approvals/:id/confirm", h.ConfirmApproval)
 	group.POST("/approvals/:id/reject", h.RejectApproval)
@@ -55,6 +57,38 @@ func (h *Handler) Query(ctx *gin.Context) {
 		return
 	}
 	base.SuccessWithData(ctx, resp)
+}
+
+func (h *Handler) QueryStream(ctx *gin.Context) {
+	var req agentmodel.QueryRequest
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		base.BadRequestError(ctx, err.Error())
+		return
+	}
+	userID, username := currentUser(ctx)
+
+	ctx.Header("Content-Type", "text/event-stream")
+	ctx.Header("Cache-Control", "no-cache")
+	ctx.Header("Connection", "keep-alive")
+	ctx.Header("X-Accel-Buffering", "no")
+
+	flusher, _ := ctx.Writer.(interface{ Flush() })
+	err := h.service.QueryStream(ctx.Request.Context(), userID, username, req, func(chunk []byte) error {
+		if _, err := ctx.Writer.Write(chunk); err != nil {
+			return err
+		}
+		if flusher != nil {
+			flusher.Flush()
+		}
+		return nil
+	})
+	if err != nil {
+		payload, _ := json.Marshal(map[string]string{"message": err.Error()})
+		_, _ = ctx.Writer.Write([]byte("event: error\ndata: " + string(payload) + "\n\n"))
+		if flusher != nil {
+			flusher.Flush()
+		}
+	}
 }
 
 func (h *Handler) Events(ctx *gin.Context) {

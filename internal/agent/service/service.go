@@ -181,6 +181,37 @@ func (s *Service) Query(ctx context.Context, userID uint, username string, req a
 	}, nil
 }
 
+func (s *Service) QueryStream(ctx context.Context, userID uint, username string, req agentmodel.QueryRequest, write func([]byte) error) error {
+	if req.Message == "" {
+		return fmt.Errorf("message is required")
+	}
+
+	session, err := s.ensureSession(ctx, userID, username, req.SessionID)
+	if err != nil {
+		return err
+	}
+	session.Messages = append(session.Messages, agentmodel.AgentMessage{Role: "user", Content: req.Message, CreatedAt: time.Now()})
+
+	if err := s.planner.Stream(ctx, req.Message, session.Messages, write); err != nil {
+		return err
+	}
+
+	session.UpdatedAt = time.Now()
+	s.mu.Lock()
+	s.sessions[session.ID] = session
+	s.mu.Unlock()
+
+	_, _ = s.audit.Append(ctx, agentmodel.AuditEvent{
+		SessionID: session.ID,
+		UserID:    userID,
+		Username:  username,
+		Action:    "agent.query.stream",
+		Risk:      agentmodel.RiskSafe,
+		Allowed:   true,
+	})
+	return nil
+}
+
 func (s *Service) Events(ctx context.Context, sessionID string) ([]agentmodel.AuditEvent, error) {
 	return s.audit.ListBySession(ctx, sessionID)
 }
