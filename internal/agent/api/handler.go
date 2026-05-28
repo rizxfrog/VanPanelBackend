@@ -1,143 +1,324 @@
 package api
 
 import (
-	"encoding/json"
-	"strconv"
+	"fmt"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
-	agentservice "github.com/GoSimplicity/AI-CloudOps/internal/agent/service"
+	"github.com/GoSimplicity/AI-CloudOps/internal/agent/hub"
+	"github.com/GoSimplicity/AI-CloudOps/internal/agent/service"
+	"github.com/GoSimplicity/AI-CloudOps/internal/model"
 	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
 	"github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
 )
 
+// Handler 智能体 API 处理器
 type Handler struct {
-	service *agentservice.Service
+	agentService service.AgentService
+	hubService   hub.HubService
 }
 
-func NewHandler(service *agentservice.Service) *Handler {
-	return &Handler{service: service}
+// NewHandler 创建智能体 API 处理器实例
+func NewHandler(agentService service.AgentService, hubService hub.HubService) *Handler {
+	return &Handler{
+		agentService: agentService,
+		hubService:   hubService,
+	}
 }
 
+// RegisterRouters 注册路由
 func (h *Handler) RegisterRouters(server *gin.Engine) {
-	group := server.Group("/api/system/agent")
-	group.GET("/tools", h.Tools)
-	group.POST("/sessions", h.CreateSession)
-	group.POST("/query", h.Query)
-	group.POST("/query/stream", h.QueryStream)
-	group.GET("/sessions/:id/events", h.Events)
-	group.POST("/approvals/:id/confirm", h.ConfirmApproval)
-	group.POST("/approvals/:id/reject", h.RejectApproval)
-}
+	agentGroup := server.Group("/api/system/agent")
+	{
+		// 查询
+		agentGroup.POST("/query", h.Query)
+		agentGroup.POST("/query/stream", h.QueryStream)
+		agentGroup.GET("/tools", h.ListTools)
 
-func (h *Handler) Tools(ctx *gin.Context) {
-	base.SuccessWithData(ctx, h.service.Tools())
-}
+		// 会话
+		agentGroup.POST("/sessions/create", h.CreateSession)
+		agentGroup.GET("/sessions/list", h.ListSessions)
+		agentGroup.GET("/sessions/:id/detail", h.GetSession)
+		agentGroup.GET("/sessions/:id/messages", h.ListMessages)
+		agentGroup.DELETE("/sessions/:id/delete", h.DeleteSession)
 
-func (h *Handler) CreateSession(ctx *gin.Context) {
-	userID, username := currentUser(ctx)
-	session, err := h.service.CreateSession(ctx, userID, username)
-	if err != nil {
-		base.ErrorWithMessage(ctx, err.Error())
-		return
+		// 内置工具管理
+		agentGroup.GET("/builtin-tools/list", h.ListBuiltinTools)
+		agentGroup.PUT("/builtin-tools/:name/toggle", h.ToggleBuiltinTool)
+
+		// Hub 插件
+		agentGroup.GET("/hub/plugins/list", h.ListPlugins)
+		agentGroup.GET("/hub/plugins/:id/detail", h.GetPlugin)
+		agentGroup.POST("/hub/plugins/upload", h.UploadPlugin)
+		agentGroup.POST("/hub/plugins/:id/install", h.InstallPlugin)
+		agentGroup.DELETE("/hub/plugins/:id/uninstall", h.UninstallPlugin)
+		agentGroup.PUT("/hub/plugins/:id/toggle", h.TogglePlugin)
+
+		// 远程 MCP
+		agentGroup.GET("/remote-mcps/list", h.ListRemoteMCPConfigs)
+		agentGroup.POST("/remote-mcps/create", h.CreateRemoteMCPConfig)
+		agentGroup.PUT("/remote-mcps/:id/update", h.UpdateRemoteMCPConfig)
+		agentGroup.DELETE("/remote-mcps/:id/delete", h.DeleteRemoteMCPConfig)
+		agentGroup.PUT("/remote-mcps/:id/toggle", h.ToggleRemoteMCPConfig)
+		agentGroup.POST("/remote-mcps/:id/test", h.TestRemoteMCPConfig)
 	}
-	base.SuccessWithData(ctx, session)
 }
 
+// ==================== 查询 ====================
+
+// Query 同步查询智能体
 func (h *Handler) Query(ctx *gin.Context) {
-	var req agentmodel.QueryRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		base.BadRequestError(ctx, err.Error())
-		return
-	}
-	userID, username := currentUser(ctx)
-	resp, err := h.service.Query(ctx, userID, username, req)
-	if err != nil {
-		base.ErrorWithMessage(ctx, err.Error())
-		return
-	}
-	base.SuccessWithData(ctx, resp)
+	var req model.AgentQueryReq
+	uc := ctx.MustGet("user").(jwt.UserClaims)
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return h.agentService.Query(ctx, &req, uc.Uid)
+	})
 }
 
+// QueryStream 流式查询智能体（SSE）
 func (h *Handler) QueryStream(ctx *gin.Context) {
-	var req agentmodel.QueryRequest
-	if err := ctx.ShouldBindJSON(&req); err != nil {
+	var req model.AgentQueryReq
+	uc := ctx.MustGet("user").(jwt.UserClaims)
+	if err := ctx.ShouldBind(&req); err != nil {
 		base.BadRequestError(ctx, err.Error())
 		return
 	}
-	userID, username := currentUser(ctx)
-
 	ctx.Header("Content-Type", "text/event-stream")
 	ctx.Header("Cache-Control", "no-cache")
 	ctx.Header("Connection", "keep-alive")
-	ctx.Header("X-Accel-Buffering", "no")
+	if err := h.agentService.QueryStream(ctx, &req, uc.Uid, ctx.Writer); err != nil {
+		base.ErrorWithMessage(ctx, err.Error())
+	}
+}
 
-	flusher, _ := ctx.Writer.(interface{ Flush() })
-	err := h.service.QueryStream(ctx.Request.Context(), userID, username, req, func(chunk []byte) error {
-		if _, err := ctx.Writer.Write(chunk); err != nil {
-			return err
-		}
-		if flusher != nil {
-			flusher.Flush()
-		}
-		return nil
+// ListTools 获取所有可用工具列表
+func (h *Handler) ListTools(ctx *gin.Context) {
+	base.HandleRequest(ctx, nil, func() (interface{}, error) {
+		return h.agentService.ListTools(ctx)
 	})
-	if err != nil {
-		payload, _ := json.Marshal(map[string]string{"message": err.Error()})
-		_, _ = ctx.Writer.Write([]byte("event: error\ndata: " + string(payload) + "\n\n"))
-		if flusher != nil {
-			flusher.Flush()
-		}
-	}
 }
 
-func (h *Handler) Events(ctx *gin.Context) {
-	events, err := h.service.Events(ctx, ctx.Param("id"))
+// ==================== 会话 ====================
+
+// CreateSession 创建新会话
+func (h *Handler) CreateSession(ctx *gin.Context) {
+	var req model.CreateAgentSessionReq
+	uc := ctx.MustGet("user").(jwt.UserClaims)
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return h.agentService.CreateSession(ctx, &req, uc.Uid)
+	})
+}
+
+// ListSessions 获取会话列表
+func (h *Handler) ListSessions(ctx *gin.Context) {
+	var req model.ListAgentSessionsReq
+	uc := ctx.MustGet("user").(jwt.UserClaims)
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return h.agentService.ListSessions(ctx, &req, uc.Uid)
+	})
+}
+
+// GetSession 获取会话详情
+func (h *Handler) GetSession(ctx *gin.Context) {
+	id, err := base.GetCustomParamID(ctx, "id")
 	if err != nil {
-		base.ErrorWithMessage(ctx, err.Error())
+		base.BadRequestError(ctx, err.Error())
 		return
 	}
-	base.SuccessWithData(ctx, events)
+	base.HandleRequest(ctx, nil, func() (interface{}, error) {
+		return h.agentService.GetSession(ctx, id)
+	})
 }
 
-func (h *Handler) ConfirmApproval(ctx *gin.Context) {
-	result, err := h.service.ConfirmApproval(ctx, ctx.Param("id"))
+// ListMessages 获取会话消息列表
+func (h *Handler) ListMessages(ctx *gin.Context) {
+	var req model.ListAgentMessagesReq
+	id, err := base.GetCustomParamID(ctx, "id")
 	if err != nil {
-		base.ErrorWithMessage(ctx, err.Error())
+		base.BadRequestError(ctx, err.Error())
 		return
 	}
-	base.SuccessWithData(ctx, result)
+	req.SessionID = fmt.Sprintf("%d", id)
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return h.agentService.ListMessages(ctx, &req)
+	})
 }
 
-func (h *Handler) RejectApproval(ctx *gin.Context) {
-	approval, err := h.service.RejectApproval(ctx, ctx.Param("id"))
+// DeleteSession 删除会话
+func (h *Handler) DeleteSession(ctx *gin.Context) {
+	id, err := base.GetCustomParamID(ctx, "id")
 	if err != nil {
-		base.ErrorWithMessage(ctx, err.Error())
+		base.BadRequestError(ctx, err.Error())
 		return
 	}
-	base.SuccessWithData(ctx, approval)
+	base.HandleRequest(ctx, nil, func() (interface{}, error) {
+		return nil, h.agentService.DeleteSession(ctx, id)
+	})
 }
 
-func currentUser(ctx *gin.Context) (uint, string) {
-	value, ok := ctx.Get("user")
-	if !ok {
-		return 0, "anonymous"
-	}
-	user, ok := value.(jwt.UserClaims)
-	if !ok {
-		return 0, "anonymous"
-	}
-	if user.Uid < 0 {
-		return 0, user.Username
-	}
-	return uint(user.Uid), firstNonEmpty(user.Username, strconv.Itoa(user.Uid))
+// ==================== 内置工具 ====================
+
+// ListBuiltinTools 获取内置工具列表
+func (h *Handler) ListBuiltinTools(ctx *gin.Context) {
+	base.HandleRequest(ctx, nil, func() (interface{}, error) {
+		return h.hubService.ListBuiltinTools(ctx)
+	})
 }
 
-func firstNonEmpty(values ...string) string {
-	for _, value := range values {
-		if value != "" {
-			return value
-		}
+// ToggleBuiltinTool 切换内置工具启用状态
+func (h *Handler) ToggleBuiltinTool(ctx *gin.Context) {
+	name := ctx.Param("name")
+	base.HandleRequest(ctx, nil, func() (interface{}, error) {
+		return nil, h.hubService.ToggleBuiltinTool(ctx, name)
+	})
+}
+
+// ==================== Hub 插件 ====================
+
+// ListPlugins 获取插件列表
+func (h *Handler) ListPlugins(ctx *gin.Context) {
+	var req model.ListMCPPluginsReq
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return h.hubService.ListPlugins(ctx, &req)
+	})
+}
+
+// GetPlugin 获取插件详情
+func (h *Handler) GetPlugin(ctx *gin.Context) {
+	id, err := base.GetCustomParamID(ctx, "id")
+	if err != nil {
+		base.BadRequestError(ctx, err.Error())
+		return
 	}
-	return ""
+	base.HandleRequest(ctx, nil, func() (interface{}, error) {
+		return h.hubService.GetPlugin(ctx, id)
+	})
+}
+
+// UploadPlugin 上传插件
+func (h *Handler) UploadPlugin(ctx *gin.Context) {
+	uc := ctx.MustGet("user").(jwt.UserClaims)
+	file, _, err := ctx.Request.FormFile("binary")
+	if err != nil {
+		base.BadRequestError(ctx, "缺少二进制文件")
+		return
+	}
+	defer file.Close()
+	manifest := ctx.PostForm("manifest")
+	base.HandleRequest(ctx, nil, func() (interface{}, error) {
+		return h.hubService.UploadPlugin(ctx, manifest, file, uc.Uid)
+	})
+}
+
+// InstallPlugin 安装插件
+func (h *Handler) InstallPlugin(ctx *gin.Context) {
+	uc := ctx.MustGet("user").(jwt.UserClaims)
+	id, err := base.GetCustomParamID(ctx, "id")
+	if err != nil {
+		base.BadRequestError(ctx, err.Error())
+		return
+	}
+	var req model.InstallMCPPluginReq
+	req.ID = id
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return nil, h.hubService.InstallPlugin(ctx, &req, uc.Uid)
+	})
+}
+
+// UninstallPlugin 卸载插件
+func (h *Handler) UninstallPlugin(ctx *gin.Context) {
+	uc := ctx.MustGet("user").(jwt.UserClaims)
+	id, err := base.GetCustomParamID(ctx, "id")
+	if err != nil {
+		base.BadRequestError(ctx, err.Error())
+		return
+	}
+	var req model.UninstallMCPPluginReq
+	req.ID = id
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return nil, h.hubService.UninstallPlugin(ctx, &req, uc.Uid)
+	})
+}
+
+// TogglePlugin 切换插件启用状态
+func (h *Handler) TogglePlugin(ctx *gin.Context) {
+	uc := ctx.MustGet("user").(jwt.UserClaims)
+	id, err := base.GetCustomParamID(ctx, "id")
+	if err != nil {
+		base.BadRequestError(ctx, err.Error())
+		return
+	}
+	var req model.ToggleMCPPluginReq
+	req.ID = id
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return nil, h.hubService.TogglePlugin(ctx, &req, uc.Uid)
+	})
+}
+
+// ==================== 远程 MCP ====================
+
+// ListRemoteMCPConfigs 获取远程 MCP 配置列表
+func (h *Handler) ListRemoteMCPConfigs(ctx *gin.Context) {
+	var req model.ListRemoteMCPConfigsReq
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return h.hubService.ListRemoteConfigs(ctx, &req)
+	})
+}
+
+// CreateRemoteMCPConfig 创建远程 MCP 配置
+func (h *Handler) CreateRemoteMCPConfig(ctx *gin.Context) {
+	var req model.CreateRemoteMCPConfigReq
+	uc := ctx.MustGet("user").(jwt.UserClaims)
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return nil, h.hubService.CreateRemoteConfig(ctx, &req, uc.Uid)
+	})
+}
+
+// UpdateRemoteMCPConfig 更新远程 MCP 配置
+func (h *Handler) UpdateRemoteMCPConfig(ctx *gin.Context) {
+	var req model.UpdateRemoteMCPConfigReq
+	id, err := base.GetCustomParamID(ctx, "id")
+	if err != nil {
+		base.BadRequestError(ctx, err.Error())
+		return
+	}
+	req.ID = id
+	base.HandleRequest(ctx, &req, func() (interface{}, error) {
+		return nil, h.hubService.UpdateRemoteConfig(ctx, &req)
+	})
+}
+
+// DeleteRemoteMCPConfig 删除远程 MCP 配置
+func (h *Handler) DeleteRemoteMCPConfig(ctx *gin.Context) {
+	id, err := base.GetCustomParamID(ctx, "id")
+	if err != nil {
+		base.BadRequestError(ctx, err.Error())
+		return
+	}
+	base.HandleRequest(ctx, nil, func() (interface{}, error) {
+		return nil, h.hubService.DeleteRemoteConfig(ctx, id)
+	})
+}
+
+// ToggleRemoteMCPConfig 切换远程 MCP 配置启用状态
+func (h *Handler) ToggleRemoteMCPConfig(ctx *gin.Context) {
+	id, err := base.GetCustomParamID(ctx, "id")
+	if err != nil {
+		base.BadRequestError(ctx, err.Error())
+		return
+	}
+	base.HandleRequest(ctx, nil, func() (interface{}, error) {
+		return nil, h.hubService.ToggleRemoteConfig(ctx, id)
+	})
+}
+
+// TestRemoteMCPConfig 测试远程 MCP 配置连通性
+func (h *Handler) TestRemoteMCPConfig(ctx *gin.Context) {
+	id, err := base.GetCustomParamID(ctx, "id")
+	if err != nil {
+		base.BadRequestError(ctx, err.Error())
+		return
+	}
+	base.HandleRequest(ctx, nil, func() (interface{}, error) {
+		return h.hubService.TestRemoteConfig(ctx, id)
+	})
 }
