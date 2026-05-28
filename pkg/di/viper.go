@@ -183,6 +183,27 @@ func setDefaults() {
 	viper.SetDefault("notification.feishu.max_retries", 3)
 	viper.SetDefault("notification.feishu.retry_interval", "5m")
 	viper.SetDefault("notification.feishu.timeout", "10s")
+
+	// File Manager defaults
+	viper.SetDefault("file_manager.enabled", true)
+	viper.SetDefault("file_manager.allow_full_disk", false)
+	viper.SetDefault("file_manager.max_edit_size_mb", 5)
+	viper.SetDefault("file_manager.max_preview_size_mb", 10)
+
+	// Agent defaults
+	viper.SetDefault("agent.llm.provider", "openai")
+	viper.SetDefault("agent.llm.base_url", "https://api.openai.com/v1")
+	viper.SetDefault("agent.llm.model", "gpt-4o")
+	viper.SetDefault("agent.llm.temperature", 0.7)
+	viper.SetDefault("agent.llm.max_tokens", 4096)
+	viper.SetDefault("agent.max_history", 20)
+	viper.SetDefault("agent.risk.approval_timeout", "10m")
+	viper.SetDefault("agent.risk.shell.default_risk", "low")
+	viper.SetDefault("agent.risk.shell.timeout", "30s")
+	viper.SetDefault("agent.risk.shell.max_output_bytes", 65536)
+	viper.SetDefault("agent.hub.plugin_dir", "./data/plugins")
+	viper.SetDefault("agent.hub.max_plugin_size", 52428800)
+	viper.SetDefault("agent.hub.max_concurrent_plugins", 10)
 }
 
 // setWebhookDefaults 设置Webhook默认值

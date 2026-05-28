@@ -47,6 +47,7 @@ type Config struct {
 	Notification NotificationConfig `mapstructure:"notification"`
 	Webhook      WebhookConfig      `mapstructure:"webhook"`
 	FileManager  FileManagerConfig  `mapstructure:"file_manager"`
+	Agent        AgentConfig        `mapstructure:"agent"`
 }
 
 type ServerConfig struct {
@@ -358,6 +359,43 @@ type ExternalConfig struct {
 	LLM    LLMConfig    `mapstructure:"llm"`
 	Aliyun AliyunConfig `mapstructure:"aliyun"`
 	Tavily TavilyConfig `mapstructure:"tavily"`
+}
+
+type AgentConfig struct {
+	LLM        AgentLLMConfig  `mapstructure:"llm"`
+	Risk       AgentRiskConfig `mapstructure:"risk"`
+	Hub        AgentHubConfig  `mapstructure:"hub"`
+	MaxHistory int             `mapstructure:"max_history" .env:"AGENT_MAX_HISTORY" default:"20"`
+}
+
+type AgentLLMConfig struct {
+	Provider    string  `mapstructure:"provider" .env:"AGENT_LLM_PROVIDER" default:"openai"`
+	BaseURL     string  `mapstructure:"base_url" .env:"AGENT_LLM_BASE_URL" default:"https://api.openai.com/v1"`
+	APIKey      string  `mapstructure:"api_key" .env:"AGENT_LLM_API_KEY" default:""`
+	Model       string  `mapstructure:"model" .env:"AGENT_LLM_MODEL" default:"gpt-4o"`
+	Temperature float64 `mapstructure:"temperature" .env:"AGENT_LLM_TEMPERATURE" default:"0.7"`
+	MaxTokens   int     `mapstructure:"max_tokens" .env:"AGENT_LLM_MAX_TOKENS" default:"4096"`
+}
+
+type AgentRiskConfig struct {
+	HighRiskPatterns []string         `mapstructure:"high_risk_patterns"`
+	ProtectedPaths   []string         `mapstructure:"protected_paths"`
+	ApprovalTimeout  string           `mapstructure:"approval_timeout" .env:"AGENT_RISK_APPROVAL_TIMEOUT" default:"10m"`
+	Shell            AgentShellConfig `mapstructure:"shell"`
+}
+
+type AgentShellConfig struct {
+	DefaultRisk    string   `mapstructure:"default_risk" .env:"AGENT_SHELL_DEFAULT_RISK" default:"low"`
+	Timeout        string   `mapstructure:"timeout" .env:"AGENT_SHELL_TIMEOUT" default:"30s"`
+	MaxOutputBytes int      `mapstructure:"max_output_bytes" .env:"AGENT_SHELL_MAX_OUTPUT" default:"65536"`
+	Blacklist      []string `mapstructure:"blacklist"`
+	Whitelist      []string `mapstructure:"whitelist"`
+}
+
+type AgentHubConfig struct {
+	PluginDir            string `mapstructure:"plugin_dir" .env:"AGENT_HUB_PLUGIN_DIR" default:"./data/plugins"`
+	MaxPluginSize        int    `mapstructure:"max_plugin_size" .env:"AGENT_HUB_MAX_SIZE" default:"52428800"`
+	MaxConcurrentPlugins int    `mapstructure:"max_concurrent_plugins" .env:"AGENT_HUB_MAX_CONCURRENT" default:"10"`
 }
 
 var GlobalConfig = &Config{}

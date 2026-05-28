@@ -68,3 +68,37 @@ file_manager:
   allowed_archive_types:
     - zip
     - tar.gz
+agent:
+  llm:
+    provider: "openai"
+    base_url: "https://api.openai.com/v1"
+    api_key: ""
+    model: "gpt-4o"
+    temperature: 0.7
+    max_tokens: 4096
+  max_history: 20
+  risk:
+    high_risk_patterns:
+      - "rm\\s+-rf"
+      - "dd\\s+if="
+      - "mkfs"
+      - "shutdown"
+      - "reboot"
+    protected_paths:
+      - "/boot"
+      - "/etc"
+      - "/root"
+    approval_timeout: "10m"
+    shell:
+      default_risk: "low"
+      timeout: "30s"
+      max_output_bytes: 65536
+      blacklist:
+        - "rm\\s+-rf\\s+/"
+        - "mkfs"
+        - "dd\\s+if="
+      whitelist: []
+  hub:
+    plugin_dir: "./data/plugins"
+    max_plugin_size: 52428800
+    max_concurrent_plugins: 10
