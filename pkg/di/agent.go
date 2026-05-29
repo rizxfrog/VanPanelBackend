@@ -1,55 +1,109 @@
 package di
 
 import (
-	"os"
-	"strconv"
-	"time"
-
-	agentaudit "github.com/GoSimplicity/AI-CloudOps/internal/agent/audit"
-	agentplanner "github.com/GoSimplicity/AI-CloudOps/internal/agent/planner"
-	agentrisk "github.com/GoSimplicity/AI-CloudOps/internal/agent/risk"
-	agentservice "github.com/GoSimplicity/AI-CloudOps/internal/agent/service"
-	agenttools "github.com/GoSimplicity/AI-CloudOps/internal/agent/tools"
+	agentDao "github.com/GoSimplicity/AI-CloudOps/internal/agent/dao"
+	agentHub "github.com/GoSimplicity/AI-CloudOps/internal/agent/hub"
+	"github.com/GoSimplicity/AI-CloudOps/internal/agent/api"
+	agentRisk "github.com/GoSimplicity/AI-CloudOps/internal/agent/risk"
+	agentService "github.com/GoSimplicity/AI-CloudOps/internal/agent/service"
+	agentToolManager "github.com/GoSimplicity/AI-CloudOps/internal/agent/tool/mcp/manager"
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
-func ProvideAgentPlanner() agentplanner.Planner {
-	baseURL := os.Getenv("VAN_AGENT_URL")
-	if baseURL == "" {
-		baseURL = "http://localhost:8080"
+// ==================== 配置提供者 ====================
+
+// ProvideAgentConfig 从全局配置中提取 Agent 配置
+func ProvideAgentConfig() *AgentConfig {
+	cfg := GlobalConfig.Agent
+	return &cfg
+}
+
+// ProvideAgentRiskConfig 从全局配置中提取 Agent 风险配置
+func ProvideAgentRiskConfig() *AgentRiskConfig {
+	cfg := GlobalConfig.Agent.Risk
+	return &cfg
+}
+
+// ProvideAgentHubConfig 从全局配置中提取 Agent Hub 配置
+func ProvideAgentHubConfig() *AgentHubConfig {
+	cfg := GlobalConfig.Agent.Hub
+	return &cfg
+}
+
+// ==================== DAO ====================
+
+// ProvideAgentDAO 创建 Agent DAO
+func ProvideAgentDAO(db *gorm.DB, l *zap.Logger) agentDao.AgentDAO {
+	return agentDao.NewAgentDAO(db, l)
+}
+
+// ==================== 工具和风险 ====================
+
+// ProvideAgentToolManager 创建工具管理器
+func ProvideAgentToolManager(dao agentDao.AgentDAO, l *zap.Logger) *agentToolManager.ToolManager {
+	return agentToolManager.NewToolManager(dao, l)
+}
+
+// ProvideAgentRiskEvaluator 创建风险评估器
+func ProvideAgentRiskEvaluator(cfg *AgentRiskConfig) *agentRisk.Evaluator {
+	evalCfg := &agentRisk.EvaluatorConfig{
+		HighRiskPatterns: cfg.HighRiskPatterns,
+		ProtectedPaths:   cfg.ProtectedPaths,
+		Shell: agentRisk.ShellConfig{
+			DefaultRisk: cfg.Shell.DefaultRisk,
+			Blacklist:   cfg.Shell.Blacklist,
+			Whitelist:   cfg.Shell.Whitelist,
+		},
 	}
-	var timeout time.Duration
-	if s := os.Getenv("VAN_AGENT_TIMEOUT"); s != "" {
-		if secs, err := strconv.Atoi(s); err == nil {
-			timeout = time.Duration(secs) * time.Second
-		}
-	}
-	return agentplanner.NewHTTPPlanner(baseURL, timeout)
+	return agentRisk.NewEvaluator(evalCfg)
 }
 
-func ProvideAgentRiskGuard() *agentrisk.Guard {
-	return agentrisk.NewGuard()
-}
+// ==================== 服务 ====================
 
-func ProvideAgentToolRegistry() *agenttools.Registry {
-	return agenttools.NewRegistry()
-}
-
-func ProvideAgentAuditStore() agentaudit.Store {
-	return agentaudit.NewMemoryStore()
-}
-
-func ProvideAgentApprovalStore() *agentservice.ApprovalStore {
-	return agentservice.NewApprovalStore()
-}
-
+// ProvideAgentService 将 di 配置转换为 service 本地配置并创建智能体服务
 func ProvideAgentService(
-	planner agentplanner.Planner,
-	guard *agentrisk.Guard,
-	registry *agenttools.Registry,
-	auditStore agentaudit.Store,
-	approvalStore *agentservice.ApprovalStore,
-	logger *zap.Logger,
-) *agentservice.Service {
-	return agentservice.NewService(planner, guard, registry, auditStore, approvalStore, logger)
+	dao agentDao.AgentDAO,
+	toolMgr *agentToolManager.ToolManager,
+	riskEval *agentRisk.Evaluator,
+	cfg *AgentConfig,
+	l *zap.Logger,
+) agentService.AgentService {
+	svcCfg := &agentService.Config{
+		LLM: agentService.LLMConfig{
+			Provider:    cfg.LLM.Provider,
+			BaseURL:     cfg.LLM.BaseURL,
+			APIKey:      cfg.LLM.APIKey,
+			Model:       cfg.LLM.Model,
+			Temperature: cfg.LLM.Temperature,
+			MaxTokens:   cfg.LLM.MaxTokens,
+		},
+		MaxHistory: cfg.MaxHistory,
+	}
+	return agentService.NewAgentService(dao, toolMgr, riskEval, svcCfg, l)
+}
+
+// ProvideHubService 创建 Hub 服务
+func ProvideHubService(
+	dao agentDao.AgentDAO,
+	toolMgr *agentToolManager.ToolManager,
+	cfg *AgentHubConfig,
+	l *zap.Logger,
+) agentHub.HubService {
+	hubCfg := &agentHub.AgentHubConfig{
+		PluginDir:            cfg.PluginDir,
+		MaxPluginSize:        cfg.MaxPluginSize,
+		MaxConcurrentPlugins: cfg.MaxConcurrentPlugins,
+	}
+	return agentHub.NewHubService(dao, toolMgr, hubCfg, l)
+}
+
+// ==================== Handler ====================
+
+// ProvideAgentHandler 创建智能体 API 处理器
+func ProvideAgentHandler(
+	agentSvc agentService.AgentService,
+	hubSvc agentHub.HubService,
+) *api.Handler {
+	return api.NewHandler(agentSvc, hubSvc)
 }

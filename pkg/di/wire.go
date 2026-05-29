@@ -28,7 +28,6 @@
 package di
 
 import (
-	agentApi "github.com/GoSimplicity/AI-CloudOps/internal/agent/api"
 	containerApi "github.com/GoSimplicity/AI-CloudOps/internal/container/api"
 	containerService "github.com/GoSimplicity/AI-CloudOps/internal/container/service"
 	cron "github.com/GoSimplicity/AI-CloudOps/internal/cron"
@@ -145,7 +144,7 @@ var HandlerSet = wire.NewSet(
 	filesHandler.NewFileShareHandler,
 	filesHandler.NewShareAccessHandler,
 	containerApi.NewContainerHandler,
-	agentApi.NewHandler,
+	ProvideAgentHandler,
 )
 
 var ServiceSet = wire.NewSet(
@@ -210,12 +209,6 @@ var ServiceSet = wire.NewSet(
 	ProvideTerminalLocalAdapter,
 	ProvideTerminalSSHAdapter,
 	ProvideTerminalService,
-	ProvideAgentPlanner,
-	ProvideAgentRiskGuard,
-	ProvideAgentToolRegistry,
-	ProvideAgentAuditStore,
-	ProvideAgentApprovalStore,
-	ProvideAgentService,
 )
 
 var DaoSet = wire.NewSet(
@@ -251,6 +244,7 @@ var DaoSet = wire.NewSet(
 	treeDao.NewCloudAccountRegionDAO,
 	filesDao.NewFileShareDAO,
 	cronDao.NewCronJobDAO,
+	ProvideAgentDAO,
 )
 
 var SSHSet = wire.NewSet(
@@ -331,6 +325,16 @@ var NotificationSet = wire.NewSet(
 	InitNotificationManager,
 )
 
+var AgentSet = wire.NewSet(
+	ProvideAgentConfig,
+	ProvideAgentRiskConfig,
+	ProvideAgentHubConfig,
+	ProvideAgentToolManager,
+	ProvideAgentRiskEvaluator,
+	ProvideAgentService,
+	ProvideHubService,
+)
+
 func ProvideCmd() *Cmd {
 	wire.Build(
 		Injector,
@@ -345,6 +349,7 @@ func ProvideCmd() *Cmd {
 		ClientSet,
 		AsynqSet,
 		NotificationSet,
+		AgentSet,
 	)
 	return &Cmd{}
 }
