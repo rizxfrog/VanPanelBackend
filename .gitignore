@@ -117,3 +117,7 @@ internal/model/kubeedge_types.go
 # AI-CloudOps executable
 AI-CloudOps
 .cursor.claude/
+/.claude/
+/.cursor/
+/.githooks/
+/.kiro/

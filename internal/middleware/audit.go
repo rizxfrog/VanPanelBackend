@@ -133,7 +133,7 @@ func (m *AuditLogMiddleware) AuditLog() gin.HandlerFunc {
 				var jsonData interface{}
 				if err := json.Unmarshal(buf.Bytes(), &jsonData); err == nil {
 					if jsonBytes, err := json.Marshal(jsonData); err == nil {
-						requestBody = jsonBytes
+						requestBody = sanitizeJSON(jsonBytes)
 					}
 				}
 			}
@@ -175,7 +175,7 @@ func (m *AuditLogMiddleware) AuditLog() gin.HandlerFunc {
 			var jsonData interface{}
 			if err := json.Unmarshal(blw.body.Bytes(), &jsonData); err == nil {
 				if jsonBytes, err := json.Marshal(jsonData); err == nil {
-					responseBody = jsonBytes
+					responseBody = sanitizeJSON(jsonBytes)
 				}
 			}
 		}
@@ -273,4 +273,17 @@ func parseOperationType(method string) string {
 		return opType
 	}
 	return Unknown
+}
+
+// sanitizeJSON 清理 JSON 数据中的非法字符（如 \u0000）
+// PostgreSQL 的 JSON 类型不支持 \u0000 Unicode 转义序列，需要予以清除
+func sanitizeJSON(data datatypes.JSON) datatypes.JSON {
+	if len(data) == 0 {
+		return data
+	}
+	// 替换 \u0000（Go 对 null byte 的 JSON 转义）
+	data = bytes.ReplaceAll(data, []byte(`\u0000`), nil)
+	// 如果原始数据中嵌入了直接的 null byte，也一并清除
+	data = bytes.ReplaceAll(data, []byte{0}, nil)
+	return data
 }

@@ -1,0 +1,385 @@
+### ============================================================
+### VanPanel Agent Module — JetBrains HTTP Client Tests
+### ============================================================
+### 使用方法：
+###   1. 先运行 "登录获取 Token" 请求
+###   2. response handler 会自动设置 {{token}} 变量
+###   3. 然后可以逐个运行后续请求
+### ============================================================
+
+@baseUrl = http://localhost:8889
+@contentType = application/json
+
+### ==================== 登录获取 Token ====================
+
+# @name login
+POST {{baseUrl}}/api/user/login
+Content-Type: {{contentType}}
+
+{
+  "username": "admin",
+  "password": "admin"
+}
+
+> {%
+client.test("登录成功", function() {
+    client.assert(response.status === 200, "HTTP 状态码应为 200");
+    client.assert(response.body.code === 0, "业务码应为 0");
+    var token = response.body.data.accessToken;
+    client.assert(token, "应返回 accessToken");
+    client.global.set("token", token);
+    client.log("Token 已设置: " + token.substring(0, 20) + "...");
+});
+%}
+
+### ==================== 会话管理 ====================
+
+### 创建会话
+# @name createSession
+POST {{baseUrl}}/api/system/agent/sessions/create
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+
+{
+  "title": "测试会话 - 系统巡检",
+  "model": "gpt-4o"
+}
+
+> {%
+client.test("创建会话成功", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.code === 0);
+    client.assert(response.body.data.id > 0, "应返回会话 ID");
+    client.global.set("sessionId", response.body.data.id.toString());
+    client.log("Session ID: " + response.body.data.id);
+});
+%}
+
+### 获取会话列表
+GET {{baseUrl}}/api/system/agent/sessions/list?page=1&size=10
+Authorization: Bearer {{token}}
+
+> {%
+client.test("会话列表", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.code === 0);
+});
+%}
+
+### 获取会话详情
+GET {{baseUrl}}/api/system/agent/sessions/{{sessionId}}/detail
+Authorization: Bearer {{token}}
+
+> {%
+client.test("会话详情", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.id == client.global.get("sessionId"));
+});
+%}
+
+### 获取会话消息历史
+GET {{baseUrl}}/api/system/agent/sessions/{{sessionId}}/messages?page=1&size=50
+Authorization: Bearer {{token}}
+
+> {%
+client.test("消息历史", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.code === 0);
+});
+%}
+
+### ==================== Agent 查询 ====================
+
+### 非流式查询 — 系统巡检
+# @name agentQuery
+POST {{baseUrl}}/api/system/agent/query
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+
+{
+  "session_id": "{{sessionId}}",
+  "question": "查看当前系统的磁盘使用情况"
+}
+
+> {%
+client.test("Agent 查询成功", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.code === 0);
+    client.log("回答: " + (response.body.data.answer || "").substring(0, 100));
+});
+%}
+
+### 非流式查询 — 进程排查
+POST {{baseUrl}}/api/system/agent/query
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+
+{
+  "session_id": "{{sessionId}}",
+  "question": "列出当前系统中占用内存最多的 5 个进程"
+}
+
+### 非流式查询 — 网络连接
+POST {{baseUrl}}/api/system/agent/query
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+
+{
+  "session_id": "{{sessionId}}",
+  "question": "查看当前监听的 TCP 端口"
+}
+
+### 非流式查询 — 服务状态
+POST {{baseUrl}}/api/system/agent/query
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+
+{
+  "session_id": "{{sessionId}}",
+  "question": "检查 nginx 服务的运行状态"
+}
+
+### 非流式查询 — 日志分析
+POST {{baseUrl}}/api/system/agent/query
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+
+{
+  "session_id": "{{sessionId}}",
+  "question": "查看最近的系统错误日志"
+}
+
+### SSE 流式查询
+POST {{baseUrl}}/api/system/agent/query/stream
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+
+{
+  "session_id": "{{sessionId}}",
+  "question": "查看当前系统负载和运行时间"
+}
+
+### ==================== 工具列表 ====================
+
+### 获取所有可用工具
+GET {{baseUrl}}/api/system/agent/tools
+Authorization: Bearer {{token}}
+
+> {%
+client.test("工具列表", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.code === 0);
+    client.log("工具数量: " + (response.body.data || []).length);
+});
+%}
+
+### ==================== 内置工具管理 ====================
+
+### 获取内置工具列表
+GET {{baseUrl}}/api/system/agent/builtin-tools/list
+Authorization: Bearer {{token}}
+
+> {%
+client.test("内置工具列表", function() {
+    client.assert(response.status === 200);
+    var tools = response.body.data;
+    client.assert(tools && tools.length > 0, "应有内置工具");
+    client.log("内置工具数量: " + tools.length);
+});
+%}
+
+### 切换内置工具启用状态 — 禁用 shell.exec
+PUT {{baseUrl}}/api/system/agent/builtin-tools/shell.exec/toggle
+Authorization: Bearer {{token}}
+
+> {%
+client.test("切换工具状态", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.code === 0);
+});
+%}
+
+### 恢复 shell.exec 启用
+PUT {{baseUrl}}/api/system/agent/builtin-tools/shell.exec/toggle
+Authorization: Bearer {{token}}
+
+### 切换 net.lsof
+PUT {{baseUrl}}/api/system/agent/builtin-tools/net.lsof/toggle
+Authorization: Bearer {{token}}
+
+### ==================== Hub 插件市场 ====================
+
+### 浏览插件列表
+GET {{baseUrl}}/api/system/agent/hub/plugins/list?page=1&size=10
+Authorization: Bearer {{token}}
+
+> {%
+client.test("插件列表", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.code === 0);
+});
+%}
+
+### 按分类筛选插件
+GET {{baseUrl}}/api/system/agent/hub/plugins/list?page=1&size=10&category=monitoring
+Authorization: Bearer {{token}}
+
+### 搜索插件
+GET {{baseUrl}}/api/system/agent/hub/plugins/list?page=1&size=10&search=mysql
+Authorization: Bearer {{token}}
+
+### 获取插件详情 (替换 :id 为实际插件 ID)
+GET {{baseUrl}}/api/system/agent/hub/plugins/1/detail
+Authorization: Bearer {{token}}
+
+### 安装插件 (替换 :id 为实际插件 ID)
+POST {{baseUrl}}/api/system/agent/hub/plugins/1/install
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+
+{
+  "config": {}
+}
+
+### 卸载插件 (替换 :id 为实际插件 ID)
+DELETE {{baseUrl}}/api/system/agent/hub/plugins/1/uninstall
+Authorization: Bearer {{token}}
+
+### 切换插件启用状态 (替换 :id 为实际插件 ID)
+PUT {{baseUrl}}/api/system/agent/hub/plugins/1/toggle
+Authorization: Bearer {{token}}
+
+### ==================== 远程 MCP 配置 ====================
+
+### 获取远程 MCP 列表
+GET {{baseUrl}}/api/system/agent/remote-mcps/list?page=1&size=10
+Authorization: Bearer {{token}}
+
+> {%
+client.test("远程 MCP 列表", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.code === 0);
+});
+%}
+
+### 创建远程 MCP — SSE
+# @name createRemoteMCP
+POST {{baseUrl}}/api/system/agent/remote-mcps/create
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+
+{
+  "name": "测试 MCP Server",
+  "description": "用于测试的远程 MCP 服务器",
+  "transport": "sse",
+  "url": "http://localhost:9000/sse",
+  "auth_type": "none"
+}
+
+> {%
+client.test("创建远程 MCP 成功", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.code === 0);
+});
+%}
+
+### 创建远程 MCP — Streamable HTTP + Bearer
+POST {{baseUrl}}/api/system/agent/remote-mcps/create
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+
+{
+  "name": "带认证的 MCP Server",
+  "description": "使用 Bearer Token 认证",
+  "transport": "streamable-http",
+  "url": "https://mcp.example.com/api",
+  "auth_type": "bearer",
+  "auth_config": {
+    "token": "sk-xxxxxxxxxxxx"
+  }
+}
+
+### 更新远程 MCP (替换 :id 为实际 ID)
+PUT {{baseUrl}}/api/system/agent/remote-mcps/1/update
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+
+{
+  "name": "更新后的 MCP Server",
+  "description": "更新了描述",
+  "transport": "sse",
+  "url": "http://localhost:9001/sse",
+  "auth_type": "none"
+}
+
+### 切换远程 MCP 启用状态 (替换 :id 为实际 ID)
+PUT {{baseUrl}}/api/system/agent/remote-mcps/1/toggle
+Authorization: Bearer {{token}}
+
+### 测试远程 MCP 连接 (替换 :id 为实际 ID)
+POST {{baseUrl}}/api/system/agent/remote-mcps/1/test
+Authorization: Bearer {{token}}
+
+> {%
+client.test("测试远程 MCP 连接", function() {
+    client.assert(response.status === 200);
+    var result = response.body.data;
+    client.log("可达: " + result.reachable);
+    if (result.tools) client.log("工具: " + result.tools.join(", "));
+    if (result.error) client.log("错误: " + result.error);
+});
+%}
+
+### 删除远程 MCP (替换 :id 为实际 ID)
+DELETE {{baseUrl}}/api/system/agent/remote-mcps/1/delete
+Authorization: Bearer {{token}}
+
+### ==================== 边界测试 ====================
+
+### 未授权访问
+GET {{baseUrl}}/api/system/agent/tools
+
+> {%
+client.test("未授权应返回错误", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.code !== 0, "未登录应返回错误码");
+});
+%}
+
+### 空问题查询
+POST {{baseUrl}}/api/system/agent/query
+Content-Type: {{contentType}}
+Authorization: Bearer {{token}}
+
+{
+  "session_id": "{{sessionId}}",
+  "question": ""
+}
+
+> {%
+client.test("空问题应返回参数错误", function() {
+    client.assert(response.status === 400 || response.body.code !== 0);
+});
+%}
+
+### 不存在的会话
+GET {{baseUrl}}/api/system/agent/sessions/999999/detail
+Authorization: Bearer {{token}}
+
+> {%
+client.test("不存在的会话应返回 404", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.code !== 0, "不存在的会话应返回错误");
+});
+%}
+
+### 删除会话
+DELETE {{baseUrl}}/api/system/agent/sessions/{{sessionId}}/delete
+Authorization: Bearer {{token}}
+
+> {%
+client.test("删除会话成功", function() {
+    client.assert(response.status === 200);
+    client.assert(response.body.code === 0);
+});
+%}
