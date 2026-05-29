@@ -6,8 +6,10 @@ require (
 	github.com/aliyun/alibaba-cloud-sdk-go v1.63.107
 	github.com/casbin/casbin/v2 v2.93.0
 	github.com/cloudwego/eino v0.9.2
+	github.com/cloudwego/eino-ext/components/model/openai v0.1.13
 	github.com/creack/pty/v2 v2.0.1
 	github.com/docker/docker v24.0.6+incompatible
+	github.com/eino-contrib/jsonschema v1.0.3
 	github.com/fatih/color v1.16.0
 	github.com/gin-contrib/cors v1.7.2
 	github.com/gin-contrib/gzip v1.2.3
@@ -99,6 +101,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/chai2010/gettext-go v1.0.2 // indirect
 	github.com/cloudwego/base64x v0.1.6 // indirect
+	github.com/cloudwego/eino-ext/libs/acl/openai v0.1.17 // indirect
 	github.com/cncf/xds/go v0.0.0-20250326154945-ae57f3c0d45f // indirect
 	github.com/coder/quartz v0.1.2 // indirect
 	github.com/coreos/go-systemd/v22 v22.5.0 // indirect
@@ -110,10 +113,10 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
 	github.com/edsrzf/mmap-go v1.2.0 // indirect
-	github.com/eino-contrib/jsonschema v1.0.3 // indirect
 	github.com/emicklei/go-restful/v3 v3.12.2 // indirect
 	github.com/envoyproxy/go-control-plane/envoy v1.32.4 // indirect
 	github.com/envoyproxy/protoc-gen-validate v1.2.1 // indirect
+	github.com/evanphx/json-patch v5.6.0+incompatible // indirect
 	github.com/exponent-io/jsonpath v0.0.0-20210407135951-1de76d718b3f // indirect
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/fxamacker/cbor/v2 v2.9.0 // indirect
@@ -172,6 +175,7 @@ require (
 	github.com/matttproud/golang_protobuf_extensions v1.0.4 // indirect
 	github.com/mdlayher/socket v0.4.1 // indirect
 	github.com/mdlayher/vsock v1.2.1 // indirect
+	github.com/meguminnnnnnnnn/go-openai v0.1.2 // indirect
 	github.com/miekg/dns v1.1.66 // indirect
 	github.com/mitchellh/go-wordwrap v1.0.1 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect

@@ -18,11 +18,12 @@ type ShellExecTool struct {
 // NewShellExecTool 创建 ShellExecTool 实例。
 func NewShellExecTool() *ShellExecTool {
 	return &ShellExecTool{baseCommandTool{
-		name:        "shell.exec",
-		description: "执行 Shell 命令（通用执行器，可运行任意命令）",
-		command:     "",
-		timeout:     30 * time.Second,
-		maxOutput:   65536,
+		name:           "shell.exec",
+		description:    "执行 Shell 命令（通用执行器，可运行任意命令）",
+		command:        "",
+		windowsCommand: "{args}",
+		timeout:        30 * time.Second,
+		maxOutput:      65536,
 	}}
 }
 

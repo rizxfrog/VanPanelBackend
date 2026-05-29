@@ -15,7 +15,10 @@ type PSTool struct{ baseCommandTool }
 func NewPSTool() *PSTool {
 	return &PSTool{baseCommandTool{
 		name: "proc.ps", description: "列出系统进程（按内存排序，排查内存占用高的进程）",
-		command: "ps aux --sort=-%mem", timeout: 30 * time.Second, maxOutput: 65536,
+		command:        "ps aux --sort=-%mem",
+		windowsCommand: `Get-Process | Sort-Object WorkingSet64 -Descending | Select-Object -First 30 Id,ProcessName,@{N='CPU(s)';E={$_.CPU}},@{N='Mem(MB)';E={[math]::Round($_.WorkingSet64/1MB,2)}},@{N='PM(MB)';E={[math]::Round($_.PagedMemorySize64/1MB,2)}} | Format-Table -AutoSize`,
+		timeout:        30 * time.Second,
+		maxOutput:      65536,
 	}}
 }
 
@@ -29,7 +32,9 @@ func (t *PSTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 }
 
 func (t *PSTool) InvokableRun(ctx context.Context, argsJSON string, _ ...tool.Option) (string, error) {
-	var p struct{ Args string `json:"args"` }
+	var p struct {
+		Args string `json:"args"`
+	}
 	if err := json.Unmarshal([]byte(argsJSON), &p); err != nil {
 		return t.runCommand(ctx, "")
 	}
@@ -42,7 +47,10 @@ type TopTool struct{ baseCommandTool }
 func NewTopTool() *TopTool {
 	return &TopTool{baseCommandTool{
 		name: "proc.top", description: "获取进程资源占用快照（CPU、内存、负载等实时指标）",
-		command: "top -b -n1", timeout: 30 * time.Second, maxOutput: 65536,
+		command:        "top -b -n1",
+		windowsCommand: `$cpu=(Get-CimInstance Win32_Processor | Measure-Object -Property LoadPercentage -Average).Average; $mem=Get-CimInstance Win32_OperatingSystem; $memTotal=[math]::Round($mem.TotalVisibleMemorySize/1MB,2); $memFree=[math]::Round($mem.FreePhysicalMemory/1MB,2); Write-Output "CPU Usage: $cpu%"; Write-Output "Memory: Total=${memTotal}MB  Used=$([math]::Round($memTotal-$memFree,2))MB  Free=${memFree}MB"; Write-Output ""; Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 ProcessName,Id,@{N='CPU(s)';E={$_.CPU}},@{N='Mem(MB)';E={[math]::Round($_.WorkingSet64/1MB,2)}} | Format-Table -AutoSize`,
+		timeout:        30 * time.Second,
+		maxOutput:      65536,
 	}}
 }
 
@@ -56,7 +64,9 @@ func (t *TopTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 }
 
 func (t *TopTool) InvokableRun(ctx context.Context, argsJSON string, _ ...tool.Option) (string, error) {
-	var p struct{ Args string `json:"args"` }
+	var p struct {
+		Args string `json:"args"`
+	}
 	if err := json.Unmarshal([]byte(argsJSON), &p); err != nil {
 		return t.runCommand(ctx, "")
 	}
@@ -69,7 +79,10 @@ type PgrepTool struct{ baseCommandTool }
 func NewPgrepTool() *PgrepTool {
 	return &PgrepTool{baseCommandTool{
 		name: "proc.pgrep", description: "按名称查找进程（快速定位特定进程 PID）",
-		command: "pgrep -a", timeout: 30 * time.Second, maxOutput: 65536,
+		command:        "pgrep -a",
+		windowsCommand: `Get-Process -Name "{args}" -ErrorAction SilentlyContinue | Select-Object Id,ProcessName,Path,@{N='Mem(MB)';E={[math]::Round($_.WorkingSet64/1MB,2)}} | Format-Table -AutoSize`,
+		timeout:        30 * time.Second,
+		maxOutput:      65536,
 	}}
 }
 
@@ -83,7 +96,9 @@ func (t *PgrepTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 }
 
 func (t *PgrepTool) InvokableRun(ctx context.Context, argsJSON string, _ ...tool.Option) (string, error) {
-	var p struct{ Args string `json:"args"` }
+	var p struct {
+		Args string `json:"args"`
+	}
 	if err := json.Unmarshal([]byte(argsJSON), &p); err != nil {
 		return t.runCommand(ctx, "")
 	}

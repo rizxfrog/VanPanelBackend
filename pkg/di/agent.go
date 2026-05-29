@@ -1,11 +1,14 @@
 package di
 
 import (
+	"context"
+
+	"github.com/GoSimplicity/AI-CloudOps/internal/agent/api"
 	agentDao "github.com/GoSimplicity/AI-CloudOps/internal/agent/dao"
 	agentHub "github.com/GoSimplicity/AI-CloudOps/internal/agent/hub"
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/api"
 	agentRisk "github.com/GoSimplicity/AI-CloudOps/internal/agent/risk"
 	agentService "github.com/GoSimplicity/AI-CloudOps/internal/agent/service"
+	"github.com/GoSimplicity/AI-CloudOps/internal/agent/tool/builtin"
 	agentToolManager "github.com/GoSimplicity/AI-CloudOps/internal/agent/tool/mcp/manager"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -42,7 +45,17 @@ func ProvideAgentDAO(db *gorm.DB, l *zap.Logger) agentDao.AgentDAO {
 
 // ProvideAgentToolManager 创建工具管理器
 func ProvideAgentToolManager(dao agentDao.AgentDAO, l *zap.Logger) *agentToolManager.ToolManager {
-	return agentToolManager.NewToolManager(dao, l)
+	mgr := agentToolManager.NewToolManager(dao, l)
+	// 注册内置工具实现到 ToolManager
+	mgr.SetBuiltinTools(builtin.NewBuiltinTools())
+	// 异步 seed 数据库中的内置工具记录，确保 cl_agent_builtin_tools 表不为空
+	go func() {
+		defs := builtin.BuiltinToolDefs()
+		if err := dao.SeedBuiltinTools(context.Background(), defs); err != nil {
+			l.Warn("seed builtin tools to database failed", zap.Error(err))
+		}
+	}()
+	return mgr
 }
 
 // ProvideAgentRiskEvaluator 创建风险评估器

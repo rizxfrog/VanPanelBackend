@@ -28,6 +28,7 @@ type AgentDAO interface {
 	ListBuiltinTools(ctx context.Context) ([]*model.BuiltinTool, error)
 	ToggleBuiltinTool(ctx context.Context, name string, enabled bool) error
 	CreateBuiltinTool(ctx context.Context, tool *model.BuiltinTool) error
+	SeedBuiltinTools(ctx context.Context, tools []*model.BuiltinTool) error
 
 	// 插件
 	ListPlugins(ctx context.Context, req *model.ListMCPPluginsReq) ([]*model.MCPPlugin, int64, error)
@@ -259,6 +260,22 @@ func (d *agentDAO) CreateBuiltinTool(ctx context.Context, tool *model.BuiltinToo
 		d.l.Error("CreateBuiltinTool: 创建工具失败", zap.String("name", tool.Name), zap.Error(err))
 		return fmt.Errorf("创建工具失败: %w", err)
 	}
+	return nil
+}
+
+func (d *agentDAO) SeedBuiltinTools(ctx context.Context, tools []*model.BuiltinTool) error {
+	if len(tools) == 0 {
+		return nil
+	}
+	for _, tool := range tools {
+		if err := d.db.WithContext(ctx).
+			Where("name = ?", tool.Name).
+			FirstOrCreate(tool).Error; err != nil {
+			d.l.Error("SeedBuiltinTools: seed 失败", zap.String("name", tool.Name), zap.Error(err))
+			return fmt.Errorf("seed 内置工具 %s 失败: %w", tool.Name, err)
+		}
+	}
+	d.l.Info("SeedBuiltinTools: 内置工具 seed 完成", zap.Int("count", len(tools)))
 	return nil
 }
 

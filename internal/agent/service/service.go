@@ -20,7 +20,7 @@ import (
 	"github.com/GoSimplicity/AI-CloudOps/internal/model"
 )
 
-const personaPrompt = "你是一个运维助手，请使用工具来回答用户的问题。"
+const personaPrompt = "你是一个运维助手，你有多种工具可以调用来查询系统信息。当用户询问系统状态、可用工具、或需要执行运维操作时，必须优先使用工具来获取实时数据，不要凭记忆回答。如果用户问\"有哪些工具\"或\"可以用什么工具\"，直接列出你实际可用的工具名称和用途。"
 
 // LLMConfig LLM 配置，与 di.AgentLLMConfig 字段对齐，避免 import cycle。
 type LLMConfig struct {
@@ -92,6 +92,15 @@ func (s *agentService) createChatModel(ctx context.Context) (*einoopenai.ChatMod
 
 // Query 同步查询智能体
 func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, userID int) (*model.AgentQueryResponse, error) {
+	// 自动创建会话（如果 session_id 为空）
+	if req.SessionID == "" {
+		session, err := s.CreateSession(ctx, &model.CreateAgentSessionReq{Title: "新对话"}, userID)
+		if err != nil {
+			return nil, fmt.Errorf("自动创建会话失败: %w", err)
+		}
+		req.SessionID = strconv.Itoa(session.ID)
+	}
+
 	// 解析会话 ID
 	sessionID, err := strconv.Atoi(req.SessionID)
 	if err != nil {
@@ -177,6 +186,15 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 
 // QueryStream 流式查询智能体
 func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq, userID int, writer io.Writer) error {
+	// 自动创建会话（如果 session_id 为空）
+	if req.SessionID == "" {
+		session, err := s.CreateSession(ctx, &model.CreateAgentSessionReq{Title: "新对话"}, userID)
+		if err != nil {
+			return fmt.Errorf("自动创建会话失败: %w", err)
+		}
+		req.SessionID = strconv.Itoa(session.ID)
+	}
+
 	sessionID, err := strconv.Atoi(req.SessionID)
 	if err != nil {
 		return fmt.Errorf("无效的会话 ID: %w", err)
@@ -254,7 +272,7 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 	}
 
 	// 发送完成事件
-	if err := s.writeSSEEvent(writer, "done", map[string]string{}); err != nil {
+	if err := s.writeSSEEvent(writer, "done", map[string]string{"session_id": req.SessionID}); err != nil {
 		return fmt.Errorf("写入 SSE 完成事件失败: %w", err)
 	}
 

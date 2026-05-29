@@ -32,7 +32,7 @@ type AgentSessionStatus int8
 
 const (
 	AgentSessionStatusActive   AgentSessionStatus = iota + 1 // 活跃
-	AgentSessionStatusArchived                                // 已归档
+	AgentSessionStatusArchived                               // 已归档
 )
 
 // AgentMessageRole 消息角色
@@ -74,11 +74,11 @@ const (
 // AgentSession 智能体对话会话
 type AgentSession struct {
 	Model
-	UserID       int               `json:"user_id" gorm:"index;not null;comment:用户ID"`
-	Title        string            `json:"title" gorm:"type:varchar(200);not null;default:'';comment:会话标题"`
-	ModelName    string            `json:"model" gorm:"column:model;type:varchar(100);not null;default:'';comment:使用的模型"`
-	ToolCount    int               `json:"tool_count" gorm:"not null;default:0;comment:可用工具数"`
-	MessageCount int               `json:"message_count" gorm:"not null;default:0;comment:消息数"`
+	UserID       int                `json:"user_id" gorm:"index;not null;comment:用户ID"`
+	Title        string             `json:"title" gorm:"type:varchar(200);not null;default:'';comment:会话标题"`
+	ModelName    string             `json:"model" gorm:"column:model;type:varchar(100);not null;default:'';comment:使用的模型"`
+	ToolCount    int                `json:"tool_count" gorm:"not null;default:0;comment:可用工具数"`
+	MessageCount int                `json:"message_count" gorm:"not null;default:0;comment:消息数"`
 	Status       AgentSessionStatus `json:"status" gorm:"not null;default:1;index;comment:状态 1活跃 2归档"`
 }
 
@@ -88,14 +88,14 @@ func (AgentSession) TableName() string {
 
 // AgentMessage 智能体对话消息
 type AgentMessage struct {
-	ID         int64   `json:"id" gorm:"primaryKey;autoIncrement;type:bigint;comment:主键ID"`
-	SessionID  string  `json:"session_id" gorm:"type:varchar(36);not null;index;comment:会话UUID"`
+	ID         int64            `json:"id" gorm:"primaryKey;autoIncrement;type:bigint;comment:主键ID"`
+	SessionID  string           `json:"session_id" gorm:"type:varchar(36);not null;index;comment:会话UUID"`
 	Role       AgentMessageRole `json:"role" gorm:"type:varchar(20);not null;comment:角色 user/assistant/system/tool"`
-	Content    string  `json:"content" gorm:"type:text;not null;comment:消息内容"`
-	ToolCalls  JSONMap `json:"tool_calls" gorm:"type:json;comment:工具调用信息"`
-	ToolCallID string  `json:"tool_call_id" gorm:"type:varchar(100);comment:工具调用ID"`
-	Metadata   JSONMap `json:"metadata" gorm:"type:json;comment:元数据"`
-	CreatedAt  time.Time `json:"created_at" gorm:"autoCreateTime;comment:创建时间"`
+	Content    string           `json:"content" gorm:"type:text;not null;comment:消息内容"`
+	ToolCalls  JSONMap          `json:"tool_calls" gorm:"type:json;comment:工具调用信息"`
+	ToolCallID string           `json:"tool_call_id" gorm:"type:varchar(100);comment:工具调用ID"`
+	Metadata   JSONMap          `json:"metadata" gorm:"type:json;comment:元数据"`
+	CreatedAt  time.Time        `json:"created_at" gorm:"autoCreateTime;comment:创建时间"`
 }
 
 func (AgentMessage) TableName() string {
@@ -104,12 +104,12 @@ func (AgentMessage) TableName() string {
 
 // BuiltinTool 内置工具
 type BuiltinTool struct {
-	Name        string  `json:"name" gorm:"primaryKey;type:varchar(100);comment:工具唯一标识"`
-	DisplayName string  `json:"display_name" gorm:"type:varchar(200);not null;comment:显示名称"`
-	Description string  `json:"description" gorm:"type:text;comment:工具描述"`
-	Category    string  `json:"category" gorm:"type:varchar(50);index;comment:工具分类"`
-	Enabled     bool    `json:"enabled" gorm:"not null;default:true;comment:是否启用"`
-	Config      JSONMap `json:"config" gorm:"type:json;comment:工具配置"`
+	Name        string    `json:"name" gorm:"primaryKey;type:varchar(100);comment:工具唯一标识"`
+	DisplayName string    `json:"display_name" gorm:"type:varchar(200);not null;comment:显示名称"`
+	Description string    `json:"description" gorm:"type:text;comment:工具描述"`
+	Category    string    `json:"category" gorm:"type:varchar(50);index;comment:工具分类"`
+	Enabled     bool      `json:"enabled" gorm:"not null;default:true;comment:是否启用"`
+	Config      JSONMap   `json:"config" gorm:"type:json;comment:工具配置"`
 	CreatedAt   time.Time `json:"created_at" gorm:"autoCreateTime;comment:创建时间"`
 	UpdatedAt   time.Time `json:"updated_at" gorm:"autoUpdateTime;comment:更新时间"`
 }
@@ -121,19 +121,19 @@ func (BuiltinTool) TableName() string {
 // MCPPlugin MCP插件
 type MCPPlugin struct {
 	Model
-	Name        string        `json:"name" gorm:"type:varchar(100);not null;uniqueIndex;comment:插件标识"`
-	DisplayName string        `json:"display_name" gorm:"type:varchar(200);not null;comment:显示名称"`
-	Description string        `json:"description" gorm:"type:text;comment:插件描述"`
-	Version     string        `json:"version" gorm:"type:varchar(50);comment:版本号"`
-	Author      string        `json:"author" gorm:"type:varchar(100);comment:作者"`
-	Category    string        `json:"category" gorm:"type:varchar(50);index;comment:插件分类"`
-	Tags        StringList    `json:"tags" gorm:"type:json;comment:标签"`
-	IconURL     string        `json:"icon_url" gorm:"type:varchar(500);comment:图标URL"`
-	Homepage    string        `json:"homepage" gorm:"type:varchar(500);comment:主页地址"`
-	Manifest    JSONMap       `json:"manifest" gorm:"type:json;not null;comment:插件清单"`
-	BinaryPath  string        `json:"binary_path" gorm:"type:varchar(500);comment:二进制路径"`
-	BinaryHash  string        `json:"binary_hash" gorm:"type:varchar(64);comment:二进制哈希"`
-	Downloads   int           `json:"downloads" gorm:"not null;default:0;comment:下载次数"`
+	Name        string          `json:"name" gorm:"type:varchar(100);not null;uniqueIndex;comment:插件标识"`
+	DisplayName string          `json:"display_name" gorm:"type:varchar(200);not null;comment:显示名称"`
+	Description string          `json:"description" gorm:"type:text;comment:插件描述"`
+	Version     string          `json:"version" gorm:"type:varchar(50);comment:版本号"`
+	Author      string          `json:"author" gorm:"type:varchar(100);comment:作者"`
+	Category    string          `json:"category" gorm:"type:varchar(50);index;comment:插件分类"`
+	Tags        StringList      `json:"tags" gorm:"type:json;comment:标签"`
+	IconURL     string          `json:"icon_url" gorm:"type:varchar(500);comment:图标URL"`
+	Homepage    string          `json:"homepage" gorm:"type:varchar(500);comment:主页地址"`
+	Manifest    JSONMap         `json:"manifest" gorm:"type:json;not null;comment:插件清单"`
+	BinaryPath  string          `json:"binary_path" gorm:"type:varchar(500);comment:二进制路径"`
+	BinaryHash  string          `json:"binary_hash" gorm:"type:varchar(64);comment:二进制哈希"`
+	Downloads   int             `json:"downloads" gorm:"not null;default:0;comment:下载次数"`
 	Status      MCPPluginStatus `json:"status" gorm:"type:varchar(20);not null;default:'active';index;comment:状态 active/disabled/error"`
 }
 
@@ -144,10 +144,10 @@ func (MCPPlugin) TableName() string {
 // MCPPluginInstall MCP插件安装记录
 type MCPPluginInstall struct {
 	Model
-	PluginID int   `json:"plugin_id" gorm:"not null;index;comment:插件ID"`
-	UserID   int   `json:"user_id" gorm:"not null;index;comment:用户ID"`
+	PluginID int     `json:"plugin_id" gorm:"not null;index;comment:插件ID"`
+	UserID   int     `json:"user_id" gorm:"not null;index;comment:用户ID"`
 	Config   JSONMap `json:"config" gorm:"type:json;comment:安装配置"`
-	Enabled  bool  `json:"enabled" gorm:"not null;default:true;comment:是否启用"`
+	Enabled  bool    `json:"enabled" gorm:"not null;default:true;comment:是否启用"`
 }
 
 func (MCPPluginInstall) TableName() string {
@@ -157,14 +157,14 @@ func (MCPPluginInstall) TableName() string {
 // RemoteMCPConfig 远程MCP配置
 type RemoteMCPConfig struct {
 	Model
-	UserID      int               `json:"user_id" gorm:"not null;index;comment:用户ID"`
-	Name        string            `json:"name" gorm:"type:varchar(100);not null;comment:配置名称"`
-	Description string            `json:"description" gorm:"type:text;comment:配置描述"`
+	UserID      int                `json:"user_id" gorm:"not null;index;comment:用户ID"`
+	Name        string             `json:"name" gorm:"type:varchar(100);not null;comment:配置名称"`
+	Description string             `json:"description" gorm:"type:text;comment:配置描述"`
 	Transport   RemoteMCPTransport `json:"transport" gorm:"type:varchar(30);not null;comment:传输方式 sse/streamable-http"`
-	URL         string            `json:"url" gorm:"type:varchar(500);not null;comment:服务地址"`
+	URL         string             `json:"url" gorm:"type:varchar(500);not null;comment:服务地址"`
 	AuthType    RemoteMCPAuthType  `json:"auth_type" gorm:"type:varchar(20);not null;default:'none';comment:认证方式 none/bearer/basic"`
-	AuthConfig  JSONMap           `json:"auth_config" gorm:"type:json;comment:认证配置"`
-	Enabled     bool              `json:"enabled" gorm:"not null;default:true;comment:是否启用"`
+	AuthConfig  JSONMap            `json:"auth_config" gorm:"type:json;comment:认证配置"`
+	Enabled     bool               `json:"enabled" gorm:"not null;default:true;comment:是否启用"`
 }
 
 func (RemoteMCPConfig) TableName() string {
@@ -214,7 +214,7 @@ type ListAgentMessagesReq struct {
 
 // AgentQueryReq 智能体查询请求
 type AgentQueryReq struct {
-	SessionID string `json:"session_id" binding:"required"`
+	SessionID string `json:"session_id"` // 可选，为空时自动创建会话
 	Question  string `json:"question" binding:"required"`
 }
 
@@ -279,23 +279,23 @@ type ListRemoteMCPConfigsReq struct {
 
 // CreateRemoteMCPConfigReq 创建远程MCP配置请求
 type CreateRemoteMCPConfigReq struct {
-	Name        string            `json:"name" binding:"required,max=100"`
-	Description string            `json:"description" binding:"omitempty"`
+	Name        string             `json:"name" binding:"required,max=100"`
+	Description string             `json:"description" binding:"omitempty"`
 	Transport   RemoteMCPTransport `json:"transport" binding:"required,oneof=sse streamable-http"`
-	URL         string            `json:"url" binding:"required,url"`
+	URL         string             `json:"url" binding:"required,url"`
 	AuthType    RemoteMCPAuthType  `json:"auth_type" binding:"omitempty,oneof=none bearer basic"`
-	AuthConfig  JSONMap           `json:"auth_config" binding:"omitempty"`
+	AuthConfig  JSONMap            `json:"auth_config" binding:"omitempty"`
 }
 
 // UpdateRemoteMCPConfigReq 更新远程MCP配置请求
 type UpdateRemoteMCPConfigReq struct {
-	ID          int               `json:"id" form:"id" uri:"id" binding:"required"`
-	Name        string            `json:"name" binding:"omitempty,max=100"`
-	Description string            `json:"description" binding:"omitempty"`
+	ID          int                `json:"id" form:"id" uri:"id" binding:"required"`
+	Name        string             `json:"name" binding:"omitempty,max=100"`
+	Description string             `json:"description" binding:"omitempty"`
 	Transport   RemoteMCPTransport `json:"transport" binding:"omitempty,oneof=sse streamable-http"`
-	URL         string            `json:"url" binding:"omitempty,url"`
+	URL         string             `json:"url" binding:"omitempty,url"`
 	AuthType    RemoteMCPAuthType  `json:"auth_type" binding:"omitempty,oneof=none bearer basic"`
-	AuthConfig  JSONMap           `json:"auth_config" binding:"omitempty"`
+	AuthConfig  JSONMap            `json:"auth_config" binding:"omitempty"`
 }
 
 // DeleteRemoteMCPConfigReq 删除远程MCP配置请求

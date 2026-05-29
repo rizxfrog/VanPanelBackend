@@ -15,7 +15,10 @@ type LsofTool struct{ baseCommandTool }
 func NewLsofTool() *LsofTool {
 	return &LsofTool{baseCommandTool{
 		name: "net.lsof", description: "列出打开的文件和网络连接（排查端口占用、文件句柄泄漏）",
-		command: "lsof", timeout: 30 * time.Second, maxOutput: 65536,
+		command:        "lsof",
+		windowsCommand: `Write-Output "--- TCP Connections ---"; Get-NetTCPConnection | Select-Object LocalAddress,LocalPort,RemoteAddress,RemotePort,State,OwningProcess | Sort-Object LocalPort | Format-Table -AutoSize; Write-Output ""; Write-Output "--- Listening Ports ---"; Get-NetTCPConnection -State Listen | Select-Object LocalAddress,LocalPort,OwningProcess | Format-Table -AutoSize`,
+		timeout:        30 * time.Second,
+		maxOutput:      65536,
 	}}
 }
 
@@ -29,7 +32,9 @@ func (t *LsofTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 }
 
 func (t *LsofTool) InvokableRun(ctx context.Context, argsJSON string, _ ...tool.Option) (string, error) {
-	var p struct{ Args string `json:"args"` }
+	var p struct {
+		Args string `json:"args"`
+	}
 	if err := json.Unmarshal([]byte(argsJSON), &p); err != nil {
 		return t.runCommand(ctx, "")
 	}
@@ -42,7 +47,10 @@ type SSTool struct{ baseCommandTool }
 func NewSSTool() *SSTool {
 	return &SSTool{baseCommandTool{
 		name: "net.ss", description: "查看套接字统计信息（替代 netstat，更快更详细）",
-		command: "ss", timeout: 30 * time.Second, maxOutput: 65536,
+		command:        "ss",
+		windowsCommand: `Write-Output "--- TCP Listening ---"; Get-NetTCPConnection -State Listen | Select-Object LocalAddress,LocalPort,OwningProcess | Sort-Object LocalPort | Format-Table -AutoSize; Write-Output ""; Write-Output "--- TCP Established ---"; Get-NetTCPConnection -State Established | Select-Object LocalAddress,LocalPort,RemoteAddress,RemotePort,OwningProcess | Format-Table -AutoSize`,
+		timeout:        30 * time.Second,
+		maxOutput:      65536,
 	}}
 }
 
@@ -56,7 +64,9 @@ func (t *SSTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 }
 
 func (t *SSTool) InvokableRun(ctx context.Context, argsJSON string, _ ...tool.Option) (string, error) {
-	var p struct{ Args string `json:"args"` }
+	var p struct {
+		Args string `json:"args"`
+	}
 	if err := json.Unmarshal([]byte(argsJSON), &p); err != nil {
 		return t.runCommand(ctx, "")
 	}
@@ -69,7 +79,10 @@ type NetstatTool struct{ baseCommandTool }
 func NewNetstatTool() *NetstatTool {
 	return &NetstatTool{baseCommandTool{
 		name: "net.netstat", description: "网络连接、路由表、接口统计",
-		command: "netstat", timeout: 30 * time.Second, maxOutput: 65536,
+		command:        "netstat",
+		windowsCommand: "netstat -ano",
+		timeout:        30 * time.Second,
+		maxOutput:      65536,
 	}}
 }
 
@@ -83,7 +96,9 @@ func (t *NetstatTool) Info(_ context.Context) (*schema.ToolInfo, error) {
 }
 
 func (t *NetstatTool) InvokableRun(ctx context.Context, argsJSON string, _ ...tool.Option) (string, error) {
-	var p struct{ Args string `json:"args"` }
+	var p struct {
+		Args string `json:"args"`
+	}
 	if err := json.Unmarshal([]byte(argsJSON), &p); err != nil {
 		return t.runCommand(ctx, "")
 	}

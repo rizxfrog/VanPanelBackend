@@ -54,10 +54,10 @@ func main() {
 }
 
 func run() error {
+	_ = godotenv.Load()
 	if err := di.InitViper(); err != nil {
 		return fmt.Errorf("failed to load config: %v", err)
 	}
-	_ = godotenv.Load()
 
 	cmd := di.ProvideCmd()
 	db := di.InitDB()
