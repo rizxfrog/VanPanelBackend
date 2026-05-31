@@ -31,11 +31,11 @@ import (
 
 	"gorm.io/gorm"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/client"
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/dao"
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/manager"
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/utils"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/client"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/manager"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/utils"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 
 	"go.uber.org/zap"
 )

@@ -26,11 +26,11 @@
 package api
 
 import (
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	configService "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/service/config"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	configService "github.com/rizxfrog/VanPanelBackend/internal/prometheus/service/config"
 )
 
 type MonitorConfigHandler struct {

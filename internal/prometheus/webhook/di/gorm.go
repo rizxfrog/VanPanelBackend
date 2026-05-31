@@ -26,7 +26,7 @@
 package di
 
 import (
-	basedi "github.com/GoSimplicity/AI-CloudOps/pkg/di"
+	basedi "github.com/rizxfrog/VanPanelBackend/pkg/di"
 	"gorm.io/gorm"
 )
 

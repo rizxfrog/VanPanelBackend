@@ -28,7 +28,7 @@ package yaml
 import (
 	"context"
 
-	alertCache "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/cache"
+	alertCache "github.com/rizxfrog/VanPanelBackend/internal/prometheus/cache"
 )
 
 type ConfigYamlService interface {

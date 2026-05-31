@@ -30,9 +30,9 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/manager"
-	k8sutils "github.com/GoSimplicity/AI-CloudOps/internal/k8s/utils"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/manager"
+	k8sutils "github.com/rizxfrog/VanPanelBackend/internal/k8s/utils"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 	"go.uber.org/zap"
 	authv1 "k8s.io/api/authentication/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

@@ -6,8 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 	"go.uber.org/zap"
 )
 

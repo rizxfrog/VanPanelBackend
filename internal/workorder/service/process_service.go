@@ -31,8 +31,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/workorder/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/workorder/dao"
 	"go.uber.org/zap"
 )
 

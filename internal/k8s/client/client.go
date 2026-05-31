@@ -31,9 +31,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/dao"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
 	"github.com/openkruise/kruise-api/client/clientset/versioned"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 	"go.uber.org/zap"
 	discovery2 "k8s.io/client-go/discovery"
 	"k8s.io/client-go/dynamic"

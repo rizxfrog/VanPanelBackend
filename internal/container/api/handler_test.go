@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	containermodel "github.com/GoSimplicity/AI-CloudOps/internal/container/model"
 	"github.com/gin-gonic/gin"
+	containermodel "github.com/rizxfrog/VanPanelBackend/internal/container/model"
 )
 
 type fakeContainerService struct {

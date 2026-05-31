@@ -29,7 +29,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/manager"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/manager"
 	"go.uber.org/zap"
 )
 

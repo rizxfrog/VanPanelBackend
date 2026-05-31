@@ -35,14 +35,14 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/mock"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/di"
 	"github.com/fatih/color"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
+	"github.com/rizxfrog/VanPanelBackend/mock"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
+	"github.com/rizxfrog/VanPanelBackend/pkg/di"
 	"github.com/spf13/viper"
 	"gorm.io/gorm"
 )

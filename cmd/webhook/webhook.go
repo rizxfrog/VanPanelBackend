@@ -28,9 +28,9 @@ package main
 import (
 	"net/http"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/di"
-	viperdi "github.com/GoSimplicity/AI-CloudOps/pkg/di"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/di"
+	viperdi "github.com/rizxfrog/VanPanelBackend/pkg/di"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )

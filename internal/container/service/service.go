@@ -9,10 +9,10 @@ import (
 	"strings"
 	"time"
 
-	containermodel "github.com/GoSimplicity/AI-CloudOps/internal/container/model"
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/client"
+	containermodel "github.com/rizxfrog/VanPanelBackend/internal/container/model"
 )
 
 const composeProjectLabel = "com.docker.compose.project"

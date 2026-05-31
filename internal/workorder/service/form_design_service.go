@@ -33,10 +33,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 	"go.uber.org/zap"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/workorder/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/workorder/dao"
 )
 
 type FormDesignService interface {

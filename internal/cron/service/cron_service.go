@@ -31,12 +31,12 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/cron/dao"
-	"github.com/GoSimplicity/AI-CloudOps/internal/cron/handler"
-	"github.com/GoSimplicity/AI-CloudOps/internal/cron/scheduler"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	userDao "github.com/GoSimplicity/AI-CloudOps/internal/system/dao"
 	"github.com/hibiken/asynq"
+	"github.com/rizxfrog/VanPanelBackend/internal/cron/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/cron/handler"
+	"github.com/rizxfrog/VanPanelBackend/internal/cron/scheduler"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	userDao "github.com/rizxfrog/VanPanelBackend/internal/system/dao"
 	"github.com/robfig/cron/v3"
 	"go.uber.org/zap"
 )

@@ -1,6 +1,6 @@
 package di
 
-import filesService "github.com/GoSimplicity/AI-CloudOps/internal/files/service"
+import filesService "github.com/rizxfrog/VanPanelBackend/internal/files/service"
 
 func ProvideFileManagerConfig() filesService.ManagerConfig {
 	cfg := GlobalConfig.FileManager

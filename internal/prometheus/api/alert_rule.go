@@ -26,11 +26,11 @@
 package api
 
 import (
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	alertService "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/service/alert"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
-	ijwt "github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	alertService "github.com/rizxfrog/VanPanelBackend/internal/prometheus/service/alert"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
+	ijwt "github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 )
 
 type AlertRuleHandler struct {

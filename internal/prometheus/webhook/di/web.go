@@ -26,8 +26,8 @@
 package di
 
 import (
-	webhookApi "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/api"
 	"github.com/gin-gonic/gin"
+	webhookApi "github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/api"
 )
 
 // InitGinServer 初始化web服务

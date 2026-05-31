@@ -14,10 +14,10 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"go.uber.org/zap"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/dao"
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/risk"
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/tool/mcp/manager"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 )
 
 const personaPrompt = "你是一个运维助手，你有多种工具可以调用来查询系统信息。当用户询问系统状态、可用工具、或需要执行运维操作时，必须优先使用工具来获取实时数据，不要凭记忆回答。如果用户问\"有哪些工具\"或\"可以用什么工具\"，直接列出你实际可用的工具名称和用途。"

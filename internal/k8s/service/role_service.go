@@ -35,9 +35,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/manager"
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/utils"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/manager"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/utils"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 )
 
 type RoleService interface {

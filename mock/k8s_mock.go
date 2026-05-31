@@ -29,7 +29,7 @@ import (
 	"log"
 	"sync"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 	"gorm.io/gorm"
 )
 

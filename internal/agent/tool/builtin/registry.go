@@ -1,8 +1,8 @@
 package builtin
 
 import (
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
 	"github.com/cloudwego/eino/components/tool"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 )
 
 // NewBuiltinTools 返回所有内置运维工具。

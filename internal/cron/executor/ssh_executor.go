@@ -31,9 +31,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/tree/dao"
-	"github.com/GoSimplicity/AI-CloudOps/internal/tree/ssh"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/tree/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/tree/ssh"
 	"go.uber.org/zap"
 )
 

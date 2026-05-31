@@ -1,4 +1,4 @@
-module github.com/GoSimplicity/AI-CloudOps
+module github.com/rizxfrog/VanPanelBackend
 
 go 1.25.5
 

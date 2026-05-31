@@ -31,9 +31,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/client"
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/utils"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/client"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/utils"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 	"go.uber.org/zap"
 	appsv1 "k8s.io/api/apps/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

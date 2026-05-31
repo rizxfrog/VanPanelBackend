@@ -29,9 +29,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/middleware"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/internal/middleware"
 	"go.uber.org/zap"
 )
 

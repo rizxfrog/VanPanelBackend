@@ -33,14 +33,14 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/utils"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/utils"
 	"github.com/spf13/viper"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/constant"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/dao"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/robot"
 	"github.com/prometheus/alertmanager/template"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/constant"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/robot"
 	"go.uber.org/zap"
 )
 

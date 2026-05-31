@@ -297,8 +297,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/files/model"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/di"
+	"github.com/rizxfrog/VanPanelBackend/internal/files/model"
+	"github.com/rizxfrog/VanPanelBackend/pkg/di"
 )
 
 type ManagerConfig struct {
@@ -385,7 +385,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/files/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/files/model"
 )
 
 func TestPathPolicyAllowsRootChild(t *testing.T) {
@@ -627,7 +627,7 @@ import (
 	"strings"
 	"syscall"
 
-	filemodel "github.com/GoSimplicity/AI-CloudOps/internal/files/model"
+	filemodel "github.com/rizxfrog/VanPanelBackend/internal/files/model"
 )
 
 type ListOptions struct {
@@ -1111,7 +1111,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	filemodel "github.com/GoSimplicity/AI-CloudOps/internal/files/model"
+	filemodel "github.com/rizxfrog/VanPanelBackend/internal/files/model"
 	"go.uber.org/zap"
 )
 
@@ -1177,8 +1177,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	localfs "github.com/GoSimplicity/AI-CloudOps/internal/files/fs"
-	filemodel "github.com/GoSimplicity/AI-CloudOps/internal/files/model"
+	localfs "github.com/rizxfrog/VanPanelBackend/internal/files/fs"
+	filemodel "github.com/rizxfrog/VanPanelBackend/internal/files/model"
 	"go.uber.org/zap"
 )
 
@@ -1395,9 +1395,9 @@ import (
 	"net/http"
 	"path/filepath"
 
-	filemodel "github.com/GoSimplicity/AI-CloudOps/internal/files/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/files/service"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
+	filemodel "github.com/rizxfrog/VanPanelBackend/internal/files/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/files/service"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 	"github.com/gin-gonic/gin"
 )
 
@@ -1494,8 +1494,8 @@ func (h *FileHandler) Download(ctx *gin.Context) {
 Modify `pkg/di/wire.go` imports to include:
 
 ```go
-filesHandler "github.com/GoSimplicity/AI-CloudOps/internal/files/api"
-filesService "github.com/GoSimplicity/AI-CloudOps/internal/files/service"
+filesHandler "github.com/rizxfrog/VanPanelBackend/internal/files/api"
+filesService "github.com/rizxfrog/VanPanelBackend/internal/files/service"
 ```
 
 Add to `HandlerSet`:
@@ -1516,7 +1516,7 @@ filesService.ProvideFileManagerConfig,
 Modify `pkg/di/web.go` imports to include:
 
 ```go
-filesApi "github.com/GoSimplicity/AI-CloudOps/internal/files/api"
+filesApi "github.com/rizxfrog/VanPanelBackend/internal/files/api"
 ```
 
 Add a parameter to `InitGinServer`:

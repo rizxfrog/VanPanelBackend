@@ -7,7 +7,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 func TestHTTPPlannerPlanUsesAIFirstAssistantQuery(t *testing.T) {

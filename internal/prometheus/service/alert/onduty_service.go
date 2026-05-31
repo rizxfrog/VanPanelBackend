@@ -30,10 +30,10 @@ import (
 	"errors"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/cache"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/dao/alert"
-	userDao "github.com/GoSimplicity/AI-CloudOps/internal/system/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/cache"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/dao/alert"
+	userDao "github.com/rizxfrog/VanPanelBackend/internal/system/dao"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

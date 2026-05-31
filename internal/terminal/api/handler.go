@@ -4,12 +4,12 @@ import (
 	"net/http"
 	"sync"
 
-	terminalmodel "github.com/GoSimplicity/AI-CloudOps/internal/terminal/model"
-	terminalservice "github.com/GoSimplicity/AI-CloudOps/internal/terminal/service"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
+	terminalmodel "github.com/rizxfrog/VanPanelBackend/internal/terminal/model"
+	terminalservice "github.com/rizxfrog/VanPanelBackend/internal/terminal/service"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
+	"github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 	"go.uber.org/zap"
 )
 

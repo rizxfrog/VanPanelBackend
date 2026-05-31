@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	terminalmodel "github.com/GoSimplicity/AI-CloudOps/internal/terminal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/terminal/pty"
+	terminalmodel "github.com/rizxfrog/VanPanelBackend/internal/terminal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/terminal/pty"
 	"go.uber.org/zap"
 )
 

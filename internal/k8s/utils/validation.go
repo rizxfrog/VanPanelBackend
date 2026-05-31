@@ -30,7 +30,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 )
 
 // Kubernetes资源名称验证正则表达式

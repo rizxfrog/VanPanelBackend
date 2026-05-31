@@ -8,7 +8,7 @@ VanPanelBackend (AI-CloudOps) is the Go backend for a cloud-native intelligent o
 
 - **Go 1.24.6** · Gin · GORM · Wire DI · MySQL or PostgreSQL · Redis
 - **Port**: 8889 (configurable via `server.port`)
-- **Module path**: `github.com/GoSimplicity/AI-CloudOps`
+- **Module path**: `github.com/rizxfrog/VanPanelBackend`
 
 ## Commonly Used Commands
 

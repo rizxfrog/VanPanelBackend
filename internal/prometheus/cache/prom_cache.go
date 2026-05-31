@@ -31,12 +31,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/utils"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/utils"
 	"gopkg.in/yaml.v3"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	configDao "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/dao/config"
-	scrapeJobDao "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/dao/scrape"
 	pcc "github.com/prometheus/common/config"
 	pm "github.com/prometheus/common/model"
 	pc "github.com/prometheus/prometheus/config"
@@ -46,6 +43,9 @@ import (
 	"github.com/prometheus/prometheus/model/labels"
 	"github.com/prometheus/prometheus/model/relabel"
 	"github.com/redis/go-redis/v9"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	configDao "github.com/rizxfrog/VanPanelBackend/internal/prometheus/dao/config"
+	scrapeJobDao "github.com/rizxfrog/VanPanelBackend/internal/prometheus/dao/scrape"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )

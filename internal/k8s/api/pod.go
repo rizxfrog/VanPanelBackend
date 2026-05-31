@@ -29,10 +29,10 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/service"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/service"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 )
 
 type K8sPodHandler struct {

@@ -8,7 +8,7 @@ An AI-powered cloud-native operations management platform that integrates Kubern
 [![Vue](https://img.shields.io/badge/Vue-3.0+-4FC08D?logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.25+-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/GoSimplicity/AI-CloudOps)](https://github.com/GoSimplicity/AI-CloudOps/stargazers)
+[![Stars](https://img.shields.io/github/stars/GoSimplicity/AI-CloudOps)](https://github.com/rizxfrog/VanPanelBackend/stargazers)
 
 ![AI-CloudOps](https://socialify.git.ci/GoSimplicity/AI-CloudOps/image?description=1&font=Inter&forks=1&issues=1&name=1&pattern=Solid&pulls=1&stargazers=1&theme=Dark)
 
@@ -36,9 +36,9 @@ AI-CloudOps is a modern cloud-native operations management platform designed to 
 
 This project consists of three main repositories:
 
-- **[AI-CloudOps](https://github.com/GoSimplicity/AI-CloudOps)** - Core backend service
-- **[AI-CloudOps-web](https://github.com/GoSimplicity/AI-CloudOps-web)** - Frontend interface
-- **[AI-CloudOps-aiops](https://github.com/GoSimplicity/AI-CloudOps-aiops)** - AI intelligent analysis module
+- **[AI-CloudOps](https://github.com/rizxfrog/VanPanelBackend)** - Core backend service
+- **[AI-CloudOps-web](https://github.com/rizxfrog/VanPanelBackend-web)** - Frontend interface
+- **[AI-CloudOps-aiops](https://github.com/rizxfrog/VanPanelBackend-aiops)** - AI intelligent analysis module
 
 ## Feature Modules
 
@@ -106,7 +106,7 @@ Thanks to the following developers for their important contributions to the proj
 - **[shixiaocaia](https://github.com/shixiaocaia)** - Core contributor
 - **[daihao4371](https://github.com/daihao4371)** - Feature developer
 
-[![Contributors](https://contrib.rocks/image?repo=GoSimplicity/AI-CloudOps)](https://github.com/GoSimplicity/AI-CloudOps/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=GoSimplicity/AI-CloudOps)](https://github.com/rizxfrog/VanPanelBackend/graphs/contributors)
 
 ## Quick Start
 
@@ -132,14 +132,14 @@ python3 --version   # >= 3.11
 
 ```bash
 # Clone backend project
-git clone https://github.com/GoSimplicity/AI-CloudOps.git
+git clone https://github.com/rizxfrog/VanPanelBackend.git
 cd AI-CloudOps
 
 # Clone frontend project
-git clone https://github.com/GoSimplicity/AI-CloudOps-web.git
+git clone https://github.com/rizxfrog/VanPanelBackend-web.git
 
 # Clone AI module project
-git clone https://github.com/GoSimplicity/AI-CloudOps-aiops.git
+git clone https://github.com/rizxfrog/VanPanelBackend-aiops.git
 ```
 
 ### Development Environment Setup
@@ -332,7 +332,7 @@ This project is licensed under the [MIT License](LICENSE).
 
 - **Email**: <bamboocloudops@gmail.com>
 - **WeChat**: GoSimplicity (please note "AI-CloudOps" when adding)
-- **GitHub**: [Submit Issue](https://github.com/GoSimplicity/AI-CloudOps/issues)
+- **GitHub**: [Submit Issue](https://github.com/rizxfrog/VanPanelBackend/issues)
 
 ### WeChat Discussion Group
 

@@ -30,7 +30,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 	corev1 "k8s.io/api/core/v1"
 )
 

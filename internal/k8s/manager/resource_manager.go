@@ -31,9 +31,9 @@ package manager
 // 	"sync"
 // 	"time"
 
-// 	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/client"
-// 	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/utils"
-// 	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+// 	"github.com/rizxfrog/VanPanelBackend/internal/k8s/client"
+// 	"github.com/rizxfrog/VanPanelBackend/internal/k8s/utils"
+// 	"github.com/rizxfrog/VanPanelBackend/internal/model"
 // 	"go.uber.org/zap"
 // 	"k8s.io/client-go/kubernetes"
 // )

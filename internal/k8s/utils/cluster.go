@@ -29,7 +29,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 	"k8s.io/client-go/kubernetes"
 )
 

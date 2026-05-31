@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 func TestRegistryListsKnownTools(t *testing.T) {

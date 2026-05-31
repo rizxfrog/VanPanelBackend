@@ -26,11 +26,11 @@
 package api
 
 import (
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	scrapeJobService "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/service/scrape"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	scrapeJobService "github.com/rizxfrog/VanPanelBackend/internal/prometheus/service/scrape"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
+	"github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 )
 
 type ScrapeJobHandler struct {

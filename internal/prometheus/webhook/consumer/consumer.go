@@ -31,11 +31,11 @@ import (
 	"strconv"
 	"sync"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/cache"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/content"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/dao"
 	"github.com/prometheus/alertmanager/template"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/cache"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/content"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/dao"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )

@@ -26,11 +26,11 @@
 package api
 
 import (
-	"github.com/GoSimplicity/AI-CloudOps/internal/cron/service"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/internal/cron/service"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
+	"github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 	"go.uber.org/zap"
 )
 

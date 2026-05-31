@@ -30,9 +30,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/not_auth/service"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/internal/not_auth/service"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 )
 
 type NotAuthHandler struct {

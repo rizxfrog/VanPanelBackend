@@ -28,10 +28,10 @@ package middleware
 import (
 	"strings"
 
-	ijwt "github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	_ "github.com/golang-jwt/jwt/v5"
+	ijwt "github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 	"github.com/spf13/viper"
 )
 

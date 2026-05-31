@@ -14,11 +14,11 @@ import (
 	"github.com/mark3labs/mcp-go/mcp"
 	"go.uber.org/zap"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/dao"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 
-	mcplocal "github.com/GoSimplicity/AI-CloudOps/internal/agent/tool/mcp/local"
-	mcpremote "github.com/GoSimplicity/AI-CloudOps/internal/agent/tool/mcp/remote"
+	mcplocal "github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/local"
+	mcpremote "github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/remote"
 )
 
 // ToolManager aggregates all tool sources (builtin, local MCP, remote MCP)
@@ -27,7 +27,7 @@ type ToolManager struct {
 	dao           dao.AgentDAO
 	builtinTools  map[string]tool.BaseTool
 	localClients  map[int]*mcplocal.LocalMCPClient   // pluginID -> client
-	remoteClients map[int]*mcpremote.RemoteMCPClient  // configID -> client
+	remoteClients map[int]*mcpremote.RemoteMCPClient // configID -> client
 	mu            sync.RWMutex
 	logger        *zap.Logger
 }

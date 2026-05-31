@@ -30,11 +30,11 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/cache"
-	scrapeJobDao "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/dao/scrape"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/utils"
-	userDao "github.com/GoSimplicity/AI-CloudOps/internal/system/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/cache"
+	scrapeJobDao "github.com/rizxfrog/VanPanelBackend/internal/prometheus/dao/scrape"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/utils"
+	userDao "github.com/rizxfrog/VanPanelBackend/internal/system/dao"
 	"go.uber.org/zap"
 )
 

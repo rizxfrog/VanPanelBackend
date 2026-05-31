@@ -25,7 +25,7 @@
 
 package utils
 
-import "github.com/GoSimplicity/AI-CloudOps/internal/model"
+import "github.com/rizxfrog/VanPanelBackend/internal/model"
 
 // BuildUserForCreate 将注册请求转换为可持久化的用户实体
 func BuildUserForCreate(req *model.UserSignUpReq, hashedPassword string) *model.User {

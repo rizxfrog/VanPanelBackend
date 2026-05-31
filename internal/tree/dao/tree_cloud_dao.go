@@ -29,8 +29,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	treeUtils "github.com/GoSimplicity/AI-CloudOps/internal/tree/utils"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	treeUtils "github.com/rizxfrog/VanPanelBackend/internal/tree/utils"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

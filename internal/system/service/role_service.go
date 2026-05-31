@@ -29,8 +29,8 @@ import (
 	"context"
 	"errors"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/system/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/system/dao"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

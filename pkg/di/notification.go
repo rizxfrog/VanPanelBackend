@@ -26,8 +26,8 @@
 package di
 
 import (
-	"github.com/GoSimplicity/AI-CloudOps/internal/workorder/notification"
 	"github.com/hibiken/asynq"
+	"github.com/rizxfrog/VanPanelBackend/internal/workorder/notification"
 	"go.uber.org/zap"
 )
 

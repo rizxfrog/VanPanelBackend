@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"strconv"
 
-	containermodel "github.com/GoSimplicity/AI-CloudOps/internal/container/model"
-	containerservice "github.com/GoSimplicity/AI-CloudOps/internal/container/service"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
 	"github.com/gin-gonic/gin"
+	containermodel "github.com/rizxfrog/VanPanelBackend/internal/container/model"
+	containerservice "github.com/rizxfrog/VanPanelBackend/internal/container/service"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 )
 
 type ContainerHandler struct {

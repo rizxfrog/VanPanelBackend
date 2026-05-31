@@ -16,10 +16,10 @@ import (
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/dao"
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/tool/mcp/manager"
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/tool/mcp/remote"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/remote"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 )
 
 // AgentHubConfig Hub 配置，与 di 配置对齐，避免 import cycle。

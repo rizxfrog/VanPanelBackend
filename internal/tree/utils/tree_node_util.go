@@ -28,7 +28,7 @@ package utils
 import (
 	"errors"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 )
 
 // ValidateParentID 验证父节点ID是否有效

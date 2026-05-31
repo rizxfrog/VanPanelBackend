@@ -32,12 +32,12 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	alertRecordDao "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/dao/alert"
-	configDao "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/dao/config"
-	scrapePoolDao "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/dao/scrape"
 	"github.com/prometheus/prometheus/model/rulefmt"
 	"github.com/redis/go-redis/v9"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	alertRecordDao "github.com/rizxfrog/VanPanelBackend/internal/prometheus/dao/alert"
+	configDao "github.com/rizxfrog/VanPanelBackend/internal/prometheus/dao/config"
+	scrapePoolDao "github.com/rizxfrog/VanPanelBackend/internal/prometheus/dao/scrape"
 	"go.uber.org/zap"
 	"gopkg.in/yaml.v3"
 )

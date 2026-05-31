@@ -28,8 +28,8 @@ package config
 import (
 	"context"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	configDao "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/dao/config"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	configDao "github.com/rizxfrog/VanPanelBackend/internal/prometheus/dao/config"
 	"go.uber.org/zap"
 )
 

@@ -28,13 +28,13 @@
 package di
 
 import (
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/api"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/cache"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/consumer"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/content"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/dao"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/robot"
 	"github.com/google/wire"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/api"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/cache"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/consumer"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/content"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/robot"
 )
 
 func InitWebServer() *Cmd {

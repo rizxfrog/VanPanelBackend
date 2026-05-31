@@ -8,8 +8,8 @@ import (
 	"runtime"
 	"strconv"
 
-	localfs "github.com/GoSimplicity/AI-CloudOps/internal/files/fs"
-	filemodel "github.com/GoSimplicity/AI-CloudOps/internal/files/model"
+	localfs "github.com/rizxfrog/VanPanelBackend/internal/files/fs"
+	filemodel "github.com/rizxfrog/VanPanelBackend/internal/files/model"
 	"go.uber.org/zap"
 )
 

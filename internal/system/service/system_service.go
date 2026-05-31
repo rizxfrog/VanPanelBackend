@@ -36,9 +36,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/system/utils"
 	"github.com/redis/go-redis/v9"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/system/utils"
 	"go.uber.org/zap"
 )
 

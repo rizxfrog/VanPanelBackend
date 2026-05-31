@@ -25,7 +25,7 @@
 
 package utils
 
-import "github.com/GoSimplicity/AI-CloudOps/internal/model"
+import "github.com/rizxfrog/VanPanelBackend/internal/model"
 
 // GetInstanceStatusName 获取状态名称
 func GetInstanceStatusName(status int8) string {

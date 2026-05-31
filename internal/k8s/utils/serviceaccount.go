@@ -30,7 +30,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"sigs.k8s.io/yaml"
@@ -38,7 +38,7 @@ import (
 	authv1 "k8s.io/api/authentication/v1"
 	"k8s.io/client-go/kubernetes"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 )
 
 func BuildServiceAccountResponse(sa *corev1.ServiceAccount, clusterID int) *model.K8sServiceAccount {

@@ -29,8 +29,8 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	userDao "github.com/GoSimplicity/AI-CloudOps/internal/system/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	userDao "github.com/rizxfrog/VanPanelBackend/internal/system/dao"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

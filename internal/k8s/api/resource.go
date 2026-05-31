@@ -26,9 +26,9 @@
 package api
 
 // import (
-// 	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/service"
-// 	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-// 	"github.com/GoSimplicity/AI-CloudOps/pkg/utils"
+// 	"github.com/rizxfrog/VanPanelBackend/internal/k8s/service"
+// 	"github.com/rizxfrog/VanPanelBackend/internal/model"
+// 	"github.com/rizxfrog/VanPanelBackend/pkg/utils"
 // 	"github.com/gin-gonic/gin"
 // )
 

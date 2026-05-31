@@ -3,10 +3,10 @@ package di
 import (
 	"time"
 
-	terminalpty "github.com/GoSimplicity/AI-CloudOps/internal/terminal/pty"
-	terminalservice "github.com/GoSimplicity/AI-CloudOps/internal/terminal/service"
-	terminalssh "github.com/GoSimplicity/AI-CloudOps/internal/terminal/ssh"
-	treeservice "github.com/GoSimplicity/AI-CloudOps/internal/tree/service"
+	terminalpty "github.com/rizxfrog/VanPanelBackend/internal/terminal/pty"
+	terminalservice "github.com/rizxfrog/VanPanelBackend/internal/terminal/service"
+	terminalssh "github.com/rizxfrog/VanPanelBackend/internal/terminal/ssh"
+	treeservice "github.com/rizxfrog/VanPanelBackend/internal/tree/service"
 	"go.uber.org/zap"
 )
 

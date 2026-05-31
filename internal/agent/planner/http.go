@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 type Planner interface {

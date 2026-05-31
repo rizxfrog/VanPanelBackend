@@ -26,12 +26,12 @@
 package api
 
 import (
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/tree/service"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/ssh"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/tree/service"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
+	"github.com/rizxfrog/VanPanelBackend/pkg/jwt"
+	"github.com/rizxfrog/VanPanelBackend/pkg/ssh"
 )
 
 type TreeLocalHandler struct {

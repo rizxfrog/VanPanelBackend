@@ -30,9 +30,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/dao"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/robot"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/robot"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 	"k8s.io/apimachinery/pkg/util/wait"

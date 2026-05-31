@@ -33,11 +33,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	userDao "github.com/GoSimplicity/AI-CloudOps/internal/system/dao"
-	workorderDao "github.com/GoSimplicity/AI-CloudOps/internal/workorder/dao"
-	"github.com/GoSimplicity/AI-CloudOps/internal/workorder/notification"
-	"github.com/GoSimplicity/AI-CloudOps/internal/workorder/utils"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	userDao "github.com/rizxfrog/VanPanelBackend/internal/system/dao"
+	workorderDao "github.com/rizxfrog/VanPanelBackend/internal/workorder/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/workorder/notification"
+	"github.com/rizxfrog/VanPanelBackend/internal/workorder/utils"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

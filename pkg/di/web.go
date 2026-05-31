@@ -26,18 +26,18 @@
 package di
 
 import (
-	agentApi "github.com/GoSimplicity/AI-CloudOps/internal/agent/api"
-	containerApi "github.com/GoSimplicity/AI-CloudOps/internal/container/api"
-	cronApi "github.com/GoSimplicity/AI-CloudOps/internal/cron/api"
-	filesApi "github.com/GoSimplicity/AI-CloudOps/internal/files/api"
-	k8sApi "github.com/GoSimplicity/AI-CloudOps/internal/k8s/api"
-	notAuthHandler "github.com/GoSimplicity/AI-CloudOps/internal/not_auth/api"
-	prometheusApi "github.com/GoSimplicity/AI-CloudOps/internal/prometheus/api"
-	systemApi "github.com/GoSimplicity/AI-CloudOps/internal/system/api"
-	terminalApi "github.com/GoSimplicity/AI-CloudOps/internal/terminal/api"
-	resourceApi "github.com/GoSimplicity/AI-CloudOps/internal/tree/api"
-	workorderApi "github.com/GoSimplicity/AI-CloudOps/internal/workorder/api"
 	"github.com/gin-gonic/gin"
+	agentApi "github.com/rizxfrog/VanPanelBackend/internal/agent/api"
+	containerApi "github.com/rizxfrog/VanPanelBackend/internal/container/api"
+	cronApi "github.com/rizxfrog/VanPanelBackend/internal/cron/api"
+	filesApi "github.com/rizxfrog/VanPanelBackend/internal/files/api"
+	k8sApi "github.com/rizxfrog/VanPanelBackend/internal/k8s/api"
+	notAuthHandler "github.com/rizxfrog/VanPanelBackend/internal/not_auth/api"
+	prometheusApi "github.com/rizxfrog/VanPanelBackend/internal/prometheus/api"
+	systemApi "github.com/rizxfrog/VanPanelBackend/internal/system/api"
+	terminalApi "github.com/rizxfrog/VanPanelBackend/internal/terminal/api"
+	resourceApi "github.com/rizxfrog/VanPanelBackend/internal/tree/api"
+	workorderApi "github.com/rizxfrog/VanPanelBackend/internal/workorder/api"
 )
 
 // InitGinServer 初始化web服务

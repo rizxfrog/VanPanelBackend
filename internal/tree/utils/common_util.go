@@ -30,8 +30,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	pkgUtils "github.com/GoSimplicity/AI-CloudOps/pkg/base"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	pkgUtils "github.com/rizxfrog/VanPanelBackend/pkg/base"
 	"github.com/spf13/viper"
 	"go.uber.org/zap"
 )

@@ -8,7 +8,7 @@
 [![Vue](https://img.shields.io/badge/Vue-3.0+-4FC08D?logo=vue.js&logoColor=white)](https://vuejs.org/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-v1.25+-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
 [![License](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Stars](https://img.shields.io/github/stars/GoSimplicity/AI-CloudOps)](https://github.com/GoSimplicity/AI-CloudOps/stargazers)
+[![Stars](https://img.shields.io/github/stars/GoSimplicity/AI-CloudOps)](https://github.com/rizxfrog/VanPanelBackend/stargazers)
 
 ![AI-CloudOps](https://socialify.git.ci/GoSimplicity/AI-CloudOps/image?description=1&font=Inter&forks=1&issues=1&name=1&pattern=Solid&pulls=1&stargazers=1&theme=Dark)
 
@@ -36,9 +36,9 @@ AI-CloudOps 是一个现代化的云原生运维管理平台，旨在通过人�
 
 本项目由三个主要仓库组成：
 
-- **[AI-CloudOps](https://github.com/GoSimplicity/AI-CloudOps)** - 核心后端服务
-- **[AI-CloudOps-web](https://github.com/GoSimplicity/AI-CloudOps-web)** - 前端界面
-- **[AI-CloudOps-aiops](https://github.com/GoSimplicity/AI-CloudOps-aiops)** - AI 智能分析模块
+- **[AI-CloudOps](https://github.com/rizxfrog/VanPanelBackend)** - 核心后端服务
+- **[AI-CloudOps-web](https://github.com/rizxfrog/VanPanelBackend-web)** - 前端界面
+- **[AI-CloudOps-aiops](https://github.com/rizxfrog/VanPanelBackend-aiops)** - AI 智能分析模块
 
 ## 功能模块
 
@@ -99,7 +99,7 @@ AI-CloudOps 是一个现代化的云原生运维管理平台，旨在通过人�
 
 感谢以下开发者对项目的重要贡献：
 
-[![Contributors](https://contrib.rocks/image?repo=rizxfrog/VanPanelBackend)](https://github.com/GoSimplicity/AI-CloudOps/graphs/contributors)
+[![Contributors](https://contrib.rocks/image?repo=rizxfrog/VanPanelBackend)](https://github.com/rizxfrog/VanPanelBackend/graphs/contributors)
 
 ## 快速开始
 
@@ -125,14 +125,14 @@ python3 --version   # >= 3.11
 
 ```bash
 # 克隆后端项目
-git clone https://github.com/GoSimplicity/AI-CloudOps.git
+git clone https://github.com/rizxfrog/VanPanelBackend.git
 cd AI-CloudOps
 
 # 克隆前端项目
-git clone https://github.com/GoSimplicity/AI-CloudOps-web.git
+git clone https://github.com/rizxfrog/VanPanelBackend-web.git
 
 # 克隆 AI 模块项目
-git clone https://github.com/GoSimplicity/AI-CloudOps-aiops.git
+git clone https://github.com/rizxfrog/VanPanelBackend-aiops.git
 ```
 
 ### 开发环境启动

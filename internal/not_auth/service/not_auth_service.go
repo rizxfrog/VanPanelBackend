@@ -30,9 +30,9 @@ import (
 	"fmt"
 	"strings"
 
-	treeDao "github.com/GoSimplicity/AI-CloudOps/internal/tree/dao"
 	"github.com/prometheus/common/model"
 	"github.com/prometheus/prometheus/discovery/targetgroup"
+	treeDao "github.com/rizxfrog/VanPanelBackend/internal/tree/dao"
 	"go.uber.org/zap"
 )
 

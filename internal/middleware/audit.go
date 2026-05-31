@@ -35,10 +35,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/system/service"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/system/service"
+	"github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 	"go.uber.org/zap"
 	"gorm.io/datatypes"
 )

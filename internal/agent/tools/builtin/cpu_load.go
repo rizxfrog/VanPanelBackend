@@ -9,7 +9,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/tools"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/tools"
 )
 
 type cpuLoadTool struct{}

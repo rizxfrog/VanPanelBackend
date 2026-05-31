@@ -3,7 +3,7 @@ package manager
 import (
 	"context"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/k8s/client"
+	"github.com/rizxfrog/VanPanelBackend/internal/k8s/client"
 	"go.uber.org/zap"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"

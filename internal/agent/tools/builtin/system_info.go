@@ -6,7 +6,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/tools"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/tools"
 )
 
 type systemInfoTool struct{}

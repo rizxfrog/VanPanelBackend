@@ -6,7 +6,7 @@ import (
 	"regexp"
 	"strings"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 type Guard struct {

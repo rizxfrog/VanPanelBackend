@@ -5,8 +5,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	ijwt "github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
+	ijwt "github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 )
 
 func TestCheckAuthSkipsPublicShareRoutes(t *testing.T) {

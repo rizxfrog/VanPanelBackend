@@ -28,8 +28,8 @@ package utils
 import (
 	"fmt"
 
-	pkgutils "github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
+	pkgutils "github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 )
 
 // ExtractClaims 从 gin 上下文安全提取登录用户信息

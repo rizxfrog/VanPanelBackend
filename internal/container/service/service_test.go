@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	containermodel "github.com/GoSimplicity/AI-CloudOps/internal/container/model"
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	containermodel "github.com/rizxfrog/VanPanelBackend/internal/container/model"
 )
 
 func TestMapContainerSummary(t *testing.T) {
@@ -62,12 +62,12 @@ func TestCalculateStats(t *testing.T) {
 	stats := dockertypes.StatsJSON{
 		Stats: dockertypes.Stats{
 			CPUStats: dockertypes.CPUStats{
-				CPUUsage:   dockertypes.CPUUsage{TotalUsage: 300},
+				CPUUsage:    dockertypes.CPUUsage{TotalUsage: 300},
 				SystemUsage: 1000,
 				OnlineCPUs:  2,
 			},
 			PreCPUStats: dockertypes.CPUStats{
-				CPUUsage:   dockertypes.CPUUsage{TotalUsage: 100},
+				CPUUsage:    dockertypes.CPUUsage{TotalUsage: 100},
 				SystemUsage: 500,
 			},
 			MemoryStats: dockertypes.MemoryStats{

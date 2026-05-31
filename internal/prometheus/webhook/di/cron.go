@@ -28,8 +28,8 @@ package di
 import (
 	"context"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/cache"
-	"github.com/GoSimplicity/AI-CloudOps/internal/prometheus/webhook/consumer"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/cache"
+	"github.com/rizxfrog/VanPanelBackend/internal/prometheus/webhook/consumer"
 	"go.uber.org/zap"
 )
 

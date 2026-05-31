@@ -6,13 +6,13 @@ import (
 	"strconv"
 	"sync"
 
-	treemodel "github.com/GoSimplicity/AI-CloudOps/internal/model"
-	terminalmodel "github.com/GoSimplicity/AI-CloudOps/internal/terminal/model"
-	terminalservice "github.com/GoSimplicity/AI-CloudOps/internal/terminal/service"
-	treeservice "github.com/GoSimplicity/AI-CloudOps/internal/tree/service"
-	pkgssh "github.com/GoSimplicity/AI-CloudOps/pkg/ssh"
-	gossh "golang.org/x/crypto/ssh"
+	treemodel "github.com/rizxfrog/VanPanelBackend/internal/model"
+	terminalmodel "github.com/rizxfrog/VanPanelBackend/internal/terminal/model"
+	terminalservice "github.com/rizxfrog/VanPanelBackend/internal/terminal/service"
+	treeservice "github.com/rizxfrog/VanPanelBackend/internal/tree/service"
+	pkgssh "github.com/rizxfrog/VanPanelBackend/pkg/ssh"
 	"go.uber.org/zap"
+	gossh "golang.org/x/crypto/ssh"
 )
 
 type Adapter struct {

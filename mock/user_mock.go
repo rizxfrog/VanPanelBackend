@@ -28,7 +28,7 @@ package mock
 import (
 	"log"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 	"golang.org/x/crypto/bcrypt"
 	"gorm.io/gorm"
 )
