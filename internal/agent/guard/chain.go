@@ -75,9 +75,24 @@ func (c *Chain) Evaluate(ctx context.Context, toolName string, toolArgs map[stri
 
 	// === 第二关：审计模型 ===
 	if c.auditor != nil {
-		// TODO: 审计模型尚未实现（Task 5），实现后在此调用
-		// decision := c.auditor.Audit(ctx, toolName, toolArgs)
-		// if !decision.Allowed { return decision }
+		decision, err := c.auditor.Evaluate(ctx, toolName, toolArgs)
+		if err != nil {
+			// 审计模型调用失败时放行（容错）
+			return &agentmodel.RiskDecision{
+				Level:            agentmodel.RiskSafe,
+				Allowed:          true,
+				RequiresApproval: false,
+				Reason:           "auditor unavailable, allowed by default",
+			}
+		}
+		if !decision.Allowed {
+			return &agentmodel.RiskDecision{
+				Level:            agentmodel.RiskLow,
+				Allowed:          false,
+				RequiresApproval: false,
+				Reason:           decision.Reason,
+			}
+		}
 	}
 
 	// 无规则引擎时默认允许
@@ -103,6 +118,3 @@ func toolArgsToString(args map[string]any) string {
 	}
 	return string(b)
 }
-
-// Auditor 审计模型桩（将在 Task 5 中实现）
-type Auditor struct{}
