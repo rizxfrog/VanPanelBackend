@@ -86,6 +86,9 @@ var AgentSet = wire.NewSet(
 	ProvideAgentAuditStore,
 	ProvideAgentService,
 	ProvideHubService,
+	ProvideAgentGuardChain,
+	ProvideAgentMemoryProvider,
+	ProvideAgentPipeline,
 )
 
 func ProvideCmd() *Cmd {
