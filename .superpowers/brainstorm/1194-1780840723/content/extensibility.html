@@ -1,0 +1,150 @@
+<h2>Section 4 — 三层可扩展体系</h2>
+<p class="subtitle">MCP 插件 &middot; Skill 编排 &middot; SPI 扩展点 &middot; 远程 Agent</p>
+
+<div class="section">
+  <h3>扩展体系全景</h3>
+
+  <div class="split">
+    <div class="mockup">
+      <div class="mockup-header">面向不同角色的三层扩展</div>
+      <div class="mockup-body" style="font-size:12px;line-height:1.8;">
+        <div style="border:1px solid #4ac9ff;border-radius:6px;padding:10px;margin:8px 0;background:rgba(74,201,255,0.06);">
+          <strong style="color:#4ac9ff;">Layer 1 — MCP 插件（已有基础）</strong><br/>
+          <span style="font-size:11px;color:var(--muted-text);">
+            面向：第三方开发者<br/>
+            形式：独立进程，stdio/SSE/HTTP 协议<br/>
+            已有：LocalMCP + RemoteMCP + 插件市场<br/>
+            增强：增加远程节点 Agent（见下方）
+          </span>
+        </div>
+        <div style="border:1px solid #ffa74a;border-radius:6px;padding:10px;margin:8px 0;background:rgba(255,167,74,0.06);">
+          <strong style="color:#ffa74a;">Layer 2 — Skill 编排（新增）</strong><br/>
+          <span style="font-size:11px;color:var(--muted-text);">
+            面向：运维人员 / 领域专家<br/>
+            形式：YAML 声明式工作流或 Lua 脚本<br/>
+            典型 Skill：<br/>
+            &nbsp;&nbsp;&bull; "一键巡检" — 串行调用 proc.ps + disk.df + sys.free + net.ss 生成报告<br/>
+            &nbsp;&nbsp;&bull; "故障自愈" — 检测 &rarr; 诊断 &rarr; 修复 &rarr; 验证 四步流程<br/>
+            &nbsp;&nbsp;&bull; "日志分析" — tail 关键日志 &rarr; grep 异常 &rarr; 总结报告
+          </span>
+        </div>
+        <div style="border:1px solid #4aff6e;border-radius:6px;padding:10px;margin:8px 0;background:rgba(74,255,110,0.06);">
+          <strong style="color:#4aff6e;">Layer 3 — SPI 扩展点（新增）</strong><br/>
+          <span style="font-size:11px;color:var(--muted-text);">
+            面向：平台开发者<br/>
+            形式：Go Interface<br/>
+            &nbsp;&nbsp;&bull; IntentAnalyzer — 自定义意图分析策略<br/>
+            &nbsp;&nbsp;&bull; GuardRule — 自定义安全规则<br/>
+            &nbsp;&nbsp;&bull; MemoryProvider — 自定义记忆存储后端<br/>
+            &nbsp;&nbsp;&bull; Notifier — 自定义告警通知通道<br/>
+            &nbsp;&nbsp;&bull; AuditWriter — 自定义审计日志格式
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="mockup">
+      <div class="mockup-header">Skill 定义示例 (YAML)</div>
+      <div class="mockup-body">
+        <pre style="background:var(--code-bg);padding:10px;border-radius:4px;font-size:11px;line-height:1.5;overflow-x:auto;">
+skill:
+  name: health-check
+  display: "一键巡检"
+  description: "全面检查系统健康状态"
+  risk: low
+  steps:
+    - tool: proc.ps
+      params: {top: 10}
+      output: process_report
+    - tool: disk.df
+      params: {}
+      output: disk_report
+    - tool: sys.free
+      params: {}
+      output: memory_report
+    - tool: net.ss
+      params: {state: listening}
+      output: network_report
+    - tool: sys.uptime
+      params: {}
+      output: uptime_info
+  aggregate:
+    type: llm_summary
+    prompt: |
+      根据以下巡检数据生成健康报告：
+      进程: {{process_report}}
+      磁盘: {{disk_report}}
+      内存: {{memory_report}}
+      网络: {{network_report}}
+      运行时间: {{uptime_info}}
+        </pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>远程 Agent 节点</h3>
+  <div style="background:var(--code-bg);padding:14px;border-radius:6px;font-size:13px;font-family:monospace;line-height:1.8;">
+    <div style="text-align:center;font-size:12px;color:var(--accent-color);margin-bottom:6px;">
+      🖥 主控节点 (VanPanelBackend)
+    </div>
+
+    <div style="display:flex;justify-content:space-around;margin:8px 0;">
+      <div style="border:1px dashed #4ac9ff;border-radius:4px;padding:6px 10px;text-align:center;font-size:11px;">
+        <strong>MCP Remote Agent</strong><br/>
+        <span style="color:var(--muted-text);">部署在目标服务器上的<br/>轻量 Go 进程（5MB）<br/><br/>
+        暴露 MCP 端点：<br/>
+        &bull; os.exec<br/>
+        &bull; os.file.read/write<br/>
+        &bull; os.service.manage<br/>
+        &bull; os.docker.inspect<br/><br/>
+        连接方式：SSE/WS 长连接</span>
+      </div>
+
+      <div style="border:1px dashed #ffa74a;border-radius:4px;padding:6px 10px;text-align:center;font-size:11px;">
+        <strong>SSH 直连（兼容）</strong><br/>
+        <span style="color:var(--muted-text);">无 Agent 场景的降级方案<br/><br/>
+        已有 pkg/ssh/<br/>
+        通过 SSH 下发命令<br/><br/>
+        限制：无实时感知能力<br/>仅做命令执行</span>
+      </div>
+
+      <div style="border:1px dashed #4aff6e;border-radius:4px;padding:6px 10px;text-align:center;font-size:11px;">
+        <strong>远程数据库</strong><br/>
+        <span style="color:var(--muted-text);">MCP 插件连接远程 DB<br/><br/>
+        &bull; MySQL MCP Server<br/>
+        &bull; Redis MCP Server<br/>
+        &bull; Prometheus MCP<br/><br/>
+        通过 MCP 协议统一暴露</span>
+      </div>
+    </div>
+
+    <div style="text-align:center;margin-top:10px;">
+      <span style="font-size:11px;color:var(--muted-text);">
+        主控 Agent "看到" 远程节点的工具，就像本地工具一样透明调用
+      </span>
+    </div>
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>关键设计原则</h4>
+    <ul>
+      <li>MCP 已可用 — 远程 Agent 本质就是 RemoteMCP 的一种实例</li>
+      <li>Skill 不新增代码执行引擎 — 复用现有 ToolManager 调度</li>
+      <li>SPI 全部是 Go Interface — 无运行时开销，编译期检查</li>
+      <li>所有扩展都受 ④ Guard 审查管道保护</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>比赛提交策略</h4>
+    <ul>
+      <li>MCP + SPI 核心基础必须实现</li>
+      <li>Skill 编排：先实现硬编码的 3-5 个 Skill 做演示</li>
+      <li>YAML Skill 解析器 + 远程 Agent 做加分项，不阻塞核心交付</li>
+    </ul>
+  </div>
+</div>
+

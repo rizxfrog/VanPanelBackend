@@ -1,0 +1,84 @@
+<h2>三种架构建模方案对比</h2>
+<p class="subtitle">基于现有代码库（Go/Gin + Eino Agent + MCP），考虑安全性、记忆性、可扩展性三个维度</p>
+
+<div class="section">
+  <h3>核心差异一览</h3>
+  <table style="width:100%;border-collapse:collapse;font-size:14px;">
+    <thead>
+      <tr style="background:var(--code-bg);text-align:left;">
+        <th style="padding:8px;border:1px solid var(--border-color);">维度</th>
+        <th style="padding:8px;border:1px solid var(--border-color);">A: 一体化增强</th>
+        <th style="padding:8px;border:1px solid var(--border-color);">B: 微服务总线</th>
+        <th style="padding:8px;border:1px solid var(--border-color);">C: 分层管道 ⭐</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding:8px;border:1px solid var(--border-color);"><strong>安全审计</strong></td>
+        <td style="padding:8px;border:1px solid var(--border-color);">Goroutine 内调用审计模型</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">独立部署审计微服务</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">Guard Pipeline 插件化</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid var(--border-color);"><strong>记忆系统</strong></td>
+        <td style="padding:8px;border:1px solid var(--border-color);">pgvector 单库扩展</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">独立记忆服务 + 向量库</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">多级记忆 Provider 接口</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid var(--border-color);"><strong>可扩展性</strong></td>
+        <td style="padding:8px;border:1px solid var(--border-color);">MCP + YAML Skill 定义</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">消息总线 + 独立工具服务</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">三层扩展：MCP/Skill/SPI</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid var(--border-color);"><strong>远程Agent</strong></td>
+        <td style="padding:8px;border:1px solid var(--border-color);">SSH 命令下发</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">独立 Agent 节点 + 注册</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">Remote MCP Server（已有基础）</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid var(--border-color);"><strong>复杂度</strong></td>
+        <td style="padding:8px;border:1px solid var(--border-color);">低 - 单进程，改造成本小</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">高 - 多服务协调、消息队列</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">中 - 接口抽象，渐进式改造</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid var(--border-color);"><strong>安全性</strong></td>
+        <td style="padding:8px;border:1px solid var(--border-color);">中等 - 同进程，边界模糊</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">高 - 进程级隔离</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">较高 - 接口边界清晰</td>
+      </tr>
+      <tr>
+        <td style="padding:8px;border:1px solid var(--border-color);"><strong>适配比赛</strong></td>
+        <td style="padding:8px;border:1px solid var(--border-color);">快但缺乏亮点</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">过度工程化</td>
+        <td style="padding:8px;border:1px solid var(--border-color);">最佳 - 有深度且可实现</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<div class="options">
+  <div class="option" data-choice="a" onclick="toggleSelect(this)">
+    <div class="letter">A</div>
+    <div class="content">
+      <h3>一体化增强</h3>
+      <p>在现有 Go 单体服务中直接扩展：审计模型用 Goroutine 调用、记忆用 pgvector 扩展、Skill 用 YAML 定义。快速但有耦合风险，安全边界不够清晰。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="b" onclick="toggleSelect(this)">
+    <div class="letter">B</div>
+    <div class="content">
+      <h3>微服务总线</h3>
+      <p>拆分为 Agent Core / Security Auditor / Memory / Tool Executor 独立服务，通过 Redis Stream 通信。安全性最高但复杂度远超比赛需要。</p>
+    </div>
+  </div>
+  <div class="option" data-choice="c" onclick="toggleSelect(this)">
+    <div class="letter">C</div>
+    <div class="content">
+      <h3>分层管道架构 ⭐推荐</h3>
+      <p>Agent 内部用 Pipeline 串联各层：意图分析 → 记忆增强 → 推理决策 → Guard 安全审查 → 执行 → 审计记录。每层是 Go 接口，可替换。在现有代码基础上渐进改造，兼顾深度与可落地性。</p>
+    </div>
+  </div>
+</div>

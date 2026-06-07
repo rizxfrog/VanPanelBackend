@@ -102,7 +102,7 @@ func ProvideAgentService(
 		},
 		MaxHistory: cfg.MaxHistory,
 	}
-	return agentService.NewAgentService(dao, toolMgr, riskEval, auditStore, svcCfg, l)
+	return agentService.NewAgentService(dao, toolMgr, riskEval, auditStore, svcCfg, l, nil)
 }
 
 // ProvideHubService 创建 Hub 服务

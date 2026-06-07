@@ -32,6 +32,8 @@ func (h *Handler) RegisterRouters(server *gin.Engine) {
 		// 查询
 		agentGroup.POST("/query", h.Query)
 		agentGroup.POST("/query/stream", h.QueryStream)
+		agentGroup.POST("/pipeline/query", h.QueryWithPipeline)
+		agentGroup.POST("/pipeline/query/stream", h.QueryStreamWithPipeline)
 		agentGroup.GET("/tools", h.ListTools)
 
 		// 会话
@@ -95,6 +97,31 @@ func (h *Handler) ListTools(ctx *gin.Context) {
 	base.HandleRequest(ctx, nil, func() (interface{}, error) {
 		return h.agentService.ListTools(ctx)
 	})
+}
+
+// QueryWithPipeline 使用 Pipeline 增强的同步查询
+func (h *Handler) QueryWithPipeline(c *gin.Context) {
+	var req model.AgentQueryReq
+	uc := c.MustGet("user").(jwt.UserClaims)
+	base.HandleRequest(c, &req, func() (interface{}, error) {
+		return h.agentService.QueryWithPipeline(c, &req, uc.Uid)
+	})
+}
+
+// QueryStreamWithPipeline 使用 Pipeline 增强的流式查询（SSE）
+func (h *Handler) QueryStreamWithPipeline(c *gin.Context) {
+	var req model.AgentQueryReq
+	uc := c.MustGet("user").(jwt.UserClaims)
+	if err := c.ShouldBind(&req); err != nil {
+		base.BadRequestError(c, err.Error())
+		return
+	}
+	c.Header("Content-Type", "text/event-stream")
+	c.Header("Cache-Control", "no-cache")
+	c.Header("Connection", "keep-alive")
+	if err := h.agentService.QueryStreamWithPipeline(c, &req, uc.Uid, c.Writer); err != nil {
+		base.ErrorWithMessage(c, err.Error())
+	}
 }
 
 // ==================== 会话 ====================

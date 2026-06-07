@@ -1,0 +1,89 @@
+<h2>Section 3 — 多级记忆系统</h2>
+<p class="subtitle">短期记忆 + 长期记忆 + 可选 RAG，三层架构</p>
+
+<div class="section">
+  <h3>三层记忆架构</h3>
+  <div style="background:var(--code-bg);padding:16px;border-radius:8px;font-family:monospace;font-size:13px;line-height:1.8;">
+
+    <div style="border:1px solid #4ac9ff;border-radius:6px;padding:10px;margin:8px 0;background:rgba(74,201,255,0.06);">
+      <strong style="color:#4ac9ff;">L1 — 工作记忆（已有）</strong><br/>
+      <span style="font-size:11px;color:var(--muted-text);">
+        &bull; 存储：MySQL (agent_sessions + agent_messages)<br/>
+        &bull; 范围：当前会话的历史消息（默认 20 条）<br/>
+        &bull; 已实现：service.loadHistory() 加载到 ReAct 上下文<br/>
+        &bull; 增强项：增加滑动窗口 + 摘要压缩（长会话不爆 context）
+      </span>
+    </div>
+
+    <div style="margin:8px 0;text-align:center;color:var(--muted-text);">↕ 摘要后沉淀为长期记忆</div>
+
+    <div style="border:1px solid #ffa74a;border-radius:6px;padding:10px;margin:8px 0;background:rgba(255,167,74,0.06);">
+      <strong style="color:#ffa74a;">L2 — 长期记忆（新增）</strong><br/>
+      <span style="font-size:11px;color:var(--muted-text);">
+        &bull; 存储：MySQL (user_memories) + 可选 pgvector (向量化)<br/>
+        &bull; 内容：<br/>
+        &nbsp;&nbsp;&bull; 用户偏好 — "该用户偏好简洁回复" / "该用户经常排查磁盘问题"<br/>
+        &nbsp;&nbsp;&bull; 操作模式 — "过去 N 次清理日志，都是清理 /var/log/nginx/*"<br/>
+        &nbsp;&nbsp;&bull; 知识条目 — "上次排查到 PID 1234 是内存泄漏进程"<br/>
+        &nbsp;&nbsp;&bull; 解决方案 — "磁盘满→ lsof 找大文件→ 清理" 的成功链路<br/>
+        &bull; 写入时机：<br/>
+        &nbsp;&nbsp;&bull; 会话结束后自动提取关键信息并写入（异步）<br/>
+        &nbsp;&nbsp;&bull; 审批通过的操作记录（表示安全且有效）<br/>
+        &bull; 读取：② 上下文增强阶段，按语义相似度检索相关长期记忆
+      </span>
+    </div>
+
+    <div style="margin:8px 0;text-align:center;color:var(--muted-text);">↕ 可选开启</div>
+
+    <div style="border:1px solid #4aff6e;border-radius:6px;padding:10px;margin:8px 0;background:rgba(74,255,110,0.06);">
+      <strong style="color:#4aff6e;">L3 — RAG 知识库（新增，可配置开关）</strong><br/>
+      <span style="font-size:11px;color:var(--muted-text);">
+        &bull; 存储：外部向量库（Milvus / pgvector / Redis Vector）<br/>
+        &bull; 内容：<br/>
+        &nbsp;&nbsp;&bull; 运维手册 — 内部 Wiki、标准操作流程<br/>
+        &nbsp;&nbsp;&bull; 系统文档 — 麒麟 OS 手册、内核参数说明<br/>
+        &nbsp;&nbsp;&bull; 故障案例 — 历史告警 &rarr; 根因 &rarr; 处理方案的映射<br/>
+        &nbsp;&nbsp;&bull; 知识图谱 — 故障-原因-解决方案的结构化关系<br/>
+        &bull; 接入方式：配置文件中设置 rag.enabled=true + 向量库连接信息<br/>
+        &bull; 检索：② 上下文增强阶段，与长期记忆并列检索，合并注入 Agent 上下文
+      </span>
+    </div>
+
+  </div>
+</div>
+
+<div class="section">
+  <h3>记忆生命周期</h3>
+  <div style="background:var(--code-bg);padding:14px;border-radius:6px;font-size:13px;font-family:monospace;line-height:1.7;">
+    <strong>写入：</strong><br/>
+    &nbsp;&nbsp;会话中 &rarr; agent_messages (实时)<br/>
+    &nbsp;&nbsp;会话结束 &rarr; LLM 提取摘要 &rarr; user_memories (异步, MemoryExtractor)<br/>
+    &nbsp;&nbsp;审批过的高危操作 &rarr; user_memories + 可选 RAG 入库<br/>
+    <strong>读取：</strong><br/>
+    &nbsp;&nbsp;② 上下文增强 → 并发检索 L1(MySQL) + L2(MySQL/向量) + L3(向量库, 可选)<br/>
+    &nbsp;&nbsp;结果合并去重 → 注入 system prompt 或作为附加工具<br/>
+    <strong>淘汰：</strong><br/>
+    &nbsp;&nbsp;L1: 会话删除时级联删除<br/>
+    &nbsp;&nbsp;L2: 按时间/重要性评分淘汰，保留最近 30 天高价值条目<br/>
+    &nbsp;&nbsp;L3: 由外部知识库管理，Agent 不负责淘汰
+  </div>
+</div>
+
+<div class="pros-cons">
+  <div class="pros">
+    <h4>与现有代码的关系</h4>
+    <ul>
+      <li>L1 已有，只需增加滑动窗口 + 摘要压缩</li>
+      <li>L2/L3 新增，挂载在 ② 上下文增强阶段</li>
+      <li>不改变 ③ Agent 推理的接口，只改变喂入的上下文</li>
+    </ul>
+  </div>
+  <div class="cons">
+    <h4>实现时可降级</h4>
+    <ul>
+      <li>初期 L2 可以不接向量库，纯 MySQL LIKE 检索</li>
+      <li>RAG 默认关闭，不阻塞核心功能</li>
+      <li>后期逐步升级：MySQL → pgvector → 专用向量库</li>
+    </ul>
+  </div>
+</div>
