@@ -5,7 +5,7 @@ package fs
 import (
 	"os"
 
-	filemodel "github.com/GoSimplicity/AI-CloudOps/internal/files/model"
+	filemodel "github.com/rizxfrog/VanPanelBackend/internal/files/model"
 )
 
 func applyOwner(item *filemodel.FileInfo, info os.FileInfo) {

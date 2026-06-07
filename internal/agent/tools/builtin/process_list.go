@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/tools"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/tools"
 )
 
 type processListTool struct{}

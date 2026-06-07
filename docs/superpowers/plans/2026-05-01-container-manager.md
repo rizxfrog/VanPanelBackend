@@ -55,7 +55,7 @@ import (
 	"testing"
 	"time"
 
-	containermodel "github.com/GoSimplicity/AI-CloudOps/internal/container/model"
+	containermodel "github.com/rizxfrog/VanPanelBackend/internal/container/model"
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 )
@@ -208,7 +208,7 @@ import (
 	"strings"
 	"time"
 
-	containermodel "github.com/GoSimplicity/AI-CloudOps/internal/container/model"
+	containermodel "github.com/rizxfrog/VanPanelBackend/internal/container/model"
 	dockertypes "github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 )
@@ -607,7 +607,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	containermodel "github.com/GoSimplicity/AI-CloudOps/internal/container/model"
+	containermodel "github.com/rizxfrog/VanPanelBackend/internal/container/model"
 	"github.com/gin-gonic/gin"
 )
 
@@ -669,9 +669,9 @@ import (
 	"net/http"
 	"strconv"
 
-	containermodel "github.com/GoSimplicity/AI-CloudOps/internal/container/model"
-	containerservice "github.com/GoSimplicity/AI-CloudOps/internal/container/service"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
+	containermodel "github.com/rizxfrog/VanPanelBackend/internal/container/model"
+	containerservice "github.com/rizxfrog/VanPanelBackend/internal/container/service"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 	"github.com/gin-gonic/gin"
 )
 
@@ -716,8 +716,8 @@ Implement `Start`, `Stop`, `Restart`, `Delete`, `Stats`, `Logs`, and `parseInt`.
 Modify `pkg/di/wire.go` imports and provider sets:
 
 ```go
-containerApi "github.com/GoSimplicity/AI-CloudOps/internal/container/api"
-containerService "github.com/GoSimplicity/AI-CloudOps/internal/container/service"
+containerApi "github.com/rizxfrog/VanPanelBackend/internal/container/api"
+containerService "github.com/rizxfrog/VanPanelBackend/internal/container/service"
 ```
 
 Add:

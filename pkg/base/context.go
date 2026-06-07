@@ -33,8 +33,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 )
 
 // UserInfo 用户信息结构体

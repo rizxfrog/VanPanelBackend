@@ -4,10 +4,10 @@ import (
 	"net/http"
 	"path/filepath"
 
-	filemodel "github.com/GoSimplicity/AI-CloudOps/internal/files/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/files/service"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
 	"github.com/gin-gonic/gin"
+	filemodel "github.com/rizxfrog/VanPanelBackend/internal/files/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/files/service"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 )
 
 type FileHandler struct {

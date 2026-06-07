@@ -3,12 +3,12 @@ package api
 import (
 	"fmt"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/hub"
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/service"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/hub"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/service"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
+	"github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 )
 
 // Handler 智能体 API 处理器

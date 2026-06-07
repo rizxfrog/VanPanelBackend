@@ -30,7 +30,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

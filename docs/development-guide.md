@@ -14,14 +14,14 @@
 #### 1. 获取代码
 ```bash
 # 克隆后端项目
-git clone https://github.com/GoSimplicity/AI-CloudOps.git
+git clone https://github.com/rizxfrog/VanPanelBackend.git
 cd AI-CloudOps
 
 # 克隆前端项目
-git clone https://github.com/GoSimplicity/AI-CloudOps-web.git
+git clone https://github.com/rizxfrog/VanPanelBackend-web.git
 
 # 克隆AI模块项目
-git clone https://github.com/GoSimplicity/AI-CloudOps-aiops.git
+git clone https://github.com/rizxfrog/VanPanelBackend-aiops.git
 ```
 
 #### 2. 启动基础服务

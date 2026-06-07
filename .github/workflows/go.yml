@@ -132,7 +132,7 @@ jobs:
             
             ### Quick Start
             ```bash
-            wget https://github.com/GoSimplicity/AI-CloudOps/releases/download/${{ steps.version.outputs.tag }}/ai-cloudops-${{ steps.version.outputs.version }}-source.tar.gz
+            wget https://github.com/rizxfrog/VanPanelBackend/releases/download/${{ steps.version.outputs.tag }}/ai-cloudops-${{ steps.version.outputs.version }}-source.tar.gz
             tar -xzf ai-cloudops-${{ steps.version.outputs.version }}-source.tar.gz
             cd AI-CloudOps-backend
             go mod download

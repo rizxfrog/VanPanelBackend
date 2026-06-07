@@ -88,33 +88,7 @@ func InitViper() error {
 		return fmt.Errorf("failed to unmarshal config: %v", err)
 	}
 
-	// 加载外部配置（仅环境变量）
-	loadExternalConfig()
-
 	return nil
-}
-
-func InitWebHookViper() {
-	configFile := pflag.String("config", "config/webhook.yaml", "配置文件路径")
-	pflag.Parse()
-	viper.SetConfigFile(*configFile)
-
-	// 设置webhook默认值（最低优先级）
-	setWebhookDefaults()
-
-	// 启用环境变量支持
-	viper.AutomaticEnv()
-	viper.SetEnvKeyReplacer(strings.NewReplacer(".", "_"))
-
-	// 读取配置文件（中等优先级）
-	err := viper.ReadInConfig()
-	if err != nil {
-		fmt.Printf("Warning: Failed to read webhook config file: %v\n", err)
-		fmt.Println("Using environment variables and default values only.")
-	}
-
-	// 绑定webhook环境变量（最高优先级）
-	bindWebhookEnvVars()
 }
 
 // setDefaults 设置所有配置的默认值
@@ -143,46 +117,8 @@ func setDefaults() {
 	// Legacy MySQL defaults
 	viper.SetDefault("mysql.addr", "root:root@tcp(localhost:3306)/cloudops?charset=utf8mb4&parseTime=True&loc=Local")
 
-	// Tree defaults
-	viper.SetDefault("tree.check_status_cron", "@every 300s")
-	viper.SetDefault("tree.password_encryption_key", "ebe3vxIP7sblVvUHXb7ZaiMPuz4oXo0l")
-
-	// K8s defaults
-	viper.SetDefault("k8s.refresh_cron", "@every 300s")
-
-	// Prometheus defaults
-	viper.SetDefault("prometheus.refresh_cron", "@every 15s")
-	viper.SetDefault("prometheus.enable_alert", 0)
-	viper.SetDefault("prometheus.enable_record", 0)
-	viper.SetDefault("prometheus.alert_webhook_addr", "http://localhost:8889/api/v1/alerts/receive")
-	viper.SetDefault("prometheus.alert_webhook_file_dir", "/tmp/webhook_files")
-	viper.SetDefault("prometheus.httpSdAPI", "http://localhost:8888/api/not_auth/getTreeNodeBindIps")
-
 	// Mock defaults
 	viper.SetDefault("mock.enabled", true)
-
-	// Notification Email defaults
-	viper.SetDefault("notification.email.enabled", false)
-	viper.SetDefault("notification.email.smtp_host", "smtp.gmail.com")
-	viper.SetDefault("notification.email.smtp_port", 587)
-	viper.SetDefault("notification.email.username", "")
-	viper.SetDefault("notification.email.password", "")
-	viper.SetDefault("notification.email.from_name", "AI-CloudOps")
-	viper.SetDefault("notification.email.max_retries", 3)
-	viper.SetDefault("notification.email.retry_interval", "5m")
-	viper.SetDefault("notification.email.timeout", "30s")
-	viper.SetDefault("notification.email.use_tls", true)
-
-	// Notification Feishu defaults
-	viper.SetDefault("notification.feishu.enabled", false)
-	viper.SetDefault("notification.feishu.app_id", "")
-	viper.SetDefault("notification.feishu.app_secret", "")
-	viper.SetDefault("notification.feishu.webhook_url", "https://open.feishu.cn/open-apis/bot/v2/hook/")
-	viper.SetDefault("notification.feishu.private_message_api", "https://open.feishu.cn/open-apis/im/v1/messages")
-	viper.SetDefault("notification.feishu.tenant_access_token_api", "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal")
-	viper.SetDefault("notification.feishu.max_retries", 3)
-	viper.SetDefault("notification.feishu.retry_interval", "5m")
-	viper.SetDefault("notification.feishu.timeout", "10s")
 
 	// File Manager defaults
 	viper.SetDefault("file_manager.enabled", true)
@@ -206,31 +142,10 @@ func setDefaults() {
 	viper.SetDefault("agent.hub.max_concurrent_plugins", 10)
 }
 
-// setWebhookDefaults 设置Webhook默认值
-func setWebhookDefaults() {
-	viper.SetDefault("webhook.port", "8888")
-	viper.SetDefault("webhook.fixed_workers", 10)
-	viper.SetDefault("webhook.front_domain", "http://localhost:3000")
-	viper.SetDefault("webhook.backend_domain", "http://localhost:8889")
-	viper.SetDefault("webhook.default_upgrade_minutes", 60)
-	viper.SetDefault("webhook.alert_manager_api", "http://localhost:9093")
-	viper.SetDefault("webhook.common_map_renew_interval_seconds", 300)
-	viper.SetDefault("webhook.im_feishu.group_message_api", "https://open.feishu.cn/open-apis/im/v1/messages")
-	viper.SetDefault("webhook.im_feishu.request_timeout_seconds", 10)
-	viper.SetDefault("webhook.im_feishu.private_robot_app_id", "")
-	viper.SetDefault("webhook.im_feishu.private_robot_app_secret", "")
-	viper.SetDefault("webhook.im_feishu.tenant_access_token_api", "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal")
-}
-
 // bindEnvVars 绑定环境变量
 func bindEnvVars() {
 	// 使用反射自动绑定所有配置项到环境变量
 	bindStructEnvVars(reflect.TypeOf(Config{}), "")
-}
-
-// bindWebhookEnvVars 绑定Webhook环境变量
-func bindWebhookEnvVars() {
-	bindStructEnvVars(reflect.TypeOf(WebhookConfig{}), "webhook")
 }
 
 // bindStructEnvVars 递归绑定结构体中的环境变量
@@ -275,13 +190,4 @@ func bindStructEnvVars(t reflect.Type, prefix string) {
 			}
 		}
 	}
-}
-
-// loadExternalConfig 加载外部配置（仅环境变量）
-func loadExternalConfig() {
-	GlobalExternalConfig.LLM.APIKey = os.Getenv("LLM_API_KEY")
-	GlobalExternalConfig.LLM.BaseURL = os.Getenv("LLM_BASE_URL")
-	GlobalExternalConfig.Aliyun.AccessKeyID = os.Getenv("ALIYUN_ACCESS_KEY_ID")
-	GlobalExternalConfig.Aliyun.AccessKeySecret = os.Getenv("ALIYUN_ACCESS_KEY_SECRET")
-	GlobalExternalConfig.Tavily.APIKey = os.Getenv("TAVILY_API_KEY")
 }

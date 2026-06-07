@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
 	"github.com/google/uuid"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 type Store interface {

@@ -5,7 +5,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/files/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/files/model"
 )
 
 func TestPathPolicyAllowsRootChild(t *testing.T) {

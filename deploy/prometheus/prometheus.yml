@@ -10,12 +10,6 @@ scrape_configs:
     static_configs:
       - targets: ["localhost:9090"]
 
-  - job_name: "aiops-platform"
-    static_configs:
-      - targets: ["aiops-platform:8080"]
-    metrics_path: "/api/v1/health/metrics"
-    scrape_interval: 30s
-
   - job_name: "kubernetes-pods"
     kubernetes_sd_configs:
       - role: pod

@@ -11,7 +11,7 @@ import (
 	"strconv"
 	"strings"
 
-	filemodel "github.com/GoSimplicity/AI-CloudOps/internal/files/model"
+	filemodel "github.com/rizxfrog/VanPanelBackend/internal/files/model"
 )
 
 var (

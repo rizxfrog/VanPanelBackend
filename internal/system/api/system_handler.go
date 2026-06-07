@@ -26,10 +26,10 @@
 package api
 
 import (
-	"github.com/GoSimplicity/AI-CloudOps/internal/system/service"
-	systemutils "github.com/GoSimplicity/AI-CloudOps/internal/system/utils"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/internal/system/service"
+	systemutils "github.com/rizxfrog/VanPanelBackend/internal/system/utils"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 )
 
 type SystemHandler struct {

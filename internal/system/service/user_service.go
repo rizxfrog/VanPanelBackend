@@ -30,10 +30,10 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/constants"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/system/dao"
-	userutils "github.com/GoSimplicity/AI-CloudOps/internal/system/utils"
+	"github.com/rizxfrog/VanPanelBackend/internal/constants"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/system/dao"
+	userutils "github.com/rizxfrog/VanPanelBackend/internal/system/utils"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

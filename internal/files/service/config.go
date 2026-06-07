@@ -4,7 +4,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/files/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/files/model"
 )
 
 type ManagerConfig struct {

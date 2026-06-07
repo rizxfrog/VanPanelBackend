@@ -6,7 +6,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	filemodel "github.com/GoSimplicity/AI-CloudOps/internal/files/model"
+	filemodel "github.com/rizxfrog/VanPanelBackend/internal/files/model"
 	"go.uber.org/zap"
 )
 

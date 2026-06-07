@@ -119,7 +119,7 @@ package risk
 import (
 	"testing"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 func TestGuardBlocksHighRiskPatterns(t *testing.T) {
@@ -325,7 +325,7 @@ import (
 	"fmt"
 	"strings"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 type Guard struct {
@@ -426,7 +426,7 @@ package audit
 import (
 	"testing"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 func TestMemoryStoreAppendsEventsInOrder(t *testing.T) {
@@ -457,7 +457,7 @@ import (
 	"testing"
 	"time"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 func TestApprovalStoreConfirmsExactApproval(t *testing.T) {
@@ -508,7 +508,7 @@ import (
 	"sync"
 	"time"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 	"github.com/google/uuid"
 )
 
@@ -554,7 +554,7 @@ import (
 	"sync"
 	"time"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 	"github.com/google/uuid"
 )
 
@@ -659,7 +659,7 @@ import (
 	"context"
 	"testing"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 func TestRegistryExecutesReadOnlyTool(t *testing.T) {
@@ -705,7 +705,7 @@ import (
 	"runtime"
 	"time"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 type Handler func(ctx context.Context, call agentmodel.ToolCall) (any, error)
@@ -814,10 +814,10 @@ import (
 	"context"
 	"testing"
 
-	agentaudit "github.com/GoSimplicity/AI-CloudOps/internal/agent/audit"
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
-	agentrisk "github.com/GoSimplicity/AI-CloudOps/internal/agent/risk"
-	agenttools "github.com/GoSimplicity/AI-CloudOps/internal/agent/tools"
+	agentaudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
+	agentrisk "github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
+	agenttools "github.com/rizxfrog/VanPanelBackend/internal/agent/tools"
 )
 
 type fakePlanner struct{}
@@ -866,7 +866,7 @@ import (
 	"strings"
 	"testing"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 	"github.com/gin-gonic/gin"
 )
 
@@ -924,10 +924,10 @@ import (
 	"fmt"
 	"time"
 
-	agentaudit "github.com/GoSimplicity/AI-CloudOps/internal/agent/audit"
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
-	agentrisk "github.com/GoSimplicity/AI-CloudOps/internal/agent/risk"
-	agenttools "github.com/GoSimplicity/AI-CloudOps/internal/agent/tools"
+	agentaudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
+	agentrisk "github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
+	agenttools "github.com/rizxfrog/VanPanelBackend/internal/agent/tools"
 	"github.com/google/uuid"
 )
 
@@ -1039,10 +1039,10 @@ Create `internal/agent/api/handler.go`:
 package api
 
 import (
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
-	agentservice "github.com/GoSimplicity/AI-CloudOps/internal/agent/service"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
+	agentservice "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
+	"github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 	"github.com/gin-gonic/gin"
 )
 
@@ -1130,11 +1130,11 @@ func currentUser(ctx *gin.Context) (string, string) {
 Add imports to `pkg/di/wire.go`:
 
 ```go
-agentApi "github.com/GoSimplicity/AI-CloudOps/internal/agent/api"
-agentAudit "github.com/GoSimplicity/AI-CloudOps/internal/agent/audit"
-agentRisk "github.com/GoSimplicity/AI-CloudOps/internal/agent/risk"
-agentService "github.com/GoSimplicity/AI-CloudOps/internal/agent/service"
-agentTools "github.com/GoSimplicity/AI-CloudOps/internal/agent/tools"
+agentApi "github.com/rizxfrog/VanPanelBackend/internal/agent/api"
+agentAudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
+agentRisk "github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
+agentService "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
+agentTools "github.com/rizxfrog/VanPanelBackend/internal/agent/tools"
 ```
 
 Register providers:
@@ -1155,10 +1155,10 @@ Create `pkg/di/agent.go`:
 package di
 
 import (
-	agentaudit "github.com/GoSimplicity/AI-CloudOps/internal/agent/audit"
-	agentrisk "github.com/GoSimplicity/AI-CloudOps/internal/agent/risk"
-	agentservice "github.com/GoSimplicity/AI-CloudOps/internal/agent/service"
-	agenttools "github.com/GoSimplicity/AI-CloudOps/internal/agent/tools"
+	agentaudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
+	agentrisk "github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
+	agentservice "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
+	agenttools "github.com/rizxfrog/VanPanelBackend/internal/agent/tools"
 )
 
 func ProvideAgentPlanner() agentservice.Planner {
@@ -1184,7 +1184,7 @@ import (
 	"strings"
 	"time"
 
-	agentmodel "github.com/GoSimplicity/AI-CloudOps/internal/agent/model"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 type HTTPPlanner struct {

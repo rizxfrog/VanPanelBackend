@@ -14,10 +14,10 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"go.uber.org/zap"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/dao"
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/risk"
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/tool/mcp/manager"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
 )
 
 const personaPrompt = "你是一个运维助手，你有多种工具可以调用来查询系统信息。当用户询问系统状态、可用工具、或需要执行运维操作时，必须优先使用工具来获取实时数据，不要凭记忆回答。如果用户问\"有哪些工具\"或\"可以用什么工具\"，直接列出你实际可用的工具名称和用途。"
@@ -217,62 +217,33 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 	// 加载历史消息
 	history := s.loadHistory(ctx, req.SessionID)
 
-	// 获取工具和创建模型
-	tools := s.toolMgr.GetAllTools(ctx)
+	// 创建 ChatModel
 	chatModel, err := s.createChatModel(ctx)
 	if err != nil {
 		return fmt.Errorf("创建 ChatModel 失败: %w", err)
 	}
 
-	// 创建 Agent
-	agent, err := react.NewAgent(ctx, &react.AgentConfig{
-		ToolCallingModel: chatModel,
-		ToolsConfig:      compose.ToolsNodeConfig{Tools: tools},
-		MaxStep:          10,
-		MessageModifier:  react.NewPersonaModifier(personaPrompt),
-	})
-	if err != nil {
-		return fmt.Errorf("创建 Agent 失败: %w", err)
-	}
-
-	// 构建消息列表
-	messages := make([]*schema.Message, 0, len(history)+1)
+	// 构建消息列表（含 system persona，textReActLoop 会注入工具描述）
+	messages := make([]*schema.Message, 0, len(history)+2)
+	messages = append(messages, &schema.Message{Role: schema.System, Content: personaPrompt})
 	messages = append(messages, history...)
 	messages = append(messages, &schema.Message{Role: schema.User, Content: req.Question})
 
-	// 流式执行
-	sr, err := agent.Stream(ctx, messages)
+	// 使用 textReActLoop 流式执行：ChatModel 直接流式输出 + 文本格式工具调用
+	tools := s.toolMgr.GetAllTools(ctx)
+	loop := newTextReActLoop(chatModel, tools, 10, s.logger)
+	finalContent, err := loop.Stream(ctx, messages, writer, s.writeSSEEvent)
 	if err != nil {
 		return fmt.Errorf("Agent Stream 失败: %w", err)
 	}
-	defer sr.Close()
 
-	var finalContent string
-
-	for {
-		chunk, err := sr.Recv()
-		if err == io.EOF {
-			break
-		}
-		if err != nil {
-			s.logger.Error("Agent Stream 接收错误", zap.Error(err))
-			s.writeSSEEvent(writer, "error", map[string]string{"error": err.Error()})
-			break
-		}
-
-		// 记录最终内容用于持久化
-		if chunk.Content != "" {
-			finalContent = chunk.Content
-		}
-
-		// 发送 SSE delta 事件
-		if err := s.writeSSEEvent(writer, "delta", chunk); err != nil {
-			return fmt.Errorf("写入 SSE 事件失败: %w", err)
-		}
-	}
-
-	// 发送完成事件
-	if err := s.writeSSEEvent(writer, "done", map[string]string{"session_id": req.SessionID}); err != nil {
+	// 发送完成事件，附带 answer 作为前端 fallback
+	if err := s.writeSSEEvent(writer, "done", map[string]interface{}{
+		"session_id": req.SessionID,
+		"result": map[string]string{
+			"answer": finalContent,
+		},
+	}); err != nil {
 		return fmt.Errorf("写入 SSE 完成事件失败: %w", err)
 	}
 

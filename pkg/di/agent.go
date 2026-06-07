@@ -3,13 +3,13 @@ package di
 import (
 	"context"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/api"
-	agentDao "github.com/GoSimplicity/AI-CloudOps/internal/agent/dao"
-	agentHub "github.com/GoSimplicity/AI-CloudOps/internal/agent/hub"
-	agentRisk "github.com/GoSimplicity/AI-CloudOps/internal/agent/risk"
-	agentService "github.com/GoSimplicity/AI-CloudOps/internal/agent/service"
-	"github.com/GoSimplicity/AI-CloudOps/internal/agent/tool/builtin"
-	agentToolManager "github.com/GoSimplicity/AI-CloudOps/internal/agent/tool/mcp/manager"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/api"
+	agentDao "github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
+	agentHub "github.com/rizxfrog/VanPanelBackend/internal/agent/hub"
+	agentRisk "github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
+	agentService "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/builtin"
+	agentToolManager "github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )

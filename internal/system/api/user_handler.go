@@ -29,14 +29,14 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/constants"
-	"github.com/GoSimplicity/AI-CloudOps/internal/model"
-	"github.com/GoSimplicity/AI-CloudOps/internal/system/service"
-	userutils "github.com/GoSimplicity/AI-CloudOps/internal/system/utils"
-	"github.com/GoSimplicity/AI-CloudOps/pkg/base"
-	jwt2 "github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/rizxfrog/VanPanelBackend/internal/constants"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/system/service"
+	userutils "github.com/rizxfrog/VanPanelBackend/internal/system/utils"
+	"github.com/rizxfrog/VanPanelBackend/pkg/base"
+	jwt2 "github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 	"github.com/spf13/viper"
 )
 

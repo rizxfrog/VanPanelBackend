@@ -29,11 +29,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/GoSimplicity/AI-CloudOps/internal/middleware"
-	"github.com/GoSimplicity/AI-CloudOps/internal/system/service"
-	ijwt "github.com/GoSimplicity/AI-CloudOps/pkg/jwt"
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
+	"github.com/rizxfrog/VanPanelBackend/internal/middleware"
+	"github.com/rizxfrog/VanPanelBackend/internal/system/service"
+	ijwt "github.com/rizxfrog/VanPanelBackend/pkg/jwt"
 	"go.uber.org/zap"
 )
 
