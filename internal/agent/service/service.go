@@ -161,8 +161,20 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 	// 加载历史消息
 	history := s.loadHistory(ctx, req.SessionID)
 
-	// 获取所有可用工具
-	tools := s.toolMgr.GetAllTools(ctx)
+	// 获取所有可用工具并包装安全拦截
+	rawTools := s.toolMgr.GetAllTools(ctx)
+	safeTools := make([]tool.BaseTool, 0, len(rawTools))
+	for _, t := range rawTools {
+		wt, err := wrapTool(t, s.riskEval, func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
+			s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
+		})
+		if err != nil {
+			s.logger.Warn("wrap tool failed, using original", zap.Error(err))
+			safeTools = append(safeTools, t)
+			continue
+		}
+		safeTools = append(safeTools, wt)
+	}
 
 	// 创建 ChatModel
 	chatModel, err := s.createChatModel(ctx)
@@ -173,7 +185,7 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 	// 创建 ReAct Agent
 	agent, err := react.NewAgent(ctx, &react.AgentConfig{
 		ToolCallingModel: chatModel,
-		ToolsConfig:      compose.ToolsNodeConfig{Tools: tools},
+		ToolsConfig:      compose.ToolsNodeConfig{Tools: safeTools},
 		MaxStep:          10,
 		MessageModifier:  react.NewPersonaModifier(personaPrompt),
 	})

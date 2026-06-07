@@ -41,6 +41,11 @@ var (
 func init() {
 	textToolCallRegex = regexp.MustCompile("(?s)" + regexp.QuoteMeta(toolCallOpen) + "\\s*" + regexp.QuoteMeta(funcOpen) + "([^>]+)>" + "(.*?)" + regexp.QuoteMeta(funcClose) + "\\s*" + regexp.QuoteMeta(toolCallClose))
 	paramRegex = regexp.MustCompile("(?s)" + regexp.QuoteMeta(paramOpen) + "([^>]+)>" + "(.*?)" + regexp.QuoteMeta(paramClose))
+
+	// Anthropic/Claude 风格的工具调用格式
+	altFuncCallRegex = regexp.MustCompile(`(?s)<function_calls>\s*(.*?)\s*</function_calls>`)
+	altInvokeRegex = regexp.MustCompile(`(?s)<invoke\s+name="([^"]+)"\s*>(.*?)</invoke>`)
+	altParamRegex = regexp.MustCompile(`(?s)<parameter\s+name="([^"]+)"\s*>(.*?)</parameter>`)
 }
 
 func buildToolDescriptions(tools []tool.BaseTool) string {
