@@ -1,28 +1,3 @@
-/*
- * MIT License
- *
- * Copyright (c) 2024 Bamboo
- *
- * Permission is hereby granted, free of charge, to any person obtaining a copy
- * of this software and associated documentation files (the "Software"), to deal
- * in the Software without restriction, including without limitation the rights
- * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
- * copies of the Software, and to permit persons to whom the Software is
- * furnished to do so, subject to the following conditions:
- *
- * The above copyright notice and this permission notice shall be included in
- * all copies or substantial portions of the Software.
- *
- * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
- * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
- * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
- * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
- * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
- * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
- * THE SOFTWARE.
- *
- */
-
 package main
 
 import (
@@ -30,7 +5,6 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os"
 	"os/signal"
 	"syscall"
 	"time"
@@ -38,7 +12,6 @@ import (
 	"github.com/fatih/color"
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
-	"github.com/hibiken/asynq"
 	"github.com/joho/godotenv"
 	"github.com/rizxfrog/VanPanelBackend/mock"
 	"github.com/rizxfrog/VanPanelBackend/pkg/base"
@@ -68,12 +41,6 @@ func run() error {
 		log.Printf("database unavailable, running in degraded mode")
 	}
 
-	if di.IsDBAvailable(db) {
-		if err := cmd.Bootstrap.InitializeK8sClients(context.Background()); err != nil {
-			log.Printf("failed to initialize k8s clients: %v", err)
-		}
-	}
-
 	cmd.Server.Use(gzip.Gzip(gzip.BestCompression))
 
 	cmd.Server.GET("/", func(c *gin.Context) {
@@ -101,94 +68,31 @@ func run() error {
 		log.Printf("database unavailable, skipping mock initialization")
 	}
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	if di.IsDBAvailable(db) {
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("Asynq server panic: %v", r)
-				}
-			}()
-
-			mux := asynq.NewServeMux()
-			mux.Handle("cron:task", cmd.CronHandlers)
-
-			log.Printf("starting Asynq server")
-			if err := cmd.AsynqServer.Run(mux); err != nil {
-				log.Printf("Asynq server failed: %v", err)
-			}
-		}()
-
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("Asynq scheduler panic: %v", r)
-				}
-			}()
-
-			log.Printf("starting Asynq scheduler")
-			if err := cmd.Scheduler.Run(); err != nil {
-				log.Printf("Asynq scheduler failed: %v", err)
-			}
-		}()
-
-		go func() {
-			defer func() {
-				if r := recover(); r != nil {
-					log.Printf("Unified cron manager panic: %v", r)
-				}
-			}()
-
-			log.Printf("starting unified cron manager")
-			if err := cmd.CronManager.Start(ctx); err != nil {
-				log.Printf("unified cron manager failed: %v", err)
-			}
-		}()
-
-		log.Printf("system startup completed with Asynq and unified cron manager")
-	} else {
-		log.Printf("running in degraded mode")
-	}
+	log.Printf("system startup completed")
 
 	srv := &http.Server{
 		Addr:    ":" + viper.GetString("server.port"),
 		Handler: cmd.Server,
 	}
 
-	quit := make(chan os.Signal, 1)
-	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	quit := make(chan struct{})
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM, syscall.SIGQUIT)
+	defer stop()
 
 	go func() {
 		showBootInfo(viper.GetString("server.port"))
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Fatalf("server failed: %v", err)
 		}
+		close(quit)
 	}()
 
-	<-quit
+	<-ctx.Done()
 	log.Println("shutting down server")
 
-	if di.IsDBAvailable(db) {
-		log.Println("stopping cron manager and Asynq services")
-
-		stopCtx, stopCancel := context.WithTimeout(context.Background(), 30*time.Second)
-		defer stopCancel()
-		if err := cmd.CronManager.Stop(stopCtx); err != nil {
-			log.Printf("cron manager stop timeout: %v", err)
-		}
-
-		cmd.AsynqServer.Shutdown()
-		cmd.Scheduler.Shutdown()
-	}
-
-	cancel()
-
-	shutdownCtx, shutdownCancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
 	_ = srv.Shutdown(shutdownCtx)
-	time.Sleep(2 * time.Second)
 	log.Println("server stopped")
 	return nil
 }
