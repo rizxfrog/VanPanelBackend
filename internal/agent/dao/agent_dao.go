@@ -4,11 +4,24 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/rizxfrog/VanPanelBackend/internal/model"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
+
+// UserMemory 用户长期记忆
+type UserMemory struct {
+	ID         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID     uint      `gorm:"index;not null" json:"userId"`
+	Username   string    `gorm:"size:64" json:"username"`
+	SessionID  string    `gorm:"index;size:64" json:"sessionId"`
+	Content    string    `gorm:"type:text;not null" json:"content"`
+	MemoryType string    `gorm:"size:32;default:'general'" json:"memoryType"`
+	Importance int       `gorm:"default:0" json:"importance"`
+	CreatedAt  time.Time `json:"createdAt"`
+}
 
 // AgentDAO 智能体数据访问层接口
 type AgentDAO interface {
@@ -57,6 +70,10 @@ type AgentDAO interface {
 	// 审计
 	CreateAuditEvent(ctx context.Context, event *model.AgentAuditEvent) error
 	ListAuditEvents(ctx context.Context, sessionID string, limit int) ([]*model.AgentAuditEvent, error)
+
+	// 长期记忆
+	CreateUserMemory(ctx context.Context, memory *UserMemory) error
+	ListUserMemoriesByUser(ctx context.Context, userID uint, limit int) ([]*UserMemory, error)
 }
 
 type agentDAO struct {
@@ -606,4 +623,33 @@ func (d *agentDAO) ListAuditEvents(ctx context.Context, sessionID string, limit 
 		return nil, fmt.Errorf("查询审计事件失败: %w", err)
 	}
 	return events, nil
+}
+
+// ==================== 长期记忆 ====================
+
+func (d *agentDAO) CreateUserMemory(ctx context.Context, memory *UserMemory) error {
+	if memory == nil {
+		d.l.Error("CreateUserMemory: 记忆不能为空")
+		return errors.New("记忆不能为空")
+	}
+	if err := d.db.WithContext(ctx).Create(memory).Error; err != nil {
+		d.l.Error("CreateUserMemory: 创建记忆失败", zap.Error(err))
+		return fmt.Errorf("创建记忆失败: %w", err)
+	}
+	return nil
+}
+
+func (d *agentDAO) ListUserMemoriesByUser(ctx context.Context, userID uint, limit int) ([]*UserMemory, error) {
+	if limit <= 0 {
+		limit = 20
+	}
+	var memories []*UserMemory
+	if err := d.db.WithContext(ctx).
+		Order("created_at DESC, id DESC").
+		Limit(limit).
+		Find(&memories).Error; err != nil {
+		d.l.Error("ListUserMemoriesByUser: 查询记忆列表失败", zap.Error(err))
+		return nil, fmt.Errorf("查询记忆列表失败: %w", err)
+	}
+	return memories, nil
 }
