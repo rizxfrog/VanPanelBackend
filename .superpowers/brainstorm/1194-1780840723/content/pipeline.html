@@ -1,0 +1,86 @@
+<h2>Section 1 — 整体 Pipeline 架构</h2>
+<p class="subtitle">Agent 处理请求的 6 阶段分层管道，每层可独立替换</p>
+
+<div class="section">
+  <h3>Pipeline 流程图</h3>
+  <div style="background:var(--code-bg);padding:16px;border-radius:8px;font-family:monospace;font-size:13px;line-height:1.8;">
+    <div style="text-align:center;margin-bottom:10px;color:var(--accent-color);">
+      👤 用户自然语言指令
+    </div>
+    <div style="text-align:center;margin:4px 0;">│</div>
+    <div style="border:1px solid #4a9eff;border-radius:6px;padding:8px;margin:4px 0;background:rgba(74,158,255,0.08);">
+      <strong>① 意图分析 + 注入防护</strong><br/>
+      <span style="font-size:11px;color:var(--muted-text);">
+        &bull; 检测 Prompt Injection（角色劫持、指令覆盖、越狱）<br/>
+        &bull; 意图分类：信息查询 / 状态感知 / 操作执行 / 危险操作<br/>
+        &bull; 调用独立的安全模型做初步语义分析
+      </span>
+    </div>
+    <div style="text-align:center;margin:4px 0;">│</div>
+    <div style="border:1px solid #ffa74a;border-radius:6px;padding:8px;margin:4px 0;background:rgba(255,167,74,0.08);">
+      <strong>② 上下文增强（记忆系统）</strong><br/>
+      <span style="font-size:11px;color:var(--muted-text);">
+        &bull; 加载短期记忆：当前会话历史消息（已有）<br/>
+        &bull; 加载长期记忆：用户偏好、历史模式、知识图谱<br/>
+        &bull; 可选 RAG 检索：运维文档、系统手册、历史故障案例
+      </span>
+    </div>
+    <div style="text-align:center;margin:4px 0;">│</div>
+    <div style="border:1px solid #4ac9ff;border-radius:6px;padding:8px;margin:4px 0;background:rgba(74,201,255,0.08);">
+      <strong>③ Agent 推理（ReAct 循环）</strong><br/>
+      <span style="font-size:11px;color:var(--muted-text);">
+        &bull; 思考 &rarr; 选择 Tool &rarr; 执行 &rarr; 观察 &rarr; 再思考<br/>
+        &bull; 已有的 streaming/sync 两条路径保持不变<br/>
+        &bull; 每次 Tool 调用前，结果要经过 ④ Guard 审查
+      </span>
+    </div>
+    <div style="text-align:center;margin:4px 0;">│</div>
+    <div style="border:1px solid #ff4a4a;border-radius:6px;padding:8px;margin:4px 0;background:rgba(255,74,74,0.08);">
+      <strong>④ Guard 安全审查管道</strong><br/>
+      <span style="font-size:11px;color:var(--muted-text);">
+        &bull; 第一关：规则引擎（已有）&mdash; 正则黑名单 + 路径保护<br/>
+        &bull; 第二关：独立审计模型 &mdash; LLM 语义分析工具调用参数<br/>
+        &bull; 第三关：最小权限检查 &mdash; 当前用户是否有权执行该操作<br/>
+        &bull; 输出：放行 / 需审批 / 拦截
+      </span>
+    </div>
+    <div style="text-align:center;margin:4px 0;">│</div>
+    <div style="border:1px solid #4aff6e;border-radius:6px;padding:8px;margin:4px 0;background:rgba(74,255,110,0.08);">
+      <strong>⑤ 最小权限代理执行</strong><br/>
+      <span style="font-size:11px;color:var(--muted-text);">
+        &bull; 非 root 账户运行核心运维动作<br/>
+        &bull; 高危操作走审批流（human-in-the-loop）<br/>
+        &bull; 本地执行 / SSH 远程执行 / MCP 远程 Agent 执行
+      </span>
+    </div>
+    <div style="text-align:center;margin:4px 0;">│</div>
+    <div style="text-align:center;padding:8px;border-radius:6px;background:rgba(255,255,255,0.05);">
+      <strong>⑥ 审计记录</strong> &mdash; 全链路事件写入审计日志，支持回溯
+    </div>
+  </div>
+</div>
+
+<div class="section">
+  <h3>关键设计决策</h3>
+
+  <div class="pros-cons">
+    <div class="pros">
+      <h4>每层都是 Go 接口</h4>
+      <ul>
+        <li>IntentAnalyzer 接口 — 可切换注入检测策略</li>
+        <li>MemoryProvider 接口 — 可切换记忆存储后端</li>
+        <li>GuardChain 接口 — 可编排多层审查规则</li>
+        <li>ToolExecutor 接口 — 可切换本地/远程执行方式</li>
+      </ul>
+    </div>
+    <div class="cons">
+      <h4>与现有代码的关系</h4>
+      <ul>
+        <li>③ Agent 推理 — 复用现有 textReActLoop + ReAct agent</li>
+        <li>④ Guard 第一关 — 复用现有 risk/evaluator.go</li>
+        <li>⑥ 审计记录 — 复用现有 audit/memory.go</li>
+        <li>新增代码主要在第 ①②④ 层</li>
+      </ul>
+    </div>
+  </div>
+</div>

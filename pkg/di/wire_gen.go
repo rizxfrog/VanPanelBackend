@@ -66,8 +66,10 @@ func ProvideCmd() *Cmd {
 	toolManager := ProvideAgentToolManager(agentDAO, logger)
 	agentRiskConfig := ProvideAgentRiskConfig()
 	evaluator := ProvideAgentRiskEvaluator(agentRiskConfig)
+	store := ProvideAgentAuditStore(agentDAO, logger)
 	agentConfig := ProvideAgentConfig()
-	agentService := ProvideAgentService(agentDAO, toolManager, evaluator, agentConfig, logger)
+	stage := ProvideAgentPipeline(agentDAO, logger)
+	agentService := ProvideAgentService(agentDAO, toolManager, evaluator, store, agentConfig, logger, stage)
 	agentHubConfig := ProvideAgentHubConfig()
 	hubService := ProvideHubService(agentDAO, toolManager, agentHubConfig, logger)
 	handler2 := ProvideAgentHandler(agentService, hubService)
@@ -110,6 +112,10 @@ var AgentSet = wire.NewSet(
 	ProvideAgentHubConfig,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
+	ProvideAgentAuditStore,
 	ProvideAgentService,
 	ProvideHubService,
+	ProvideAgentGuardChain,
+	ProvideAgentMemoryProvider,
+	ProvideAgentPipeline,
 )

@@ -14,7 +14,10 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"go.uber.org/zap"
 
+	agentaudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/pipeline"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
 	"github.com/rizxfrog/VanPanelBackend/internal/model"
@@ -42,6 +45,8 @@ type Config struct {
 type AgentService interface {
 	Query(ctx context.Context, req *model.AgentQueryReq, userID int) (*model.AgentQueryResponse, error)
 	QueryStream(ctx context.Context, req *model.AgentQueryReq, userID int, writer io.Writer) error
+	QueryWithPipeline(ctx context.Context, req *model.AgentQueryReq, userID int) (*model.AgentQueryResponse, error)
+	QueryStreamWithPipeline(ctx context.Context, req *model.AgentQueryReq, userID int, writer io.Writer) error
 	CreateSession(ctx context.Context, req *model.CreateAgentSessionReq, userID int) (*model.AgentSession, error)
 	ListSessions(ctx context.Context, req *model.ListAgentSessionsReq, userID int) (model.ListResp[*model.AgentSession], error)
 	GetSession(ctx context.Context, id int) (*model.AgentSession, error)
@@ -52,11 +57,13 @@ type AgentService interface {
 
 // agentService 智能体服务实现，集成 Eino ReAct Agent
 type agentService struct {
-	dao      dao.AgentDAO
-	toolMgr  *manager.ToolManager
-	riskEval *risk.Evaluator
-	cfg      *Config
-	logger   *zap.Logger
+	dao           dao.AgentDAO
+	toolMgr       *manager.ToolManager
+	riskEval      *risk.Evaluator
+	auditStore    agentaudit.Store
+	cfg           *Config
+	logger        *zap.Logger
+	pipelineStage *pipeline.Stage // optional pipeline enhancement
 }
 
 // NewAgentService 创建智能体服务实例
@@ -64,15 +71,46 @@ func NewAgentService(
 	dao dao.AgentDAO,
 	toolMgr *manager.ToolManager,
 	riskEval *risk.Evaluator,
+	auditStore agentaudit.Store,
 	cfg *Config,
 	logger *zap.Logger,
+	pipelineStage *pipeline.Stage,
 ) AgentService {
 	return &agentService{
-		dao:      dao,
-		toolMgr:  toolMgr,
-		riskEval: riskEval,
-		cfg:      cfg,
-		logger:   logger,
+		dao:           dao,
+		toolMgr:       toolMgr,
+		riskEval:      riskEval,
+		auditStore:    auditStore,
+		cfg:           cfg,
+		logger:        logger,
+		pipelineStage: pipelineStage,
+	}
+}
+
+func (s *agentService) auditEvent(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string, sessionID string, userID int, username string) {
+	if s.auditStore == nil {
+		return
+	}
+	metadata := make(map[string]interface{})
+	if args != "" {
+		metadata["args"] = args
+	}
+	if result != "" {
+		metadata["result"] = result
+	}
+	event := agentmodel.AuditEvent{
+		SessionID: sessionID,
+		UserID:    uint(userID),
+		Username:  username,
+		Action:    action,
+		ToolName:  toolName,
+		Risk:      riskLevel,
+		Allowed:   allowed,
+		Reason:    reason,
+		Metadata:  metadata,
+	}
+	if _, err := s.auditStore.Append(ctx, event); err != nil {
+		s.logger.Warn("audit append failed", zap.Error(err))
 	}
 }
 
@@ -123,11 +161,26 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 		s.logger.Warn("保存用户消息失败", zap.Error(err))
 	}
 
+	// 审计: 接收用户消息
+	s.auditEvent(ctx, agentaudit.ActionReceive, "", "", "", true, "", req.Question, req.SessionID, userID, "")
+
 	// 加载历史消息
 	history := s.loadHistory(ctx, req.SessionID)
 
-	// 获取所有可用工具
-	tools := s.toolMgr.GetAllTools(ctx)
+	// 获取所有可用工具并包装安全拦截
+	rawTools := s.toolMgr.GetAllTools(ctx)
+	safeTools := make([]tool.BaseTool, 0, len(rawTools))
+	for _, t := range rawTools {
+		wt, err := wrapTool(t, s.riskEval, func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
+			s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
+		})
+		if err != nil {
+			s.logger.Warn("wrap tool failed, using original", zap.Error(err))
+			safeTools = append(safeTools, t)
+			continue
+		}
+		safeTools = append(safeTools, wt)
+	}
 
 	// 创建 ChatModel
 	chatModel, err := s.createChatModel(ctx)
@@ -138,7 +191,7 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 	// 创建 ReAct Agent
 	agent, err := react.NewAgent(ctx, &react.AgentConfig{
 		ToolCallingModel: chatModel,
-		ToolsConfig:      compose.ToolsNodeConfig{Tools: tools},
+		ToolsConfig:      compose.ToolsNodeConfig{Tools: safeTools},
 		MaxStep:          10,
 		MessageModifier:  react.NewPersonaModifier(personaPrompt),
 	})
@@ -178,6 +231,154 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 		s.logger.Warn("更新会话统计失败", zap.Error(err))
 	}
 
+	// 审计: 对话完成
+	s.auditEvent(ctx, agentaudit.ActionComplete, "", "", "", true, "", answer, req.SessionID, userID, "")
+
+	return &model.AgentQueryResponse{
+		SessionID: req.SessionID,
+		Answer:    answer,
+	}, nil
+}
+
+// QueryWithPipeline 使用 Pipeline 增强的同步查询
+func (s *agentService) QueryWithPipeline(ctx context.Context, req *model.AgentQueryReq, userID int) (*model.AgentQueryResponse, error) {
+	// 自动创建会话（如果 session_id 为空）
+	if req.SessionID == "" {
+		session, err := s.CreateSession(ctx, &model.CreateAgentSessionReq{Title: "新对话"}, userID)
+		if err != nil {
+			return nil, fmt.Errorf("自动创建会话失败: %w", err)
+		}
+		req.SessionID = strconv.Itoa(session.ID)
+	}
+
+	// 解析会话 ID
+	sessionID, err := strconv.Atoi(req.SessionID)
+	if err != nil {
+		return nil, fmt.Errorf("无效的会话 ID: %w", err)
+	}
+
+	// 校验会话存在
+	session, err := s.dao.GetSession(ctx, sessionID)
+	if err != nil {
+		return nil, fmt.Errorf("获取会话失败: %w", err)
+	}
+	_ = session
+
+	// 保存用户消息
+	if err := s.dao.CreateMessage(ctx, &model.AgentMessage{
+		SessionID: req.SessionID,
+		Role:      model.AgentMessageRoleUser,
+		Content:   req.Question,
+	}); err != nil {
+		s.logger.Warn("保存用户消息失败", zap.Error(err))
+	}
+
+	// 审计: 接收用户消息
+	s.auditEvent(ctx, agentaudit.ActionReceive, "", "", "", true, "", req.Question, req.SessionID, userID, "")
+
+	// === ① 意图分析 ===
+	pc := &pipeline.PipelineContext{
+		UserInput: req.Question,
+		SessionID: req.SessionID,
+		UserID:    userID,
+	}
+	if s.pipelineStage != nil {
+		s.pipelineStage.RunIntentAnalysis(ctx, pc)
+	}
+
+	// === 注入检测 ===
+	if s.pipelineStage != nil {
+		if blocked, reason := s.pipelineStage.IsInjectionAttempt(pc); blocked {
+			s.auditEvent(ctx, agentaudit.ActionReceive, "", reason, agentmodel.RiskHigh, false, "", req.Question, req.SessionID, userID, "")
+			return &model.AgentQueryResponse{
+				SessionID: req.SessionID,
+				Answer:    "⚠️ 检测到提示词注入攻击，请求已拦截。原因: " + reason,
+			}, nil
+		}
+	}
+
+	// === ② 记忆增强 ===
+	memoryContext := ""
+	if s.pipelineStage != nil {
+		memoryContext, _ = s.pipelineStage.RunMemoryEnrichment(ctx, pc)
+	}
+
+	// 加载历史消息
+	history := s.loadHistory(ctx, req.SessionID)
+
+	// 构建增强后的 system prompt
+	enrichedPrompt := personaPrompt
+	if memoryContext != "" {
+		enrichedPrompt += "\n" + memoryContext
+	}
+
+	// 获取所有可用工具并包装安全拦截
+	rawTools := s.toolMgr.GetAllTools(ctx)
+	safeTools := make([]tool.BaseTool, 0, len(rawTools))
+	for _, t := range rawTools {
+		wt, err := wrapTool(t, s.riskEval, func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
+			s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
+		})
+		if err != nil {
+			s.logger.Warn("wrap tool failed, using original", zap.Error(err))
+			safeTools = append(safeTools, t)
+			continue
+		}
+		safeTools = append(safeTools, wt)
+	}
+
+	// 创建 ChatModel
+	chatModel, err := s.createChatModel(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("创建 ChatModel 失败: %w", err)
+	}
+
+	// 创建 ReAct Agent（使用增强后的 prompt）
+	agent, err := react.NewAgent(ctx, &react.AgentConfig{
+		ToolCallingModel: chatModel,
+		ToolsConfig:      compose.ToolsNodeConfig{Tools: safeTools},
+		MaxStep:          10,
+		MessageModifier:  react.NewPersonaModifier(enrichedPrompt),
+	})
+	if err != nil {
+		return nil, fmt.Errorf("创建 Agent 失败: %w", err)
+	}
+
+	// 构建消息列表：历史 + 当前问题
+	messages := make([]*schema.Message, 0, len(history)+1)
+	messages = append(messages, history...)
+	messages = append(messages, &schema.Message{Role: schema.User, Content: req.Question})
+
+	// 执行 Agent
+	result, err := agent.Generate(ctx, messages)
+	if err != nil {
+		return nil, fmt.Errorf("Agent 执行失败: %w", err)
+	}
+
+	// 提取回复内容
+	answer := result.Content
+	if answer == "" && len(result.ToolCalls) > 0 {
+		tcJSON, _ := json.Marshal(result.ToolCalls)
+		answer = string(tcJSON)
+	}
+
+	// 保存助手消息
+	if err := s.dao.CreateMessage(ctx, &model.AgentMessage{
+		SessionID: req.SessionID,
+		Role:      model.AgentMessageRoleAssistant,
+		Content:   answer,
+	}); err != nil {
+		s.logger.Warn("保存助手消息失败", zap.Error(err))
+	}
+
+	// 更新会话统计
+	if err := s.dao.IncrementSessionCounts(ctx, sessionID, 1, 0); err != nil {
+		s.logger.Warn("更新会话统计失败", zap.Error(err))
+	}
+
+	// 审计: 对话完成
+	s.auditEvent(ctx, agentaudit.ActionComplete, "", "", "", true, "", answer, req.SessionID, userID, "")
+
 	return &model.AgentQueryResponse{
 		SessionID: req.SessionID,
 		Answer:    answer,
@@ -214,6 +415,9 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 		s.logger.Warn("保存用户消息失败", zap.Error(err))
 	}
 
+	// 审计: 接收用户消息
+	s.auditEvent(ctx, agentaudit.ActionReceive, "", "", "", true, "", req.Question, req.SessionID, userID, "")
+
 	// 加载历史消息
 	history := s.loadHistory(ctx, req.SessionID)
 
@@ -232,6 +436,11 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 	// 使用 textReActLoop 流式执行：ChatModel 直接流式输出 + 文本格式工具调用
 	tools := s.toolMgr.GetAllTools(ctx)
 	loop := newTextReActLoop(chatModel, tools, 10, s.logger)
+	loop.withGuard(s.riskEval, req.SessionID, uint(userID), "",
+		func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
+			s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
+		},
+	)
 	finalContent, err := loop.Stream(ctx, messages, writer, s.writeSSEEvent)
 	if err != nil {
 		return fmt.Errorf("Agent Stream 失败: %w", err)
@@ -246,6 +455,132 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 	}); err != nil {
 		return fmt.Errorf("写入 SSE 完成事件失败: %w", err)
 	}
+
+	// 审计: 会话完成
+	s.auditEvent(ctx, agentaudit.ActionComplete, "", "", "", true, "", finalContent, req.SessionID, userID, "")
+
+	// 持久化助手消息
+	if finalContent != "" {
+		if err := s.dao.CreateMessage(ctx, &model.AgentMessage{
+			SessionID: req.SessionID,
+			Role:      model.AgentMessageRoleAssistant,
+			Content:   finalContent,
+		}); err != nil {
+			s.logger.Warn("保存流式助手消息失败", zap.Error(err))
+		}
+		if err := s.dao.IncrementSessionCounts(ctx, sessionID, 1, 0); err != nil {
+			s.logger.Warn("更新会话统计失败", zap.Error(err))
+		}
+	}
+
+	return nil
+}
+
+// QueryStreamWithPipeline 使用 Pipeline 增强的流式查询
+func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.AgentQueryReq, userID int, writer io.Writer) error {
+	// 自动创建会话（如果 session_id 为空）
+	if req.SessionID == "" {
+		session, err := s.CreateSession(ctx, &model.CreateAgentSessionReq{Title: "新对话"}, userID)
+		if err != nil {
+			return fmt.Errorf("自动创建会话失败: %w", err)
+		}
+		req.SessionID = strconv.Itoa(session.ID)
+	}
+
+	sessionID, err := strconv.Atoi(req.SessionID)
+	if err != nil {
+		return fmt.Errorf("无效的会话 ID: %w", err)
+	}
+
+	// 校验会话存在
+	if _, err := s.dao.GetSession(ctx, sessionID); err != nil {
+		return fmt.Errorf("获取会话失败: %w", err)
+	}
+
+	// 保存用户消息
+	if err := s.dao.CreateMessage(ctx, &model.AgentMessage{
+		SessionID: req.SessionID,
+		Role:      model.AgentMessageRoleUser,
+		Content:   req.Question,
+	}); err != nil {
+		s.logger.Warn("保存用户消息失败", zap.Error(err))
+	}
+
+	// 审计: 接收用户消息
+	s.auditEvent(ctx, agentaudit.ActionReceive, "", "", "", true, "", req.Question, req.SessionID, userID, "")
+
+	// === ① 意图分析 ===
+	pc := &pipeline.PipelineContext{
+		UserInput: req.Question,
+		SessionID: req.SessionID,
+		UserID:    userID,
+		Writer:    writer,
+	}
+	if s.pipelineStage != nil {
+		s.pipelineStage.RunIntentAnalysis(ctx, pc)
+	}
+
+	// === 注入检测（SSE 错误事件） ===
+	if s.pipelineStage != nil {
+		if blocked, reason := s.pipelineStage.IsInjectionAttempt(pc); blocked {
+			s.auditEvent(ctx, agentaudit.ActionReceive, "", reason, agentmodel.RiskHigh, false, "", req.Question, req.SessionID, userID, "")
+			s.writeSSEEvent(writer, "error", map[string]string{"error": "⚠️ 检测到提示词注入攻击，请求已拦截。原因: " + reason})
+			return fmt.Errorf("injection blocked: %s", reason)
+		}
+	}
+
+	// === ② 记忆增强 ===
+	memoryContext := ""
+	if s.pipelineStage != nil {
+		memoryContext, _ = s.pipelineStage.RunMemoryEnrichment(ctx, pc)
+	}
+
+	// 加载历史消息
+	history := s.loadHistory(ctx, req.SessionID)
+
+	// 构建增强后的 system prompt
+	enrichedPrompt := personaPrompt
+	if memoryContext != "" {
+		enrichedPrompt += "\n" + memoryContext
+	}
+
+	// 创建 ChatModel
+	chatModel, err := s.createChatModel(ctx)
+	if err != nil {
+		return fmt.Errorf("创建 ChatModel 失败: %w", err)
+	}
+
+	// 构建消息列表（含增强后的 system persona，textReActLoop 会注入工具描述）
+	messages := make([]*schema.Message, 0, len(history)+2)
+	messages = append(messages, &schema.Message{Role: schema.System, Content: enrichedPrompt})
+	messages = append(messages, history...)
+	messages = append(messages, &schema.Message{Role: schema.User, Content: req.Question})
+
+	// 使用 textReActLoop 流式执行：ChatModel 直接流式输出 + 文本格式工具调用
+	tools := s.toolMgr.GetAllTools(ctx)
+	loop := newTextReActLoop(chatModel, tools, 10, s.logger)
+	loop.withGuard(s.riskEval, req.SessionID, uint(userID), "",
+		func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
+			s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
+		},
+	)
+	finalContent, err := loop.Stream(ctx, messages, writer, s.writeSSEEvent)
+	if err != nil {
+		return fmt.Errorf("Agent Stream 失败: %w", err)
+	}
+
+	// 发送完成事件，附带 answer 作为前端 fallback
+	if err := s.writeSSEEvent(writer, "done", map[string]interface{}{
+		"session_id": req.SessionID,
+		"result": map[string]string{
+			"answer": finalContent,
+		},
+	}); err != nil {
+		return fmt.Errorf("写入 SSE 完成事件失败: %w", err)
+	}
+
+	// 审计: 会话完成
+	s.auditEvent(ctx, agentaudit.ActionComplete, "", "", "", true, "", finalContent, req.SessionID, userID, "")
 
 	// 持久化助手消息
 	if finalContent != "" {

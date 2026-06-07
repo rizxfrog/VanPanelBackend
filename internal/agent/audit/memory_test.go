@@ -8,7 +8,7 @@ import (
 )
 
 func TestMemoryStoreAppendAndListBySession(t *testing.T) {
-	store := NewMemoryStore()
+	store := NewMemoryStore(nil, nil)
 
 	event, err := store.Append(context.Background(), agentmodel.AuditEvent{
 		SessionID: "s1",

@@ -2,11 +2,24 @@ package audit
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
 	"github.com/google/uuid"
+	agentDao "github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
 	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/model"
+	"go.uber.org/zap"
+)
+
+// 审计事件类型常量
+const (
+	ActionReceive  = "agent.receive"
+	ActionEvaluate = "tool.evaluate"
+	ActionExecute  = "tool.execute"
+	ActionBlocked  = "tool.blocked"
+	ActionComplete = "agent.complete"
 )
 
 type Store interface {
@@ -18,13 +31,18 @@ type MemoryStore struct {
 	mu     sync.RWMutex
 	events []agentmodel.AuditEvent
 	limit  int
+	dao    agentDao.AgentDAO
+	logger *zap.Logger
 }
 
-func NewMemoryStore() *MemoryStore {
-	return &MemoryStore{limit: 1000}
+func NewMemoryStore(dao agentDao.AgentDAO, logger *zap.Logger) *MemoryStore {
+	if logger == nil {
+		logger = zap.L()
+	}
+	return &MemoryStore{limit: 2000, dao: dao, logger: logger}
 }
 
-func (s *MemoryStore) Append(_ context.Context, event agentmodel.AuditEvent) (agentmodel.AuditEvent, error) {
+func (s *MemoryStore) Append(ctx context.Context, event agentmodel.AuditEvent) (agentmodel.AuditEvent, error) {
 	if event.ID == "" {
 		event.ID = uuid.NewString()
 	}
@@ -33,11 +51,23 @@ func (s *MemoryStore) Append(_ context.Context, event agentmodel.AuditEvent) (ag
 	}
 
 	s.mu.Lock()
-	defer s.mu.Unlock()
 	s.events = append(s.events, event)
 	if s.limit > 0 && len(s.events) > s.limit {
 		s.events = s.events[len(s.events)-s.limit:]
 	}
+	s.mu.Unlock()
+
+	// DB write-through (non-fatal)
+	if s.dao != nil {
+		if err := s.dao.CreateAuditEvent(ctx, toDBAuditEvent(event)); err != nil {
+			s.logger.Error("audit write-through failed",
+				zap.String("event_id", event.ID),
+				zap.String("session_id", event.SessionID),
+				zap.Error(err),
+			)
+		}
+	}
+
 	return event, nil
 }
 
@@ -52,4 +82,16 @@ func (s *MemoryStore) ListBySession(_ context.Context, sessionID string) ([]agen
 		}
 	}
 	return out, nil
+}
+
+func toDBAuditEvent(e agentmodel.AuditEvent) *model.AgentAuditEvent {
+	return &model.AgentAuditEvent{
+		SessionID: e.SessionID,
+		UserID:    int(e.UserID),
+		ToolName:  e.ToolName,
+		RiskLevel: string(e.Risk),
+		Action:    e.Action,
+		Result:    fmt.Sprintf("event_id=%s allowed=%v reason=%s", e.ID, e.Allowed, e.Reason),
+		CreatedAt: e.CreatedAt,
+	}
 }

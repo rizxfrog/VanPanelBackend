@@ -2,12 +2,18 @@ package di
 
 import (
 	"context"
+	"os"
 
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/api"
+	agentAudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
 	agentDao "github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
+	agentGuard "github.com/rizxfrog/VanPanelBackend/internal/agent/guard"
 	agentHub "github.com/rizxfrog/VanPanelBackend/internal/agent/hub"
+	agentMemory "github.com/rizxfrog/VanPanelBackend/internal/agent/memory"
+	agentPipeline "github.com/rizxfrog/VanPanelBackend/internal/agent/pipeline"
 	agentRisk "github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
 	agentService "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/spi"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/builtin"
 	agentToolManager "github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
 	"go.uber.org/zap"
@@ -72,6 +78,13 @@ func ProvideAgentRiskEvaluator(cfg *AgentRiskConfig) *agentRisk.Evaluator {
 	return agentRisk.NewEvaluator(evalCfg)
 }
 
+// ==================== 审计 ====================
+
+// ProvideAgentAuditStore 创建审计存储
+func ProvideAgentAuditStore(dao agentDao.AgentDAO, l *zap.Logger) agentAudit.Store {
+	return agentAudit.NewMemoryStore(dao, l)
+}
+
 // ==================== 服务 ====================
 
 // ProvideAgentService 将 di 配置转换为 service 本地配置并创建智能体服务
@@ -79,8 +92,10 @@ func ProvideAgentService(
 	dao agentDao.AgentDAO,
 	toolMgr *agentToolManager.ToolManager,
 	riskEval *agentRisk.Evaluator,
+	auditStore agentAudit.Store,
 	cfg *AgentConfig,
 	l *zap.Logger,
+	pipelineStage *agentPipeline.Stage,
 ) agentService.AgentService {
 	svcCfg := &agentService.Config{
 		LLM: agentService.LLMConfig{
@@ -93,7 +108,7 @@ func ProvideAgentService(
 		},
 		MaxHistory: cfg.MaxHistory,
 	}
-	return agentService.NewAgentService(dao, toolMgr, riskEval, svcCfg, l)
+	return agentService.NewAgentService(dao, toolMgr, riskEval, auditStore, svcCfg, l, pipelineStage)
 }
 
 // ProvideHubService 创建 Hub 服务
@@ -119,4 +134,42 @@ func ProvideAgentHandler(
 	hubSvc agentHub.HubService,
 ) *api.Handler {
 	return api.NewHandler(agentSvc, hubSvc)
+}
+
+// ==================== Guard / Memory / Pipeline ====================
+
+// ProvideAgentGuardChain 创建 GuardChain（双层防线）
+func ProvideAgentGuardChain(eval *agentRisk.Evaluator, l *zap.Logger) *agentGuard.Chain {
+	// 审计模型配置从环境变量读取
+	auditorModel := os.Getenv("AGENT_AUDITOR_MODEL")
+	auditorBaseURL := os.Getenv("AGENT_AUDITOR_BASE_URL")
+
+	var auditor *agentGuard.Auditor
+	if auditorModel != "" && auditorBaseURL != "" {
+		auditorConfig := agentGuard.AuditorConfig{
+			BaseURL: auditorBaseURL,
+			Model:   auditorModel,
+			APIKey:  os.Getenv("AGENT_AUDITOR_API_KEY"),
+		}
+		auditor = agentGuard.NewAuditor(auditorConfig)
+		l.Info("auditor model configured",
+			zap.String("model", auditorModel),
+			zap.String("base_url", auditorBaseURL),
+		)
+	} else {
+		l.Info("auditor model not configured, GuardChain will use rule engine only")
+	}
+	return agentGuard.NewChain(eval, auditor)
+}
+
+// ProvideAgentMemoryProvider 创建 MemoryProvider
+func ProvideAgentMemoryProvider(dao agentDao.AgentDAO, l *zap.Logger) spi.MemoryProvider {
+	return agentMemory.NewProvider(dao, l)
+}
+
+// ProvideAgentPipeline 创建 Pipeline Stage
+func ProvideAgentPipeline(dao agentDao.AgentDAO, l *zap.Logger) *agentPipeline.Stage {
+	intentAnalyzer := agentPipeline.NewDefaultIntentAnalyzer()
+	memoryProvider := agentMemory.NewProvider(dao, l)
+	return agentPipeline.NewStage(intentAnalyzer, memoryProvider, l)
 }
