@@ -12,6 +12,9 @@ import (
 	"github.com/cloudwego/eino/components/tool"
 	"github.com/cloudwego/eino/schema"
 	"go.uber.org/zap"
+
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
 )
 
 type toolCallMatch struct {
@@ -144,6 +147,11 @@ type textReActLoop struct {
 	tools     []tool.BaseTool
 	maxStep   int
 	logger    *zap.Logger
+	riskEval  *risk.Evaluator
+	sessionID string
+	userID    uint
+	username  string
+	auditFn   func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string)
 }
 
 func newTextReActLoop(chatModel model.ChatModel, tools []tool.BaseTool, maxStep int, logger *zap.Logger) *textReActLoop {
@@ -151,6 +159,21 @@ func newTextReActLoop(chatModel model.ChatModel, tools []tool.BaseTool, maxStep 
 		maxStep = 10
 	}
 	return &textReActLoop{chatModel: chatModel, tools: tools, maxStep: maxStep, logger: logger}
+}
+
+func (l *textReActLoop) withGuard(
+	riskEval *risk.Evaluator,
+	sessionID string,
+	userID uint,
+	username string,
+	auditFn func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string),
+) *textReActLoop {
+	l.riskEval = riskEval
+	l.sessionID = sessionID
+	l.userID = userID
+	l.username = username
+	l.auditFn = auditFn
+	return l
 }
 
 func (l *textReActLoop) Generate(ctx context.Context, messages []*schema.Message) (*schema.Message, error) {
@@ -238,15 +261,43 @@ func (l *textReActLoop) Stream(ctx context.Context, messages []*schema.Message, 
 	return finalContent, nil
 }
 
+func (l *textReActLoop) audit(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
+	if l.auditFn == nil {
+		return
+	}
+	l.auditFn(ctx, action, toolName, reason, riskLevel, allowed, args, result)
+}
+
 func (l *textReActLoop) executeTool(ctx context.Context, call toolCallMatch) string {
 	t, found := findTool(l.tools, call.Name)
 	if !found {
-		return fmt.Sprintf("工具 %s 不存在，请检查工具名称", call.Name)
+		msg := fmt.Sprintf("工具 %s 不存在，请检查工具名称", call.Name)
+		l.audit(ctx, "tool.blocked", call.Name, "工具不存在", agentmodel.RiskSafe, false, call.ArgsJSON, msg)
+		return msg
 	}
+
+	// 安全校验
+	if l.riskEval != nil {
+		evalResult := l.riskEval.Evaluate(call.Name, call.ArgsJSON)
+		l.audit(ctx, "tool.evaluate", call.Name, evalResult.Reason, agentmodel.RiskLevel(evalResult.Level), !evalResult.Blocked, call.ArgsJSON, "")
+
+		if evalResult.Blocked {
+			blockedMsg := fmt.Sprintf("[安全拦截] 操作被安全策略阻止\n原因: %s\n工具: %s\n建议: 请尝试更安全的替代方案",
+				evalResult.Reason, call.Name)
+			l.audit(ctx, "tool.blocked", call.Name, evalResult.Reason, agentmodel.RiskLevel(evalResult.Level), false, call.ArgsJSON, blockedMsg)
+			return blockedMsg
+		}
+	}
+
+	// 执行工具
 	result, err := t.InvokableRun(ctx, call.ArgsJSON)
 	if err != nil {
-		return fmt.Sprintf("工具 %s 执行失败: %v", call.Name, err)
+		errMsg := fmt.Sprintf("工具 %s 执行失败: %v", call.Name, err)
+		l.audit(ctx, "tool.execute", call.Name, "", agentmodel.RiskSafe, true, call.ArgsJSON, errMsg)
+		return errMsg
 	}
+
+	l.audit(ctx, "tool.execute", call.Name, "", agentmodel.RiskSafe, true, call.ArgsJSON, truncateString(result, 2000))
 	return result
 }
 
