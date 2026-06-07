@@ -14,7 +14,9 @@ import (
 	"github.com/cloudwego/eino/schema"
 	"go.uber.org/zap"
 
+	agentaudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
+	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
 	"github.com/rizxfrog/VanPanelBackend/internal/model"
@@ -54,8 +56,9 @@ type AgentService interface {
 type agentService struct {
 	dao      dao.AgentDAO
 	toolMgr  *manager.ToolManager
-	riskEval *risk.Evaluator
-	cfg      *Config
+	riskEval   *risk.Evaluator
+	auditStore agentaudit.Store
+	cfg        *Config
 	logger   *zap.Logger
 }
 
@@ -64,15 +67,44 @@ func NewAgentService(
 	dao dao.AgentDAO,
 	toolMgr *manager.ToolManager,
 	riskEval *risk.Evaluator,
+	auditStore agentaudit.Store,
 	cfg *Config,
 	logger *zap.Logger,
 ) AgentService {
 	return &agentService{
-		dao:      dao,
-		toolMgr:  toolMgr,
-		riskEval: riskEval,
-		cfg:      cfg,
-		logger:   logger,
+		dao:        dao,
+		toolMgr:    toolMgr,
+		riskEval:   riskEval,
+		auditStore: auditStore,
+		cfg:        cfg,
+		logger:     logger,
+	}
+}
+
+func (s *agentService) auditEvent(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string, sessionID string, userID int, username string) {
+	if s.auditStore == nil {
+		return
+	}
+	metadata := make(map[string]interface{})
+	if args != "" {
+		metadata["args"] = args
+	}
+	if result != "" {
+		metadata["result"] = result
+	}
+	event := agentmodel.AuditEvent{
+		SessionID: sessionID,
+		UserID:    uint(userID),
+		Username:  username,
+		Action:    action,
+		ToolName:  toolName,
+		Risk:      riskLevel,
+		Allowed:   allowed,
+		Reason:    reason,
+		Metadata:  metadata,
+	}
+	if _, err := s.auditStore.Append(ctx, event); err != nil {
+		s.logger.Warn("audit append failed", zap.Error(err))
 	}
 }
 
@@ -122,6 +154,9 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 	}); err != nil {
 		s.logger.Warn("保存用户消息失败", zap.Error(err))
 	}
+
+	// 审计: 接收用户消息
+	s.auditEvent(ctx, agentaudit.ActionReceive, "", "", "", true, "", req.Question, req.SessionID, userID, "")
 
 	// 加载历史消息
 	history := s.loadHistory(ctx, req.SessionID)
@@ -178,6 +213,9 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 		s.logger.Warn("更新会话统计失败", zap.Error(err))
 	}
 
+	// 审计: 对话完成
+	s.auditEvent(ctx, agentaudit.ActionComplete, "", "", "", true, "", answer, req.SessionID, userID, "")
+
 	return &model.AgentQueryResponse{
 		SessionID: req.SessionID,
 		Answer:    answer,
@@ -214,6 +252,9 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 		s.logger.Warn("保存用户消息失败", zap.Error(err))
 	}
 
+	// 审计: 接收用户消息
+	s.auditEvent(ctx, agentaudit.ActionReceive, "", "", "", true, "", req.Question, req.SessionID, userID, "")
+
 	// 加载历史消息
 	history := s.loadHistory(ctx, req.SessionID)
 
@@ -232,6 +273,11 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 	// 使用 textReActLoop 流式执行：ChatModel 直接流式输出 + 文本格式工具调用
 	tools := s.toolMgr.GetAllTools(ctx)
 	loop := newTextReActLoop(chatModel, tools, 10, s.logger)
+	loop.withGuard(s.riskEval, req.SessionID, uint(userID), "",
+		func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
+			s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
+		},
+	)
 	finalContent, err := loop.Stream(ctx, messages, writer, s.writeSSEEvent)
 	if err != nil {
 		return fmt.Errorf("Agent Stream 失败: %w", err)
@@ -246,6 +292,9 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 	}); err != nil {
 		return fmt.Errorf("写入 SSE 完成事件失败: %w", err)
 	}
+
+	// 审计: 会话完成
+	s.auditEvent(ctx, agentaudit.ActionComplete, "", "", "", true, "", finalContent, req.SessionID, userID, "")
 
 	// 持久化助手消息
 	if finalContent != "" {

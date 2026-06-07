@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/api"
+	agentAudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
 	agentDao "github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
 	agentHub "github.com/rizxfrog/VanPanelBackend/internal/agent/hub"
 	agentRisk "github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
@@ -72,6 +73,13 @@ func ProvideAgentRiskEvaluator(cfg *AgentRiskConfig) *agentRisk.Evaluator {
 	return agentRisk.NewEvaluator(evalCfg)
 }
 
+// ==================== 审计 ====================
+
+// ProvideAgentAuditStore 创建审计存储
+func ProvideAgentAuditStore(dao agentDao.AgentDAO, l *zap.Logger) agentAudit.Store {
+	return agentAudit.NewMemoryStore(dao, l)
+}
+
 // ==================== 服务 ====================
 
 // ProvideAgentService 将 di 配置转换为 service 本地配置并创建智能体服务
@@ -79,6 +87,7 @@ func ProvideAgentService(
 	dao agentDao.AgentDAO,
 	toolMgr *agentToolManager.ToolManager,
 	riskEval *agentRisk.Evaluator,
+	auditStore agentAudit.Store,
 	cfg *AgentConfig,
 	l *zap.Logger,
 ) agentService.AgentService {
@@ -93,7 +102,7 @@ func ProvideAgentService(
 		},
 		MaxHistory: cfg.MaxHistory,
 	}
-	return agentService.NewAgentService(dao, toolMgr, riskEval, svcCfg, l)
+	return agentService.NewAgentService(dao, toolMgr, riskEval, auditStore, svcCfg, l)
 }
 
 // ProvideHubService 创建 Hub 服务

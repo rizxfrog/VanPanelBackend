@@ -83,6 +83,7 @@ var AgentSet = wire.NewSet(
 	ProvideAgentHubConfig,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
+	ProvideAgentAuditStore,
 	ProvideAgentService,
 	ProvideHubService,
 )
