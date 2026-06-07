@@ -36,6 +36,9 @@ type MemoryStore struct {
 }
 
 func NewMemoryStore(dao agentDao.AgentDAO, logger *zap.Logger) *MemoryStore {
+	if logger == nil {
+		logger = zap.L()
+	}
 	return &MemoryStore{limit: 2000, dao: dao, logger: logger}
 }
 
@@ -56,7 +59,7 @@ func (s *MemoryStore) Append(ctx context.Context, event agentmodel.AuditEvent) (
 
 	// DB write-through (non-fatal)
 	if s.dao != nil {
-		if err := s.dao.CreateAuditEvent(ctx, toDBAuditEvent(event)); err != nil && s.logger != nil {
+		if err := s.dao.CreateAuditEvent(ctx, toDBAuditEvent(event)); err != nil {
 			s.logger.Error("audit write-through failed",
 				zap.String("event_id", event.ID),
 				zap.String("session_id", event.SessionID),
@@ -88,7 +91,7 @@ func toDBAuditEvent(e agentmodel.AuditEvent) *model.AgentAuditEvent {
 		ToolName:  e.ToolName,
 		RiskLevel: string(e.Risk),
 		Action:    e.Action,
-		Result:    fmt.Sprintf("allowed=%v reason=%s", e.Allowed, e.Reason),
+		Result:    fmt.Sprintf("event_id=%s allowed=%v reason=%s", e.ID, e.Allowed, e.Reason),
 		CreatedAt: e.CreatedAt,
 	}
 }
