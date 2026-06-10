@@ -3,10 +3,27 @@ package pipeline
 import (
 	"context"
 	"io"
+	"regexp"
 
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/spi"
 	"go.uber.org/zap"
 )
+
+// InjectRule is a lightweight injection detection rule (for use in pipeline / DI wiring).
+type InjectRule struct {
+	Desc string
+	Re   *regexp.Regexp
+}
+
+// LLMAuditPrompt holds the dynamic audit configuration loaded from DB at runtime.
+type LLMAuditPrompt struct {
+	Enabled      bool
+	Model        string
+	Temperature  float64
+	MaxTokens    int
+	SystemPrompt string
+	MaxRetries   int
+}
 
 // Stage 6-stage pipeline orchestrator
 type Stage struct {

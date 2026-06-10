@@ -13,15 +13,17 @@ import (
 
 // Handler 智能体 API 处理器
 type Handler struct {
-	agentService service.AgentService
-	hubService   hub.HubService
+	agentService  service.AgentService
+	hubService    hub.HubService
+	configService *service.ConfigService
 }
 
 // NewHandler 创建智能体 API 处理器实例
-func NewHandler(agentService service.AgentService, hubService hub.HubService) *Handler {
+func NewHandler(agentService service.AgentService, hubService hub.HubService, configService *service.ConfigService) *Handler {
 	return &Handler{
-		agentService: agentService,
-		hubService:   hubService,
+		agentService:  agentService,
+		hubService:    hubService,
+		configService: configService,
 	}
 }
 

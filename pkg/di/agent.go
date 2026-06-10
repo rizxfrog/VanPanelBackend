@@ -47,6 +47,34 @@ func ProvideAgentDAO(db *gorm.DB, l *zap.Logger) agentDao.AgentDAO {
 	return agentDao.NewAgentDAO(db, l)
 }
 
+// ProvideAgentConfigDAO creates the config DAO
+func ProvideAgentConfigDAO(db *gorm.DB) *agentDao.AgentConfigDAO {
+	return agentDao.NewAgentConfigDAO(db)
+}
+
+// ==================== 配置服务 ====================
+
+// ProvideAgentConfigService creates the config service
+func ProvideAgentConfigService(dao *agentDao.AgentConfigDAO) *agentService.ConfigService {
+	return agentService.NewConfigService(dao)
+}
+
+// ProvideAgentLLMAuditor creates the LLM injection auditor (nil if not configured)
+func ProvideAgentLLMAuditor(l *zap.Logger) *agentPipeline.LLMAuditor {
+	baseURL := os.Getenv("AGENT_AUDITOR_BASE_URL")
+	apiKey := os.Getenv("AGENT_AUDITOR_API_KEY")
+	if baseURL != "" && apiKey != "" {
+		l.Info("LLM injection auditor enabled",
+			zap.String("base_url", baseURL))
+		return agentPipeline.NewLLMAuditor(agentPipeline.LLMAuditorConfig{
+			BaseURL: baseURL,
+			APIKey:  apiKey,
+		})
+	}
+	l.Info("LLM injection auditor not configured (set AGENT_AUDITOR_BASE_URL and AGENT_AUDITOR_API_KEY)")
+	return nil
+}
+
 // ==================== 工具和风险 ====================
 
 // ProvideAgentToolManager 创建工具管理器
@@ -132,8 +160,9 @@ func ProvideHubService(
 func ProvideAgentHandler(
 	agentSvc agentService.AgentService,
 	hubSvc agentHub.HubService,
+	cfgSvc *agentService.ConfigService,
 ) *api.Handler {
-	return api.NewHandler(agentSvc, hubSvc)
+	return api.NewHandler(agentSvc, hubSvc, cfgSvc)
 }
 
 // ==================== Guard / Memory / Pipeline ====================
@@ -168,8 +197,40 @@ func ProvideAgentMemoryProvider(dao agentDao.AgentDAO, l *zap.Logger) spi.Memory
 }
 
 // ProvideAgentPipeline 创建 Pipeline Stage
-func ProvideAgentPipeline(dao agentDao.AgentDAO, l *zap.Logger) *agentPipeline.Stage {
-	intentAnalyzer := agentPipeline.NewDefaultIntentAnalyzer()
+func ProvideAgentPipeline(
+	dao agentDao.AgentDAO,
+	cfgSvc *agentService.ConfigService,
+	auditor *agentPipeline.LLMAuditor,
+	l *zap.Logger,
+) *agentPipeline.Stage {
+	// Wrap ConfigService methods to avoid circular imports
+	configGetter := func(ctx context.Context) ([]agentPipeline.InjectRule, error) {
+		rules, err := cfgSvc.GetInjectionRules(ctx)
+		if err != nil {
+			return nil, err
+		}
+		out := make([]agentPipeline.InjectRule, len(rules))
+		for i, r := range rules {
+			out[i] = agentPipeline.InjectRule{Desc: r.Desc, Re: r.Re}
+		}
+		return out, nil
+	}
+	promptGetter := func(ctx context.Context) (*agentPipeline.LLMAuditPrompt, error) {
+		cfg, err := cfgSvc.GetLLMAuditPrompt(ctx)
+		if err != nil {
+			return nil, err
+		}
+		return &agentPipeline.LLMAuditPrompt{
+			Enabled:      cfg.Enabled,
+			Model:        cfg.Model,
+			Temperature:  cfg.Temperature,
+			MaxTokens:    cfg.MaxTokens,
+			SystemPrompt: cfg.SystemPrompt,
+			MaxRetries:   cfg.MaxRetries,
+		}, nil
+	}
+	intentAnalyzer := agentPipeline.NewHybridIntentAnalyzer(configGetter, auditor, promptGetter, l)
+	// Use the existing memory provider
 	memoryProvider := agentMemory.NewProvider(dao, l)
 	return agentPipeline.NewStage(intentAnalyzer, memoryProvider, l)
 }

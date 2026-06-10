@@ -3,7 +3,6 @@ package pipeline
 import (
 	"context"
 
-	"github.com/rizxfrog/VanPanelBackend/internal/agent/service"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/spi"
 	"go.uber.org/zap"
 )
@@ -13,29 +12,34 @@ import (
 // 第二层：LLM 语义检测（DB 配置的 system prompt）深度审查
 // 第三层：DefaultIntentAnalyzer（硬编码规则 + 关键词意图分类）
 type HybridIntentAnalyzer struct {
-	configService *service.ConfigService
-	llmAuditor    *LLMAuditor
-	fallback      *DefaultIntentAnalyzer
-	logger        *zap.Logger
+	injectRulesGetter func(context.Context) ([]InjectRule, error)
+	auditPromptGetter func(context.Context) (*LLMAuditPrompt, error)
+	llmAuditor        *LLMAuditor
+	fallback          *DefaultIntentAnalyzer
+	logger            *zap.Logger
 }
 
+// NewHybridIntentAnalyzer creates a HybridIntentAnalyzer with callback functions
+// to avoid circular imports between pipeline and service packages.
 func NewHybridIntentAnalyzer(
-	cfgSvc *service.ConfigService,
+	injectRulesGetter func(context.Context) ([]InjectRule, error),
 	auditor *LLMAuditor,
+	auditPromptGetter func(context.Context) (*LLMAuditPrompt, error),
 	logger *zap.Logger,
 ) *HybridIntentAnalyzer {
 	return &HybridIntentAnalyzer{
-		configService: cfgSvc,
-		llmAuditor:    auditor,
-		fallback:      NewDefaultIntentAnalyzer(),
-		logger:        logger,
+		injectRulesGetter: injectRulesGetter,
+		auditPromptGetter: auditPromptGetter,
+		llmAuditor:        auditor,
+		fallback:          NewDefaultIntentAnalyzer(),
+		logger:            logger,
 	}
 }
 
 // Analyze implements spi.IntentAnalyzer
 func (a *HybridIntentAnalyzer) Analyze(ctx context.Context, userInput string) (*spi.IntentResult, error) {
 	// 第一层：正则规则
-	rules, err := a.configService.GetInjectionRules(ctx)
+	rules, err := a.injectRulesGetter(ctx)
 	if err != nil {
 		a.logger.Warn("加载注入规则失败，使用 fallback", zap.Error(err))
 		return a.fallback.Analyze(ctx, userInput)
@@ -53,7 +57,7 @@ func (a *HybridIntentAnalyzer) Analyze(ctx context.Context, userInput string) (*
 
 	// 第二层：LLM 审计
 	if a.llmAuditor != nil {
-		promptCfg, err := a.configService.GetLLMAuditPrompt(ctx)
+		promptCfg, err := a.auditPromptGetter(ctx)
 		if err != nil {
 			a.logger.Warn("加载 LLM 审计配置失败", zap.Error(err))
 		} else if promptCfg.Enabled {

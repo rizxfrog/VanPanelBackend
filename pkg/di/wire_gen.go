@@ -68,11 +68,14 @@ func ProvideCmd() *Cmd {
 	evaluator := ProvideAgentRiskEvaluator(agentRiskConfig)
 	store := ProvideAgentAuditStore(agentDAO, logger)
 	agentConfig := ProvideAgentConfig()
-	stage := ProvideAgentPipeline(agentDAO, logger)
+	agentConfigDAO := ProvideAgentConfigDAO(db)
+	configService := ProvideAgentConfigService(agentConfigDAO)
+	llmAuditor := ProvideAgentLLMAuditor(logger)
+	stage := ProvideAgentPipeline(agentDAO, configService, llmAuditor, logger)
 	agentService := ProvideAgentService(agentDAO, toolManager, evaluator, store, agentConfig, logger, stage)
 	agentHubConfig := ProvideAgentHubConfig()
 	hubService := ProvideHubService(agentDAO, toolManager, agentHubConfig, logger)
-	handler2 := ProvideAgentHandler(agentService, hubService)
+	handler2 := ProvideAgentHandler(agentService, hubService, configService)
 	engine := InitGinServer(v, userHandler, apiHandler, roleHandler, systemHandler, notAuthHandler, auditHandler, terminalHandler, fileHandler, fileShareHandler, shareAccessHandler, handler2)
 	cmd := &Cmd{
 		Server: engine,
@@ -110,6 +113,9 @@ var AgentSet = wire.NewSet(
 	ProvideAgentConfig,
 	ProvideAgentRiskConfig,
 	ProvideAgentHubConfig,
+	ProvideAgentConfigDAO,
+	ProvideAgentConfigService,
+	ProvideAgentLLMAuditor,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
 	ProvideAgentAuditStore,
