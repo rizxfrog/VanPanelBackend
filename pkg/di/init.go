@@ -26,6 +26,9 @@ func InitTables(db *gorm.DB) error {
 		// 文件分享系统
 		&model.FileShare{},
 		&model.FileShareItem{},
+
+		// agent
+		&model.AgentConfig{},
 	)
 }
 

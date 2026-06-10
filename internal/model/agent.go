@@ -319,3 +319,17 @@ type TestRemoteMCPResult struct {
 	Tools     []string `json:"tools"`
 	Error     string   `json:"error"`
 }
+
+// AgentConfig agent 配置项（key-value，JSON value）
+type AgentConfig struct {
+	ID          int       `json:"id" gorm:"primaryKey;autoIncrement"`
+	ConfigKey   string    `json:"config_key" gorm:"type:varchar(100);uniqueIndex;not null"`
+	ConfigValue string    `json:"config_value" gorm:"type:text;not null"`
+	Description string    `json:"description" gorm:"type:varchar(500)"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (AgentConfig) TableName() string {
+	return "cl_agent_config"
+}
