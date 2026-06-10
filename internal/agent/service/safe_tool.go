@@ -93,3 +93,11 @@ func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ..
 
 	return result, nil
 }
+
+// truncateString 截断字符串到指定长度，超出部分用 "..." 替代
+func truncateString(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "..."
+}

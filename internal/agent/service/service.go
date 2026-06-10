@@ -119,21 +119,6 @@ func (s *agentService) createChatModel(ctx context.Context) (*einoopenai.ChatMod
 	temp := float32(s.cfg.LLM.Temperature)
 	maxTokens := s.cfg.LLM.MaxTokens
 
-	// 调试日志：打印 LLM 配置（api_key 脱敏）
-	maskedKey := ""
-	if len(s.cfg.LLM.APIKey) > 8 {
-		maskedKey = s.cfg.LLM.APIKey[:4] + "****" + s.cfg.LLM.APIKey[len(s.cfg.LLM.APIKey)-4:]
-	} else if len(s.cfg.LLM.APIKey) > 0 {
-		maskedKey = "****"
-	}
-	s.logger.Info("createChatModel",
-		zap.String("provider", s.cfg.LLM.Provider),
-		zap.String("base_url", s.cfg.LLM.BaseURL),
-		zap.String("model", s.cfg.LLM.Model),
-		zap.String("api_key", maskedKey),
-		zap.Int("api_key_len", len(s.cfg.LLM.APIKey)),
-	)
-
 	return einoopenai.NewChatModel(ctx, &einoopenai.ChatModelConfig{
 		BaseURL:     s.cfg.LLM.BaseURL,
 		APIKey:      s.cfg.LLM.APIKey,
