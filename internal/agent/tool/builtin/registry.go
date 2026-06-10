@@ -6,7 +6,7 @@ import (
 )
 
 // NewBuiltinTools 返回所有内置运维工具。
-// 共 18 个工具，覆盖网络、日志、进程、磁盘、系统和 Shell 六大类。
+// 共 23 个工具，覆盖网络、日志、进程、磁盘、系统、服务、Shell、文件、容器和监控十大类。
 func NewBuiltinTools() []tool.BaseTool {
 	return []tool.BaseTool{
 		// 网络工具
@@ -29,11 +29,19 @@ func NewBuiltinTools() []tool.BaseTool {
 		NewFreeTool(),
 		NewVMStatTool(),
 		NewUnameTool(),
+		NewSystemInspectTool(),
 		// 服务工具
 		NewSystemctlTool(),
 		NewUptimeTool(),
-		// Shell 执行器
+		// Shell 工具
 		NewShellExecTool(),
+		NewShellSuggestTool(),
+		// 文件工具
+		NewFileScanTool(),
+		// 容器工具
+		NewContainerInspectTool(),
+		// 监控工具
+		NewPrometheusQueryTool(),
 	}
 }
 
@@ -60,10 +68,19 @@ func BuiltinToolDefs() []*model.BuiltinTool {
 		{Name: "sys.free", DisplayName: "free", Description: "查看内存和交换空间使用情况（排查内存不足问题）", Category: "system", Enabled: true},
 		{Name: "sys.vmstat", DisplayName: "vmstat", Description: "查看虚拟内存、CPU 和 I/O 统计", Category: "system", Enabled: true},
 		{Name: "sys.uname", DisplayName: "uname", Description: "查看系统信息（内核版本、架构、主机名等）", Category: "system", Enabled: true},
+		{Name: "sys.inspect", DisplayName: "System Inspect", Description: "查看当前 Agent 宿主机的运行时信息（hostname/os/arch/pid）", Category: "system", Enabled: true},
 		// 服务工具
 		{Name: "svc.systemctl", DisplayName: "systemctl", Description: "systemd 服务管理（查看状态、启停、重启服务）", Category: "service", Enabled: true},
 		{Name: "svc.uptime", DisplayName: "uptime", Description: "查看系统运行时间和平均负载", Category: "service", Enabled: true},
 		// Shell 执行器
 		{Name: "shell.exec", DisplayName: "Shell Exec", Description: "执行 Shell 命令（通用执行器，可运行任意命令）", Category: "shell", Enabled: true},
+		// Shell 建议
+		{Name: "shell.suggest", DisplayName: "Shell Suggest", Description: "返回终端命令建议但不执行（安全的命令推荐）", Category: "shell", Enabled: true},
+		// 文件工具
+		{Name: "file.scan", DisplayName: "File Scan", Description: "扫描文件和目录（列表、搜索、内容读取）", Category: "file", Enabled: true},
+		// 容器工具
+		{Name: "container.inspect", DisplayName: "Container Inspect", Description: "查看 Docker/Podman 容器状态（列表、详情、资源、日志）", Category: "container", Enabled: true},
+		// 监控工具
+		{Name: "prometheus.query", DisplayName: "Prometheus Query", Description: "通过 PromQL 查询 Prometheus 监控指标", Category: "monitor", Enabled: true},
 	}
 }
