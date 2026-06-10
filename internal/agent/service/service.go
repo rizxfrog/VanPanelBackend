@@ -164,6 +164,23 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 	// 审计: 接收用户消息
 	s.auditEvent(ctx, agentaudit.ActionReceive, "", "", "", true, "", req.Question, req.SessionID, userID, "")
 
+	// === 注入检测（在 Agent 推理之前） ===
+	if s.pipelineStage != nil {
+		pc := &pipeline.PipelineContext{
+			UserInput: req.Question,
+			SessionID: req.SessionID,
+			UserID:    userID,
+		}
+		s.pipelineStage.RunIntentAnalysis(ctx, pc)
+		if blocked, reason := s.pipelineStage.IsInjectionAttempt(pc); blocked {
+			s.auditEvent(ctx, agentaudit.ActionReceive, "", reason, agentmodel.RiskHigh, false, "", req.Question, req.SessionID, userID, "")
+			return &model.AgentQueryResponse{
+				SessionID: req.SessionID,
+				Answer:    "⚠️ 检测到提示词注入攻击，请求已拦截。原因: " + reason,
+			}, nil
+		}
+	}
+
 	// 加载历史消息
 	history := s.loadHistory(ctx, req.SessionID)
 
@@ -417,6 +434,23 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 
 	// 审计: 接收用户消息
 	s.auditEvent(ctx, agentaudit.ActionReceive, "", "", "", true, "", req.Question, req.SessionID, userID, "")
+
+	// === 注入检测 ===
+	if s.pipelineStage != nil {
+		pc := &pipeline.PipelineContext{
+			UserInput: req.Question,
+			SessionID: req.SessionID,
+			UserID:    userID,
+		}
+		s.pipelineStage.RunIntentAnalysis(ctx, pc)
+		if blocked, reason := s.pipelineStage.IsInjectionAttempt(pc); blocked {
+			s.auditEvent(ctx, agentaudit.ActionReceive, "", reason, agentmodel.RiskHigh, false, "", req.Question, req.SessionID, userID, "")
+			_ = s.writeSSEEvent(writer, "error", map[string]string{
+				"error": "⚠️ 检测到提示词注入攻击，请求已拦截。原因: " + reason,
+			})
+			return fmt.Errorf("injection blocked: %s", reason)
+		}
+	}
 
 	// 加载历史消息
 	history := s.loadHistory(ctx, req.SessionID)
