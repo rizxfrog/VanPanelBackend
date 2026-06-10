@@ -64,6 +64,11 @@ func (h *Handler) RegisterRouters(server *gin.Engine) {
 		agentGroup.DELETE("/remote-mcps/:id/delete", h.DeleteRemoteMCPConfig)
 		agentGroup.PUT("/remote-mcps/:id/toggle", h.ToggleRemoteMCPConfig)
 		agentGroup.POST("/remote-mcps/:id/test", h.TestRemoteMCPConfig)
+
+		// Agent 配置 CRUD
+		agentGroup.GET("/config/list", h.ListAgentConfigs)
+		agentGroup.GET("/config/:key", h.GetAgentConfig)
+		agentGroup.PUT("/config/:key", h.UpdateAgentConfig)
 	}
 }
 
@@ -350,4 +355,44 @@ func (h *Handler) TestRemoteMCPConfig(ctx *gin.Context) {
 	base.HandleRequest(ctx, nil, func() (interface{}, error) {
 		return h.hubService.TestRemoteConfig(ctx, id)
 	})
+}
+
+// ==================== Agent 配置 ====================
+
+// GetAgentConfig 获取指定 key 的配置值
+func (h *Handler) GetAgentConfig(ctx *gin.Context) {
+	key := ctx.Param("key")
+	value, err := h.configService.GetConfig(ctx, key)
+	if err != nil {
+		base.ErrorWithMessage(ctx, "config not found: "+key)
+		return
+	}
+	base.SuccessWithData(ctx, gin.H{"key": key, "value": value})
+}
+
+// UpdateAgentConfig 更新配置项
+func (h *Handler) UpdateAgentConfig(ctx *gin.Context) {
+	key := ctx.Param("key")
+	var req struct {
+		Value string `json:"value"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		base.BadRequestError(ctx, "invalid request body")
+		return
+	}
+	if err := h.configService.UpsertConfig(ctx, key, req.Value); err != nil {
+		base.ErrorWithMessage(ctx, "update config failed: "+err.Error())
+		return
+	}
+	base.Success(ctx)
+}
+
+// ListAgentConfigs 获取所有配置项
+func (h *Handler) ListAgentConfigs(ctx *gin.Context) {
+	cfgs, err := h.configService.ListConfigs(ctx)
+	if err != nil {
+		base.ErrorWithMessage(ctx, "list configs failed: "+err.Error())
+		return
+	}
+	base.SuccessWithData(ctx, cfgs)
 }
