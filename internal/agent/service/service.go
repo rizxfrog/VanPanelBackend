@@ -573,33 +573,41 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 		return fmt.Errorf("创建 ChatModel 失败: %w", err)
 	}
 
-	// 构建消息列表（含增强后的 system persona，textReActLoop 会注入工具描述）
-	messages := make([]*schema.Message, 0, len(history)+2)
-	messages = append(messages, &schema.Message{Role: schema.System, Content: enrichedPrompt})
+	// 构建消息列表
+	messages := make([]*schema.Message, 0, len(history)+1)
 	messages = append(messages, history...)
 	messages = append(messages, &schema.Message{Role: schema.User, Content: req.Question})
 
-	// 使用 textReActLoop 流式执行：ChatModel 直接流式输出 + 文本格式工具调用
-	tools := s.toolMgr.GetAllTools(ctx)
-	loop := newTextReActLoop(chatModel, tools, 10, s.logger)
-	loop.withGuard(s.riskEval, req.SessionID, uint(userID), "",
-		func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
-			s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
-		},
-	)
-	finalContent, err := loop.Stream(ctx, messages, writer, s.writeSSEEvent)
-	if err != nil {
-		return fmt.Errorf("Agent Stream 失败: %w", err)
+	// 获取所有工具并包装安全层（支持工具结果回调到 SSE）
+	rawTools := s.toolMgr.GetAllTools(ctx)
+	safeTools := make([]tool.BaseTool, 0, len(rawTools))
+	for _, t := range rawTools {
+		wt, err := wrapToolWithCallback(t, s.riskEval,
+			func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
+				s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
+			},
+			func(toolName, result string) {
+				_ = s.writeSSEEvent(writer, "tool_result", map[string]interface{}{
+					"name":   toolName,
+					"result": result,
+				})
+			},
+		)
+		if err != nil {
+			s.logger.Warn("wrap tool failed, using original", zap.Error(err))
+			safeTools = append(safeTools, t)
+			continue
+		}
+		safeTools = append(safeTools, wt)
 	}
 
-	// 发送完成事件，附带 answer 作为前端 fallback
-	if err := s.writeSSEEvent(writer, "done", map[string]interface{}{
-		"session_id": req.SessionID,
-		"result": map[string]string{
-			"answer": finalContent,
-		},
-	}); err != nil {
-		return fmt.Errorf("写入 SSE 完成事件失败: %w", err)
+	// 使用 react.Agent 流式执行（标准 OpenAI function calling）
+	finalContent, err := runAgentStream(
+		ctx, chatModel, safeTools, messages, writer, s.writeSSEEvent,
+		req.SessionID, enrichedPrompt,
+	)
+	if err != nil {
+		return fmt.Errorf("Agent Stream 失败: %w", err)
 	}
 
 	// 审计: 会话完成
