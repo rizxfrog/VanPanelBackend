@@ -12,10 +12,11 @@ import (
 
 // safeTool wraps an InvokableTool to intercept tool execution with risk evaluation and audit.
 type safeTool struct {
-	inner    tool.InvokableTool
-	riskEval *risk.Evaluator
-	auditFn  func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string)
-	info     *schema.ToolInfo
+	inner          tool.InvokableTool
+	riskEval       *risk.Evaluator
+	auditFn        func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string)
+	info           *schema.ToolInfo
+	resultCallback func(toolName, result string)
 }
 
 func wrapTool(
@@ -32,6 +33,23 @@ func wrapTool(
 		return t, fmt.Errorf("tool Info failed: %w", err)
 	}
 	return &safeTool{inner: it, riskEval: riskEval, auditFn: auditFn, info: info}, nil
+}
+
+func wrapToolWithCallback(
+	t tool.BaseTool,
+	riskEval *risk.Evaluator,
+	auditFn func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string),
+	resultCallback func(toolName, result string),
+) (tool.BaseTool, error) {
+	it, ok := t.(tool.InvokableTool)
+	if !ok {
+		return t, fmt.Errorf("tool is not InvokableTool")
+	}
+	info, err := it.Info(context.Background())
+	if err != nil {
+		return t, fmt.Errorf("tool Info failed: %w", err)
+	}
+	return &safeTool{inner: it, riskEval: riskEval, auditFn: auditFn, info: info, resultCallback: resultCallback}, nil
 }
 
 func (st *safeTool) Info(ctx context.Context) (*schema.ToolInfo, error) {
@@ -67,6 +85,10 @@ func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ..
 	if st.auditFn != nil {
 		st.auditFn(ctx, "tool.execute", st.info.Name, "",
 			agentmodel.RiskSafe, true, argsInJSON, truncateString(result, 2000))
+	}
+
+	if st.resultCallback != nil {
+		st.resultCallback(st.info.Name, truncateString(result, 2000))
 	}
 
 	return result, nil
