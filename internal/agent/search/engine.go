@@ -8,15 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// SearchMode 搜索模式
-type SearchMode string
-
-const (
-	SearchModeDiscovery SearchMode = "discovery" // 全文检索发现
-	SearchModeScroll    SearchMode = "scroll"    // 会话内消息滚动
-	SearchModeBrowse    SearchMode = "browse"    // 浏览最近会话
-)
-
 // SearchResult 全文搜索结果
 type SearchResult struct {
 	SessionID    string    `json:"session_id"`
@@ -102,7 +93,7 @@ func (e *SearchEngine) Browse(ctx context.Context, limit int) ([]*BrowseResult, 
 	var results []*BrowseResult
 	err := e.db.WithContext(ctx).Raw(`
 		SELECT m.session_id, s.title,
-			substring(m.content, 1, 100) as preview,
+			MIN(substring(m.content, 1, 100)) as preview,
 			s.message_count, MAX(m.created_at) as last_active_at
 		FROM cl_agent_messages m
 		LEFT JOIN cl_agent_sessions s ON s.id::text = m.session_id
