@@ -694,7 +694,7 @@ func (d *agentDAO) GetMessageContext(ctx context.Context, sessionID string, mess
 
 	// 查询指定消息前后的上下文，合并为一条查询
 	if err := d.db.WithContext(ctx).Raw(`
-		SELECT * FROM cl_agent_messages
+		SELECT id, session_id, role, content, tool_calls, tool_call_id, metadata, created_at FROM cl_agent_messages
 		WHERE session_id = ? AND id >= ? - ? AND id <= ? + ? AND id != ?
 		ORDER BY id ASC
 	`, sessionID, messageID, contextSize, messageID, contextSize, messageID).

@@ -29,6 +29,8 @@ type BrowseResult struct {
 	LastActiveAt time.Time `json:"last_active_at"`
 }
 
+const maxSearchLimit = 200
+
 // SearchEngine PostgreSQL 全文搜索引擎
 type SearchEngine struct {
 	db     *gorm.DB
@@ -44,6 +46,8 @@ func NewSearchEngine(db *gorm.DB, logger *zap.Logger) *SearchEngine {
 func (e *SearchEngine) Search(ctx context.Context, query string, limit int) ([]*SearchResult, error) {
 	if limit <= 0 {
 		limit = 20
+	} else if limit > maxSearchLimit {
+		limit = maxSearchLimit
 	}
 	var results []*SearchResult
 	err := e.db.WithContext(ctx).Raw(`
@@ -70,6 +74,8 @@ func (e *SearchEngine) Search(ctx context.Context, query string, limit int) ([]*
 func (e *SearchEngine) Scroll(ctx context.Context, sessionID string, cursor int64, limit int) ([]*SearchResult, error) {
 	if limit <= 0 {
 		limit = 20
+	} else if limit > maxSearchLimit {
+		limit = maxSearchLimit
 	}
 	var results []*SearchResult
 	err := e.db.WithContext(ctx).Raw(`
@@ -89,6 +95,8 @@ func (e *SearchEngine) Scroll(ctx context.Context, sessionID string, cursor int6
 func (e *SearchEngine) Browse(ctx context.Context, limit int) ([]*BrowseResult, error) {
 	if limit <= 0 {
 		limit = 20
+	} else if limit > maxSearchLimit {
+		limit = maxSearchLimit
 	}
 	var results []*BrowseResult
 	err := e.db.WithContext(ctx).Raw(`

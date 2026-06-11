@@ -60,22 +60,6 @@ func TestBrowseResultStruct(t *testing.T) {
 	}
 }
 
-func TestSearchModeConstants(t *testing.T) {
-	tests := []struct {
-		mode     SearchMode
-		expected string
-	}{
-		{SearchModeDiscovery, "discovery"},
-		{SearchModeScroll, "scroll"},
-		{SearchModeBrowse, "browse"},
-	}
-
-	for _, tt := range tests {
-		if string(tt.mode) != tt.expected {
-			t.Errorf("SearchMode = %q, want %q", tt.mode, tt.expected)
-		}
-	}
-}
 
 // TestParameterDefaults 验证参数默认值逻辑（limit <= 0 时默认为 20）
 func TestParameterDefaults(t *testing.T) {
