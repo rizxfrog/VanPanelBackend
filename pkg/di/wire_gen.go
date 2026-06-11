@@ -81,7 +81,8 @@ func ProvideCmd() (*Cmd, error) {
 	agentService := ProvideAgentService(agentDAO, toolManager, evaluator, store, agentConfig, logger, stage, memoryNudgeReviewer)
 	agentHubConfig := ProvideAgentHubConfig()
 	hubService := ProvideHubService(agentDAO, toolManager, agentHubConfig, logger)
-	handler2 := ProvideAgentHandler(agentService, hubService, configService)
+	insightsEngine := ProvideAgentInsightsEngine(db, logger)
+	handler2 := ProvideAgentHandler(agentService, hubService, configService, searchEngine, skillStore, insightsEngine)
 	engine := InitGinServer(v, userHandler, apiHandler, roleHandler, systemHandler, notAuthHandler, auditHandler, terminalHandler, fileHandler, fileShareHandler, shareAccessHandler, handler2)
 	cmd := &Cmd{
 		Server: engine,

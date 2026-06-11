@@ -172,8 +172,11 @@ func ProvideAgentHandler(
 	agentSvc agentService.AgentService,
 	hubSvc agentHub.HubService,
 	cfgSvc *agentService.ConfigService,
+	searchEngine *agentSearch.SearchEngine,
+	skillStore *agentSkill.SkillStore,
+	insights *agentInsight.InsightsEngine,
 ) *api.Handler {
-	return api.NewHandler(agentSvc, hubSvc, cfgSvc)
+	return api.NewHandler(agentSvc, hubSvc, cfgSvc, searchEngine, skillStore, insights)
 }
 
 // ==================== Guard / Memory / Pipeline ====================

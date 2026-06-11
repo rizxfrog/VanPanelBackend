@@ -2,10 +2,14 @@ package api
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/hub"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/insight"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/search"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/service"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/skill"
 	"github.com/rizxfrog/VanPanelBackend/internal/model"
 	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 	"github.com/rizxfrog/VanPanelBackend/pkg/jwt"
@@ -16,14 +20,27 @@ type Handler struct {
 	agentService  service.AgentService
 	hubService    hub.HubService
 	configService *service.ConfigService
+	searchEngine  *search.SearchEngine
+	skillStore    *skill.SkillStore
+	insights      *insight.InsightsEngine
 }
 
 // NewHandler 创建智能体 API 处理器实例
-func NewHandler(agentService service.AgentService, hubService hub.HubService, configService *service.ConfigService) *Handler {
+func NewHandler(
+	agentService service.AgentService,
+	hubService hub.HubService,
+	configService *service.ConfigService,
+	searchEngine *search.SearchEngine,
+	skillStore *skill.SkillStore,
+	insights *insight.InsightsEngine,
+) *Handler {
 	return &Handler{
 		agentService:  agentService,
 		hubService:    hubService,
 		configService: configService,
+		searchEngine:  searchEngine,
+		skillStore:    skillStore,
+		insights:      insights,
 	}
 }
 
@@ -69,6 +86,14 @@ func (h *Handler) RegisterRouters(server *gin.Engine) {
 		agentGroup.GET("/config/list", h.ListAgentConfigs)
 		agentGroup.GET("/config/:key", h.GetAgentConfig)
 		agentGroup.PUT("/config/:key", h.UpdateAgentConfig)
+
+		// 搜索、分析、技能
+		agentGroup.GET("/search", h.SearchHistory)
+		agentGroup.GET("/insights", h.GetInsights)
+		agentGroup.GET("/skills", h.ListSkills)
+		agentGroup.GET("/skills/:name", h.GetSkill)
+		agentGroup.POST("/skills/:name/pin", h.PinSkill)
+		agentGroup.POST("/skills/:name/unpin", h.UnpinSkill)
 	}
 }
 
@@ -395,4 +420,82 @@ func (h *Handler) ListAgentConfigs(ctx *gin.Context) {
 		return
 	}
 	base.SuccessWithData(ctx, cfgs)
+}
+
+// ==================== 搜索、分析、技能 ====================
+
+// SearchHistory 全文搜索会话历史
+func (h *Handler) SearchHistory(c *gin.Context) {
+	query := c.Query("q")
+	if query == "" {
+		base.BadRequestError(c, "搜索关键词不能为空")
+		return
+	}
+	limit := 20
+	if l, err := strconv.Atoi(c.DefaultQuery("limit", "20")); err == nil && l > 0 {
+		limit = l
+	}
+
+	results, err := h.searchEngine.Search(c.Request.Context(), query, limit)
+	if err != nil {
+		base.ErrorWithMessage(c, "搜索失败: "+err.Error())
+		return
+	}
+	base.SuccessWithData(c, results)
+}
+
+// GetInsights 生成 Token/费用/工具使用分析报告
+func (h *Handler) GetInsights(c *gin.Context) {
+	days := 30
+	if d, err := strconv.Atoi(c.DefaultQuery("days", "30")); err == nil && d > 0 {
+		days = d
+	}
+
+	report, err := h.insights.Generate(c.Request.Context(), days)
+	if err != nil {
+		base.ErrorWithMessage(c, "生成分析报告失败: "+err.Error())
+		return
+	}
+	base.SuccessWithData(c, report)
+}
+
+// ListSkills 列出所有 skill
+func (h *Handler) ListSkills(c *gin.Context) {
+	skills, err := h.skillStore.ListSkills(c.Request.Context())
+	if err != nil {
+		base.ErrorWithMessage(c, "获取 skill 列表失败: "+err.Error())
+		return
+	}
+	base.SuccessWithData(c, skills)
+}
+
+// GetSkill 获取指定 skill 详情
+func (h *Handler) GetSkill(c *gin.Context) {
+	name := c.Param("name")
+	skill, err := h.skillStore.GetSkill(c.Request.Context(), name)
+	if err != nil {
+		base.ErrorWithMessage(c, "获取 skill 失败: "+err.Error())
+		return
+	}
+	base.SuccessWithData(c, skill)
+}
+
+// PinSkill 置顶 skill
+func (h *Handler) PinSkill(c *gin.Context) {
+	name := c.Param("name")
+	if err := h.skillStore.PinSkill(c.Request.Context(), name); err != nil {
+		base.ErrorWithMessage(c, "固定 skill 失败: "+err.Error())
+		return
+	}
+	base.Success(c)
+}
+
+// UnpinSkill 取消置顶 skill
+func (h *Handler) UnpinSkill(c *gin.Context) {
+	name := c.Param("name")
+	if err := h.skillStore.UnpinSkill(c.Request.Context(), name); err != nil {
+		base.ErrorWithMessage(c, "取消固定 skill 失败: "+err.Error())
+		return
+	}
+	base.Success(c)
 }
