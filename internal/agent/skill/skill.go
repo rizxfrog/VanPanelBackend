@@ -160,7 +160,9 @@ func (s *SkillStore) GetSkill(ctx context.Context, name string) (*Skill, error) 
 	s.RecordView(ctx, name)
 
 	// 获取使用统计
+	s.mu.RLock()
 	u := s.getUsage(name)
+	s.mu.RUnlock()
 	state := SkillStateActive
 	if u != nil {
 		state = u.State
@@ -228,6 +230,13 @@ func (s *SkillStore) CreateSkill(ctx context.Context, meta SkillMeta, content st
 	// 验证名称格式
 	if !nameRegex.MatchString(meta.Name) {
 		return nil, fmt.Errorf("skill 名称格式无效，必须匹配 [a-z0-9-]+: %s", meta.Name)
+	}
+
+	if len(meta.Name) > 64 {
+		return nil, fmt.Errorf("skill 名称不能超过64个字符: %s", meta.Name)
+	}
+	if len(meta.Description) > 1024 {
+		return nil, fmt.Errorf("skill 描述不能超过1024个字符")
 	}
 
 	category := meta.Category
