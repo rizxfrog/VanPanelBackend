@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/search"
 	"github.com/rizxfrog/VanPanelBackend/internal/model"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
@@ -74,15 +75,21 @@ type AgentDAO interface {
 	// 长期记忆
 	CreateUserMemory(ctx context.Context, memory *UserMemory) error
 	ListUserMemoriesByUser(ctx context.Context, userID uint, limit int) ([]*UserMemory, error)
+
+	// 全文搜索
+	SearchMessages(ctx context.Context, query string, limit int) ([]*search.SearchResult, error)
+	GetMessageContext(ctx context.Context, sessionID string, messageID int64, contextSize int) ([]*model.AgentMessage, error)
+	ListRecentSessions(ctx context.Context, limit int) ([]*search.BrowseResult, error)
 }
 
 type agentDAO struct {
-	db *gorm.DB
-	l  *zap.Logger
+	db           *gorm.DB
+	l            *zap.Logger
+	searchEngine *search.SearchEngine
 }
 
-func NewAgentDAO(db *gorm.DB, l *zap.Logger) AgentDAO {
-	return &agentDAO{db: db, l: l}
+func NewAgentDAO(db *gorm.DB, l *zap.Logger, searchEngine *search.SearchEngine) AgentDAO {
+	return &agentDAO{db: db, l: l, searchEngine: searchEngine}
 }
 
 // ==================== 会话 ====================
@@ -652,4 +659,60 @@ func (d *agentDAO) ListUserMemoriesByUser(ctx context.Context, userID uint, limi
 		return nil, fmt.Errorf("查询记忆列表失败: %w", err)
 	}
 	return memories, nil
+}
+
+// ==================== 全文搜索 ====================
+
+// SearchMessages 全文检索消息，委托给搜索引擎
+func (d *agentDAO) SearchMessages(ctx context.Context, query string, limit int) ([]*search.SearchResult, error) {
+	if d.searchEngine == nil {
+		d.l.Error("SearchMessages: 搜索引擎未初始化")
+		return nil, fmt.Errorf("搜索引擎未初始化")
+	}
+	if query == "" {
+		d.l.Error("SearchMessages: 搜索关键词不能为空")
+		return nil, fmt.Errorf("搜索关键词不能为空")
+	}
+	return d.searchEngine.Search(ctx, query, limit)
+}
+
+// GetMessageContext 获取指定消息的上下文（前后各 contextSize 条消息）
+func (d *agentDAO) GetMessageContext(ctx context.Context, sessionID string, messageID int64, contextSize int) ([]*model.AgentMessage, error) {
+	if sessionID == "" {
+		d.l.Error("GetMessageContext: 会话ID不能为空")
+		return nil, errors.New("会话ID不能为空")
+	}
+	if messageID <= 0 {
+		d.l.Error("GetMessageContext: 无效的消息ID", zap.Int64("message_id", messageID))
+		return nil, errors.New("无效的消息ID")
+	}
+	if contextSize <= 0 {
+		contextSize = 5
+	}
+
+	var messages []*model.AgentMessage
+
+	// 查询指定消息前后的上下文，合并为一条查询
+	if err := d.db.WithContext(ctx).Raw(`
+		SELECT * FROM cl_agent_messages
+		WHERE session_id = ? AND id >= ? - ? AND id <= ? + ? AND id != ?
+		ORDER BY id ASC
+	`, sessionID, messageID, contextSize, messageID, contextSize, messageID).
+		Scan(&messages).Error; err != nil {
+		d.l.Error("GetMessageContext: 查询消息上下文失败",
+			zap.String("session_id", sessionID),
+			zap.Int64("message_id", messageID),
+			zap.Error(err))
+		return nil, fmt.Errorf("查询消息上下文失败: %w", err)
+	}
+	return messages, nil
+}
+
+// ListRecentSessions 列出最近活跃的会话，委托给搜索引擎
+func (d *agentDAO) ListRecentSessions(ctx context.Context, limit int) ([]*search.BrowseResult, error) {
+	if d.searchEngine == nil {
+		d.l.Error("ListRecentSessions: 搜索引擎未初始化")
+		return nil, fmt.Errorf("搜索引擎未初始化")
+	}
+	return d.searchEngine.Browse(ctx, limit)
 }

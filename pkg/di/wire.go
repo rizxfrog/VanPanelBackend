@@ -84,6 +84,7 @@ var AgentSet = wire.NewSet(
 	ProvideAgentConfigDAO,
 	ProvideAgentConfigService,
 	ProvideAgentLLMAuditor,
+	ProvideSearchEngine,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
 	ProvideAgentAuditStore,

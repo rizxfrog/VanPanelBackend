@@ -7,6 +7,7 @@ import (
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/api"
 	agentAudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
 	agentDao "github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
+	agentSearch "github.com/rizxfrog/VanPanelBackend/internal/agent/search"
 	agentGuard "github.com/rizxfrog/VanPanelBackend/internal/agent/guard"
 	agentHub "github.com/rizxfrog/VanPanelBackend/internal/agent/hub"
 	agentMemory "github.com/rizxfrog/VanPanelBackend/internal/agent/memory"
@@ -43,8 +44,13 @@ func ProvideAgentHubConfig() *AgentHubConfig {
 // ==================== DAO ====================
 
 // ProvideAgentDAO 创建 Agent DAO
-func ProvideAgentDAO(db *gorm.DB, l *zap.Logger) agentDao.AgentDAO {
-	return agentDao.NewAgentDAO(db, l)
+func ProvideAgentDAO(db *gorm.DB, l *zap.Logger, searchEngine *agentSearch.SearchEngine) agentDao.AgentDAO {
+	return agentDao.NewAgentDAO(db, l, searchEngine)
+}
+
+// ProvideSearchEngine 创建全文搜索引擎
+func ProvideSearchEngine(db *gorm.DB, l *zap.Logger) *agentSearch.SearchEngine {
+	return agentSearch.NewSearchEngine(db, l)
 }
 
 // ProvideAgentConfigDAO creates the config DAO

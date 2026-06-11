@@ -62,7 +62,8 @@ func ProvideCmd() *Cmd {
 	fileShareService := service3.NewFileShareService(logger, fileShareDAO, managerConfig)
 	fileShareHandler := api4.NewFileShareHandler(fileShareService)
 	shareAccessHandler := api4.NewShareAccessHandler(fileShareService)
-	agentDAO := ProvideAgentDAO(db, logger)
+	searchEngine := ProvideSearchEngine(db, logger)
+	agentDAO := ProvideAgentDAO(db, logger, searchEngine)
 	toolManager := ProvideAgentToolManager(agentDAO, logger)
 	agentRiskConfig := ProvideAgentRiskConfig()
 	evaluator := ProvideAgentRiskEvaluator(agentRiskConfig)
@@ -116,6 +117,7 @@ var AgentSet = wire.NewSet(
 	ProvideAgentConfigDAO,
 	ProvideAgentConfigService,
 	ProvideAgentLLMAuditor,
+	ProvideSearchEngine,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
 	ProvideAgentAuditStore,

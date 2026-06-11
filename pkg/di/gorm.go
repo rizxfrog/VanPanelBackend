@@ -74,6 +74,9 @@ func InitDB() *gorm.DB {
 	if err := InitStoredProcedures(db); err != nil {
 		log.Printf("failed to initialize stored procedures: %v", err)
 	}
+	if err := createSearchVectorMigration(db); err != nil {
+		log.Printf("failed to create search vector migration: %v", err)
+	}
 	return db
 }
 
@@ -148,6 +151,46 @@ func CheckDBHealth(db *gorm.DB) error {
 	if pingErr != nil {
 		return fmt.Errorf("database ping failed: %v", pingErr)
 	}
+	return nil
+}
+
+// createSearchVectorMigration 为 cl_agent_messages 表创建 tsvector 全文搜索向量列及 GIN 索引
+// 仅对 PostgreSQL 生效
+func createSearchVectorMigration(db *gorm.DB) error {
+	if db == nil {
+		return fmt.Errorf("数据库连接为空，跳过搜索向量迁移")
+	}
+	if db.Dialector.Name() != "postgres" {
+		return nil
+	}
+
+	// 检查 search_vector 列是否已存在
+	var count int64
+	if err := db.Raw(`
+		SELECT COUNT(*) FROM information_schema.columns
+		WHERE table_name = 'cl_agent_messages' AND column_name = 'search_vector'
+	`).Scan(&count).Error; err != nil {
+		return fmt.Errorf("检查 search_vector 列失败: %w", err)
+	}
+
+	if count == 0 {
+		// 添加 GENERATED 列，使用 coalesce 处理 NULL 值
+		if err := db.Exec(`
+			ALTER TABLE cl_agent_messages ADD COLUMN search_vector tsvector
+			GENERATED ALWAYS AS (to_tsvector('simple', coalesce(content, ''))) STORED
+		`).Error; err != nil {
+			return fmt.Errorf("添加 search_vector 列失败: %w", err)
+		}
+		log.Println("search_vector 列创建成功")
+	}
+
+	// 创建 GIN 索引（幂等操作）
+	if err := db.Exec(`
+		CREATE INDEX IF NOT EXISTS idx_messages_search ON cl_agent_messages USING GIN(search_vector)
+	`).Error; err != nil {
+		return fmt.Errorf("创建 GIN 索引失败: %w", err)
+	}
+
 	return nil
 }
 

@@ -94,8 +94,9 @@ type AgentMessage struct {
 	Content    string           `json:"content" gorm:"type:text;not null;comment:消息内容"`
 	ToolCalls  JSONMap          `json:"tool_calls" gorm:"type:json;comment:工具调用信息"`
 	ToolCallID string           `json:"tool_call_id" gorm:"type:varchar(100);comment:工具调用ID"`
-	Metadata   JSONMap          `json:"metadata" gorm:"type:json;comment:元数据"`
-	CreatedAt  time.Time        `json:"created_at" gorm:"autoCreateTime;comment:创建时间"`
+	Metadata     JSONMap          `json:"metadata" gorm:"type:json;comment:元数据"`
+	SearchVector string           `json:"-" gorm:"->;type:tsvector;comment:全文搜索向量(PostgreSQL GENERATED列)"`
+	CreatedAt    time.Time        `json:"created_at" gorm:"autoCreateTime;comment:创建时间"`
 }
 
 func (AgentMessage) TableName() string {
