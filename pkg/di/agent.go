@@ -7,6 +7,8 @@ import (
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/api"
 	agentAudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
 	agentDao "github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
+	agentInsight "github.com/rizxfrog/VanPanelBackend/internal/agent/insight"
+	agentNudge "github.com/rizxfrog/VanPanelBackend/internal/agent/nudge"
 	agentSearch "github.com/rizxfrog/VanPanelBackend/internal/agent/search"
 	agentGuard "github.com/rizxfrog/VanPanelBackend/internal/agent/guard"
 	agentHub "github.com/rizxfrog/VanPanelBackend/internal/agent/hub"
@@ -18,6 +20,7 @@ import (
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/spi"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/builtin"
 	agentToolManager "github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
+	"github.com/cloudwego/eino/components/tool"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -131,6 +134,7 @@ func ProvideAgentService(
 	cfg *AgentConfig,
 	l *zap.Logger,
 	pipelineStage *agentPipeline.Stage,
+	nudgeReviewer *agentNudge.MemoryNudgeReviewer,
 ) agentService.AgentService {
 	svcCfg := &agentService.Config{
 		LLM: agentService.LLMConfig{
@@ -143,7 +147,7 @@ func ProvideAgentService(
 		},
 		MaxHistory: cfg.MaxHistory,
 	}
-	return agentService.NewAgentService(dao, toolMgr, riskEval, auditStore, svcCfg, l, pipelineStage, nil)
+	return agentService.NewAgentService(dao, toolMgr, riskEval, auditStore, svcCfg, l, pipelineStage, nudgeReviewer)
 }
 
 // ProvideHubService 创建 Hub 服务
@@ -245,11 +249,35 @@ func ProvideAgentPipeline(
 // ==================== Skill ====================
 
 // ProvideAgentSkillStore 创建 skill 文件系统存储
-func ProvideAgentSkillStore(l *zap.Logger) *agentSkill.SkillStore {
-	store, err := agentSkill.NewSkillStore("data/skills", l)
-	if err != nil {
-		l.Warn("skill store 初始化失败，skill_manage 工具将不可用", zap.Error(err))
-		return nil
+func ProvideAgentSkillStore(cfg *AgentConfig, l *zap.Logger) (*agentSkill.SkillStore, error) {
+	baseDir := cfg.Skill.BaseDir
+	if baseDir == "" {
+		baseDir = "data/skills"
 	}
-	return store
+	return agentSkill.NewSkillStore(baseDir, l)
+}
+
+// ==================== Skill Manager Tool ====================
+
+// ProvideAgentSkillManagerTool 创建 skill_manage Eino 工具
+func ProvideAgentSkillManagerTool(store *agentSkill.SkillStore) tool.InvokableTool {
+	return agentSkill.NewSkillManagerTool(store)
+}
+
+// ==================== Nudge ====================
+
+// ProvideAgentNudgeReviewer 创建记忆轻推审查器
+func ProvideAgentNudgeReviewer(cfg *AgentConfig, l *zap.Logger) *agentNudge.MemoryNudgeReviewer {
+	nudgeCfg := agentNudge.NudgeConfig{
+		MemoryInterval: cfg.Nudge.MemoryInterval,
+		SkillInterval:  cfg.Nudge.SkillInterval,
+	}
+	return agentNudge.NewMemoryNudgeReviewer(nudgeCfg, "data/memory", l)
+}
+
+// ==================== Insights ====================
+
+// ProvideAgentInsightsEngine 创建分析引擎
+func ProvideAgentInsightsEngine(db *gorm.DB, l *zap.Logger) *agentInsight.InsightsEngine {
+	return agentInsight.NewInsightsEngine(db, l)
 }

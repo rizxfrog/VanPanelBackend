@@ -35,7 +35,10 @@ func run() error {
 		return fmt.Errorf("failed to load config: %v", err)
 	}
 
-	cmd := di.ProvideCmd()
+	cmd, err := di.ProvideCmd()
+	if err != nil {
+		return fmt.Errorf("failed to initialize DI: %v", err)
+	}
 	db := di.InitDB()
 
 	if db != nil && di.CheckDBHealth(db) == nil {

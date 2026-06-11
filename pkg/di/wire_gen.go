@@ -29,7 +29,7 @@ import (
 
 // Injectors from wire.go:
 
-func ProvideCmd() *Cmd {
+func ProvideCmd() (*Cmd, error) {
 	cmdable := InitRedis()
 	handler := jwt.NewJWTHandler(cmdable)
 	logger := InitLogger()
@@ -64,17 +64,21 @@ func ProvideCmd() *Cmd {
 	shareAccessHandler := api4.NewShareAccessHandler(fileShareService)
 	searchEngine := ProvideSearchEngine(db, logger)
 	agentDAO := ProvideAgentDAO(db, logger, searchEngine)
-	skillStore := ProvideAgentSkillStore(logger)
+	agentConfig := ProvideAgentConfig()
+	skillStore, err := ProvideAgentSkillStore(agentConfig, logger)
+	if err != nil {
+		return nil, err
+	}
 	toolManager := ProvideAgentToolManager(agentDAO, logger, skillStore)
 	agentRiskConfig := ProvideAgentRiskConfig()
 	evaluator := ProvideAgentRiskEvaluator(agentRiskConfig)
 	store := ProvideAgentAuditStore(agentDAO, logger)
-	agentConfig := ProvideAgentConfig()
 	agentConfigDAO := ProvideAgentConfigDAO(db)
 	configService := ProvideAgentConfigService(agentConfigDAO)
 	llmAuditor := ProvideAgentLLMAuditor(logger)
 	stage := ProvideAgentPipeline(agentDAO, configService, llmAuditor, logger)
-	agentService := ProvideAgentService(agentDAO, toolManager, evaluator, store, agentConfig, logger, stage)
+	memoryNudgeReviewer := ProvideAgentNudgeReviewer(agentConfig, logger)
+	agentService := ProvideAgentService(agentDAO, toolManager, evaluator, store, agentConfig, logger, stage, memoryNudgeReviewer)
 	agentHubConfig := ProvideAgentHubConfig()
 	hubService := ProvideHubService(agentDAO, toolManager, agentHubConfig, logger)
 	handler2 := ProvideAgentHandler(agentService, hubService, configService)
@@ -82,7 +86,7 @@ func ProvideCmd() *Cmd {
 	cmd := &Cmd{
 		Server: engine,
 	}
-	return cmd
+	return cmd, nil
 }
 
 // wire.go:
@@ -120,6 +124,7 @@ var AgentSet = wire.NewSet(
 	ProvideAgentLLMAuditor,
 	ProvideSearchEngine,
 	ProvideAgentSkillStore,
+	ProvideAgentSkillManagerTool,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
 	ProvideAgentAuditStore,
@@ -128,4 +133,6 @@ var AgentSet = wire.NewSet(
 	ProvideAgentGuardChain,
 	ProvideAgentMemoryProvider,
 	ProvideAgentPipeline,
+	ProvideAgentNudgeReviewer,
+	ProvideAgentInsightsEngine,
 )

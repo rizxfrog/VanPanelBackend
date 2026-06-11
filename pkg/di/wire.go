@@ -86,6 +86,7 @@ var AgentSet = wire.NewSet(
 	ProvideAgentLLMAuditor,
 	ProvideSearchEngine,
 	ProvideAgentSkillStore,
+	ProvideAgentSkillManagerTool,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
 	ProvideAgentAuditStore,
@@ -94,9 +95,11 @@ var AgentSet = wire.NewSet(
 	ProvideAgentGuardChain,
 	ProvideAgentMemoryProvider,
 	ProvideAgentPipeline,
+	ProvideAgentNudgeReviewer,
+	ProvideAgentInsightsEngine,
 )
 
-func ProvideCmd() *Cmd {
+func ProvideCmd() (*Cmd, error) {
 	wire.Build(
 		Injector,
 		HandlerSet,
@@ -105,5 +108,5 @@ func ProvideCmd() *Cmd {
 		UtilSet,
 		AgentSet,
 	)
-	return &Cmd{}
+	return &Cmd{}, nil
 }
