@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+	"strings"
 
 	einoopenai "github.com/cloudwego/eino-ext/components/model/openai"
 	"github.com/cloudwego/eino/components/tool"
@@ -17,6 +18,7 @@ import (
 	agentaudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
 	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/nudge"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/pipeline"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
@@ -63,7 +65,8 @@ type agentService struct {
 	auditStore    agentaudit.Store
 	cfg           *Config
 	logger        *zap.Logger
-	pipelineStage *pipeline.Stage // optional pipeline enhancement
+	pipelineStage *pipeline.Stage             // optional pipeline enhancement
+	nudgeReviewer *nudge.MemoryNudgeReviewer  // optional memory nudge
 }
 
 // NewAgentService 创建智能体服务实例
@@ -75,6 +78,7 @@ func NewAgentService(
 	cfg *Config,
 	logger *zap.Logger,
 	pipelineStage *pipeline.Stage,
+	nudgeReviewer *nudge.MemoryNudgeReviewer,
 ) AgentService {
 	return &agentService{
 		dao:           dao,
@@ -84,6 +88,7 @@ func NewAgentService(
 		cfg:           cfg,
 		logger:        logger,
 		pipelineStage: pipelineStage,
+		nudgeReviewer: nudgeReviewer,
 	}
 }
 
@@ -234,6 +239,17 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 		answer = string(tcJSON)
 	}
 
+	// Nudge: record turn and check for memory review
+	if s.nudgeReviewer != nil {
+		toolCallCount := len(result.ToolCalls)
+		s.nudgeReviewer.RecordTurn(toolCallCount)
+		if shouldMemory, _ := s.nudgeReviewer.ShouldNudge(toolCallCount); shouldMemory {
+			conversationText := buildConversationText(messages, answer)
+			go s.nudgeReviewer.Review(context.Background(), conversationText)
+			s.nudgeReviewer.ResetMemory()
+		}
+	}
+
 	// 保存助手消息
 	if err := s.dao.CreateMessage(ctx, &model.AgentMessage{
 		SessionID: req.SessionID,
@@ -379,6 +395,17 @@ func (s *agentService) QueryWithPipeline(ctx context.Context, req *model.AgentQu
 		answer = string(tcJSON)
 	}
 
+	// Nudge: record turn and check for memory review
+	if s.nudgeReviewer != nil {
+		toolCallCount := len(result.ToolCalls)
+		s.nudgeReviewer.RecordTurn(toolCallCount)
+		if shouldMemory, _ := s.nudgeReviewer.ShouldNudge(toolCallCount); shouldMemory {
+			conversationText := buildConversationText(messages, answer)
+			go s.nudgeReviewer.Review(context.Background(), conversationText)
+			s.nudgeReviewer.ResetMemory()
+		}
+	}
+
 	// 保存助手消息
 	if err := s.dao.CreateMessage(ctx, &model.AgentMessage{
 		SessionID: req.SessionID,
@@ -498,6 +525,17 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 	)
 	if err != nil {
 		return fmt.Errorf("Agent Stream 失败: %w", err)
+	}
+
+	// Nudge: record turn and check for memory review (streaming path)
+	if s.nudgeReviewer != nil {
+		toolCallCount := 0 // streaming path doesn't expose tool call count
+		s.nudgeReviewer.RecordTurn(toolCallCount)
+		if shouldMemory, _ := s.nudgeReviewer.ShouldNudge(toolCallCount); shouldMemory {
+			conversationText := buildConversationText(messages, finalContent)
+			go s.nudgeReviewer.Review(context.Background(), conversationText)
+			s.nudgeReviewer.ResetMemory()
+		}
 	}
 
 	// 审计: 会话完成
@@ -631,6 +669,17 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 	)
 	if err != nil {
 		return fmt.Errorf("Agent Stream 失败: %w", err)
+	}
+
+	// Nudge: record turn and check for memory review (streaming path)
+	if s.nudgeReviewer != nil {
+		toolCallCount := 0 // streaming path doesn't expose tool call count
+		s.nudgeReviewer.RecordTurn(toolCallCount)
+		if shouldMemory, _ := s.nudgeReviewer.ShouldNudge(toolCallCount); shouldMemory {
+			conversationText := buildConversationText(messages, finalContent)
+			go s.nudgeReviewer.Review(context.Background(), conversationText)
+			s.nudgeReviewer.ResetMemory()
+		}
 	}
 
 	// 审计: 会话完成
@@ -809,4 +858,23 @@ func (s *agentService) ListTools(ctx context.Context) ([]map[string]interface{},
 		}
 	}
 	return result, nil
+}
+
+// buildConversationText 将消息列表和回复转换为对话文本，用于记忆审查
+func buildConversationText(messages []*schema.Message, answer string) string {
+	var sb strings.Builder
+	for _, msg := range messages {
+		role := string(msg.Role)
+		content := msg.Content
+		if content != "" {
+			sb.WriteString(fmt.Sprintf("[%s]: %s\n", role, content))
+		}
+		for _, tc := range msg.ToolCalls {
+			sb.WriteString(fmt.Sprintf("[%s tool_call %s]: %s\n", role, tc.Function.Name, tc.Function.Arguments))
+		}
+	}
+	if answer != "" {
+		sb.WriteString(fmt.Sprintf("[assistant]: %s\n", answer))
+	}
+	return sb.String()
 }
