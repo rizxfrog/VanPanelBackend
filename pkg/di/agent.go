@@ -14,6 +14,7 @@ import (
 	agentPipeline "github.com/rizxfrog/VanPanelBackend/internal/agent/pipeline"
 	agentRisk "github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
 	agentService "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
+	agentSkill "github.com/rizxfrog/VanPanelBackend/internal/agent/skill"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/spi"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/builtin"
 	agentToolManager "github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
@@ -84,10 +85,10 @@ func ProvideAgentLLMAuditor(l *zap.Logger) *agentPipeline.LLMAuditor {
 // ==================== 工具和风险 ====================
 
 // ProvideAgentToolManager 创建工具管理器
-func ProvideAgentToolManager(dao agentDao.AgentDAO, l *zap.Logger) *agentToolManager.ToolManager {
+func ProvideAgentToolManager(dao agentDao.AgentDAO, l *zap.Logger, skillStore *agentSkill.SkillStore) *agentToolManager.ToolManager {
 	mgr := agentToolManager.NewToolManager(dao, l)
 	// 注册内置工具实现到 ToolManager
-	mgr.SetBuiltinTools(builtin.NewBuiltinTools())
+	mgr.SetBuiltinTools(builtin.NewBuiltinTools(skillStore))
 	// 异步 seed 数据库中的内置工具记录，确保 cl_agent_builtin_tools 表不为空
 	go func() {
 		defs := builtin.BuiltinToolDefs()
@@ -239,4 +240,16 @@ func ProvideAgentPipeline(
 	// Use the existing memory provider
 	memoryProvider := agentMemory.NewProvider(dao, l)
 	return agentPipeline.NewStage(intentAnalyzer, memoryProvider, l)
+}
+
+// ==================== Skill ====================
+
+// ProvideAgentSkillStore 创建 skill 文件系统存储
+func ProvideAgentSkillStore(l *zap.Logger) *agentSkill.SkillStore {
+	store, err := agentSkill.NewSkillStore("data/skills", l)
+	if err != nil {
+		l.Warn("skill store 初始化失败，skill_manage 工具将不可用", zap.Error(err))
+		return nil
+	}
+	return store
 }

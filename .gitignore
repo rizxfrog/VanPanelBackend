@@ -102,6 +102,7 @@ venv
 .history
 #config/config.yaml
 data/prometheus
+data/skills
 Prompt1.md
 Prompt2.md
 docs/docs.go

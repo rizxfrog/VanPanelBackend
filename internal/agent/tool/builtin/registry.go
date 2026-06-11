@@ -2,13 +2,15 @@ package builtin
 
 import (
 	"github.com/cloudwego/eino/components/tool"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/skill"
 	"github.com/rizxfrog/VanPanelBackend/internal/model"
 )
 
 // NewBuiltinTools 返回所有内置运维工具。
-// 共 23 个工具，覆盖网络、日志、进程、磁盘、系统、服务、Shell、文件、容器和监控十大类。
-func NewBuiltinTools() []tool.BaseTool {
-	return []tool.BaseTool{
+// 共 24 个工具，覆盖网络、日志、进程、磁盘、系统、服务、Shell、文件、容器、监控和 skill 管理。
+// skillStore 为 nil 时跳过 skill_manage 工具注册。
+func NewBuiltinTools(skillStore *skill.SkillStore) []tool.BaseTool {
+	tools := []tool.BaseTool{
 		// 网络工具
 		NewLsofTool(),
 		NewSSTool(),
@@ -43,6 +45,12 @@ func NewBuiltinTools() []tool.BaseTool {
 		// 监控工具
 		NewPrometheusQueryTool(),
 	}
+
+	if skillStore != nil {
+		tools = append(tools, skill.NewSkillManagerTool(skillStore))
+	}
+
+	return tools
 }
 
 // BuiltinToolDefs 返回所有内置工具的数据库记录定义，用于持久化到 cl_agent_builtin_tools 表。
