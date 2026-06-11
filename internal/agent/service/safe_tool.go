@@ -10,13 +10,19 @@ import (
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
 )
 
+// toolCallIDKey is the context key for storing pending tool call IDs.
+type toolCallIDKey struct{}
+
+// resultCallbackType is the callback type, now includes toolCallID and status.
+type resultCallbackType func(toolCallID, toolName, result, status string)
+
 // safeTool wraps an InvokableTool to intercept tool execution with risk evaluation and audit.
 type safeTool struct {
 	inner          tool.InvokableTool
 	riskEval       *risk.Evaluator
 	auditFn        func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string)
 	info           *schema.ToolInfo
-	resultCallback func(toolName, result string)
+	resultCallback resultCallbackType
 }
 
 func wrapTool(
@@ -39,7 +45,7 @@ func wrapToolWithCallback(
 	t tool.BaseTool,
 	riskEval *risk.Evaluator,
 	auditFn func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string),
-	resultCallback func(toolName, result string),
+	resultCallback resultCallbackType,
 ) (tool.BaseTool, error) {
 	it, ok := t.(tool.InvokableTool)
 	if !ok {
@@ -73,12 +79,18 @@ func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ..
 				st.auditFn(ctx, "tool.blocked", st.info.Name, evalResult.Reason,
 					agentmodel.RiskLevel(evalResult.Level), false, argsInJSON, blockedMsg)
 			}
+			if st.resultCallback != nil {
+				st.resultCallback("", st.info.Name, blockedMsg, "error")
+			}
 			return blockedMsg, nil
 		}
 	}
 
 	result, err := st.inner.InvokableRun(ctx, argsInJSON, opts...)
 	if err != nil {
+		if st.resultCallback != nil {
+			st.resultCallback("", st.info.Name, err.Error(), "error")
+		}
 		return "", err
 	}
 
@@ -88,7 +100,7 @@ func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ..
 	}
 
 	if st.resultCallback != nil {
-		st.resultCallback(st.info.Name, truncateString(result, 2000))
+		st.resultCallback("", st.info.Name, result, "success")
 	}
 
 	return result, nil

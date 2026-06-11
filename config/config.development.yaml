@@ -71,9 +71,6 @@ file_manager:
 agent:
   llm:
     provider: "openai"
-    base_url: "https://api.openai.com/v1"
-    api_key: ""
-    model: "gpt-4o"
     temperature: 0.7
     max_tokens: 4096
   max_history: 20

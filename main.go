@@ -13,10 +13,13 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"github.com/rizxfrog/VanPanelBackend/internal/gateway"
+	_ "github.com/rizxfrog/VanPanelBackend/internal/gateway/rpc" // trigger init() registration
 	"github.com/rizxfrog/VanPanelBackend/mock"
 	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 	"github.com/rizxfrog/VanPanelBackend/pkg/di"
 	"github.com/spf13/viper"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -43,12 +46,12 @@ func run() error {
 
 	cmd.Server.Use(gzip.Gzip(gzip.BestCompression))
 
-	cmd.Server.GET("/", func(c *gin.Context) {
-		c.JSON(http.StatusOK, gin.H{
-			"message": "AI-CloudOps API service is running",
-			"status":  "running",
-		})
-	})
+	// Set up the gateway server
+	gatewayLogger, _ := zap.NewDevelopment()
+	gatewaySrv := setupGateway(gatewayLogger)
+
+	// Register embedded OpenClaw Web UI + WebSocket gateway upgrade
+	registerWebUI(cmd.Server, gatewaySrv)
 
 	cmd.Server.POST("/api/v1/debug/test", func(c *gin.Context) {
 		log.Printf("DEBUG test request method=%s path=%s", c.Request.Method, c.Request.URL.Path)
@@ -132,4 +135,35 @@ func showBootInfo(port string) {
 		fmt.Printf("%s  ", color.New(color.Bold).Sprint("Network:"))
 		fmt.Printf("%s\n", color.MagentaString("http://%s:%s/", ip, port))
 	}
+}
+
+// setupGateway creates the gateway server with all components.
+func setupGateway(logger *zap.Logger) *gateway.GatewayServer {
+	config := &gateway.GatewayConfig{
+		ServerVersion: "vanpanel-0.1.0",
+	}
+
+	// Create components
+	broadcastMgr := gateway.NewBroadcastManager(logger)
+	presenceTracker := gateway.NewPresenceTracker(logger)
+	healthState := gateway.NewHealthState(logger, config.ServerVersion)
+	healthState.Start()
+
+	// Auth handler with "none" mode for local development
+	authHandler := gateway.NewAuthHandler(logger, nil, "none", "", "")
+
+	config.Methods = gateway.GetRegisteredMethods()
+	config.Events = gateway.GetRegisteredEvents()
+
+	gwServer := gateway.NewGatewayServer(
+		logger,
+		broadcastMgr,
+		presenceTracker,
+		healthState,
+		authHandler,
+		config,
+	)
+
+	gatewayServerInstance = gwServer
+	return gwServer
 }

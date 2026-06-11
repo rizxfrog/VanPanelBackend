@@ -474,9 +474,11 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 			func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 				s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 			},
-			func(toolName, result string) {
+			func(toolCallID, toolName, result, status string) {
 				_ = s.writeSSEEvent(writer, "tool_result", map[string]interface{}{
+					"id":     toolCallID,
 					"name":   toolName,
+					"status": status,
 					"result": result,
 				})
 			},
@@ -605,9 +607,11 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 			func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 				s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 			},
-			func(toolName, result string) {
+			func(toolCallID, toolName, result, status string) {
 				_ = s.writeSSEEvent(writer, "tool_result", map[string]interface{}{
+					"id":     toolCallID,
 					"name":   toolName,
+					"status": status,
 					"result": result,
 				})
 			},
@@ -800,6 +804,7 @@ func (s *agentService) ListTools(ctx context.Context) ([]map[string]interface{},
 			result = append(result, map[string]interface{}{
 				"name":        info.Name,
 				"description": info.Desc,
+				"params":      info.ParamsOneOf,
 			})
 		}
 	}

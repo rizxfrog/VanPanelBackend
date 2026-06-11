@@ -73,7 +73,7 @@ Strict 4-tier per domain: `api/` → `service/` → `dao/` → `utils/`. No cros
 
 | Domain | Path | Purpose |
 |--------|------|---------|
-| `agent` | `internal/agent/` | **AI Agent assistant** — ReAct agent via Eino (openai ChatModel), streaming SSE chat, text-based tool calling (XML parsing), MCP tool manager, risk evaluator, plugin hub, remote MCP configs. Endpoints at `/api/system/agent/*`. Streaming: `textReActLoop.Stream()` uses `chatModel.Stream()` directly for token-by-token deltas; tool calls are parsed from text output via XML patterns. Sync: `react.NewAgent().Generate()` with native function calling. |
+| `agent` | `internal/agent/` | **AI Agent assistant** — ReAct agent via Eino (openai ChatModel), streaming SSE chat, standard OpenAI function calling, MCP tool manager, risk evaluator, plugin hub, remote MCP configs. Endpoints at `/api/system/agent/*`. Both sync and streaming paths use `react.NewAgent()` with native function calling. |
 | `k8s` | `internal/k8s/` | Multi-cluster K8s management — `api/` handlers, `service/`, `dao/`, `manager/` (22 client-go wrappers for Deployment/Pod/Node/Service/Ingress/ConfigMap/Secret/PV/PVC/RBAC), `client/` (kubeconfig loader), `utils/` (YAML diff/apply) |
 | `prometheus` | `internal/prometheus/` | Scrape pools/jobs, alert rules, recording rules, on-duty groups, alert events. In-memory config cache. |
 | `workorder` | `internal/workorder/` | ITIL ticketing: templates, instances, approval flows, timelines, comments, notifications |
@@ -134,9 +134,9 @@ All handlers return `{code, message, data}` JSON via `helper.Success(ctx)` / `he
 The agent module has two ReAct implementations for the same model:
 
 - **Sync path** (`Query`): `react.NewAgent(AgentConfig{ToolCallingModel: chatModel, ToolsConfig: {...}}).Generate()` — native function calling via OpenAI tools API
-- **Streaming path** (`QueryStream`): `textReActLoop.Stream(chatModel, tools, maxStep, writer, writeSSE)` — direct `chatModel.Stream()` for token-by-token deltas, text-based tool call parsing (XML regex), SSE events: `delta`, `tool_call`, `tool_result`, `done`
+- **Streaming path** (`QueryStream`): `agent.Stream()` — standard OpenAI function calling via `react.Agent`, SSE events: `delta`, `tool_call`, `tool_result`, `done`
 
-Both use the same `createChatModel()` → `einoopenai.ChatModel`. The streaming path injects tool descriptions into the system prompt via `injectToolPrompt()` and parses XML-format tool calls from model text output via `parseTextToolCalls()`. Max 10 tool-calling steps per request.
+Both use the same `createChatModel()` → `einoopenai.ChatModel`. The streaming path wraps tools via `wrapToolWithCallback` with audit/risk/safety callbacks, and uses `react.Agent.Stream()` for standard OpenAI function calling with tool_calls. Max 10 tool-calling steps per request.
 
 ## 前端代码仓库
 
