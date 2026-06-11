@@ -571,5 +571,13 @@ func truncateDesc(desc string, maxLen int) string {
 	if len(desc) <= maxLen {
 		return desc
 	}
-	return desc[:maxLen-3] + "..."
+	target := maxLen - 3 // reserve space for "..."
+	var lastBytePos int
+	for bytePos := range desc {
+		if bytePos >= target {
+			return desc[:lastBytePos] + "..."
+		}
+		lastBytePos = bytePos
+	}
+	return desc[:lastBytePos] + "..."
 }
