@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"
 	_ "github.com/google/wire"
+	agentService "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
 	filesHandler "github.com/rizxfrog/VanPanelBackend/internal/files/api"
 	filesDao "github.com/rizxfrog/VanPanelBackend/internal/files/dao"
 	filesService "github.com/rizxfrog/VanPanelBackend/internal/files/service"
@@ -21,7 +22,8 @@ import (
 )
 
 type Cmd struct {
-	Server *gin.Engine
+	Server       *gin.Engine
+	AgentService agentService.AgentService
 }
 
 var HandlerSet = wire.NewSet(
@@ -81,6 +83,12 @@ var AgentSet = wire.NewSet(
 	ProvideAgentConfig,
 	ProvideAgentRiskConfig,
 	ProvideAgentHubConfig,
+	ProvideAgentConfigDAO,
+	ProvideAgentConfigService,
+	ProvideAgentLLMAuditor,
+	ProvideSearchEngine,
+	ProvideAgentSkillStore,
+	ProvideAgentSkillManagerTool,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
 	ProvideAgentAuditStore,
@@ -89,9 +97,11 @@ var AgentSet = wire.NewSet(
 	ProvideAgentGuardChain,
 	ProvideAgentMemoryProvider,
 	ProvideAgentPipeline,
+	ProvideAgentNudgeReviewer,
+	ProvideAgentInsightsEngine,
 )
 
-func ProvideCmd() *Cmd {
+func ProvideCmd() (*Cmd, error) {
 	wire.Build(
 		Injector,
 		HandlerSet,
@@ -100,5 +110,5 @@ func ProvideCmd() *Cmd {
 		UtilSet,
 		AgentSet,
 	)
-	return &Cmd{}
+	return &Cmd{}, nil
 }

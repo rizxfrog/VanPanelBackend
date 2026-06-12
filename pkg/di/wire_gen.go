@@ -9,6 +9,7 @@ package di
 import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"
+	service4 "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
 	api4 "github.com/rizxfrog/VanPanelBackend/internal/files/api"
 	dao2 "github.com/rizxfrog/VanPanelBackend/internal/files/dao"
 	service3 "github.com/rizxfrog/VanPanelBackend/internal/files/service"
@@ -29,7 +30,7 @@ import (
 
 // Injectors from wire.go:
 
-func ProvideCmd() *Cmd {
+func ProvideCmd() (*Cmd, error) {
 	cmdable := InitRedis()
 	handler := jwt.NewJWTHandler(cmdable)
 	logger := InitLogger()
@@ -62,28 +63,40 @@ func ProvideCmd() *Cmd {
 	fileShareService := service3.NewFileShareService(logger, fileShareDAO, managerConfig)
 	fileShareHandler := api4.NewFileShareHandler(fileShareService)
 	shareAccessHandler := api4.NewShareAccessHandler(fileShareService)
-	agentDAO := ProvideAgentDAO(db, logger)
-	toolManager := ProvideAgentToolManager(agentDAO, logger)
+	searchEngine := ProvideSearchEngine(db, logger)
+	agentDAO := ProvideAgentDAO(db, logger, searchEngine)
+	agentConfig := ProvideAgentConfig()
+	skillStore, err := ProvideAgentSkillStore(agentConfig, logger)
+	if err != nil {
+		return nil, err
+	}
+	toolManager := ProvideAgentToolManager(agentDAO, logger, skillStore)
 	agentRiskConfig := ProvideAgentRiskConfig()
 	evaluator := ProvideAgentRiskEvaluator(agentRiskConfig)
 	store := ProvideAgentAuditStore(agentDAO, logger)
-	agentConfig := ProvideAgentConfig()
-	stage := ProvideAgentPipeline(agentDAO, logger)
-	agentService := ProvideAgentService(agentDAO, toolManager, evaluator, store, agentConfig, logger, stage)
+	agentConfigDAO := ProvideAgentConfigDAO(db)
+	configService := ProvideAgentConfigService(agentConfigDAO)
+	llmAuditor := ProvideAgentLLMAuditor(logger)
+	stage := ProvideAgentPipeline(agentDAO, configService, llmAuditor, logger)
+	memoryNudgeReviewer := ProvideAgentNudgeReviewer(agentConfig, logger)
+	agentService := ProvideAgentService(agentDAO, toolManager, evaluator, store, agentConfig, logger, stage, memoryNudgeReviewer)
 	agentHubConfig := ProvideAgentHubConfig()
 	hubService := ProvideHubService(agentDAO, toolManager, agentHubConfig, logger)
-	handler2 := ProvideAgentHandler(agentService, hubService)
+	insightsEngine := ProvideAgentInsightsEngine(db, logger)
+	handler2 := ProvideAgentHandler(agentService, hubService, configService, searchEngine, skillStore, insightsEngine)
 	engine := InitGinServer(v, userHandler, apiHandler, roleHandler, systemHandler, notAuthHandler, auditHandler, terminalHandler, fileHandler, fileShareHandler, shareAccessHandler, handler2)
 	cmd := &Cmd{
-		Server: engine,
+		Server:       engine,
+		AgentService: agentService,
 	}
-	return cmd
+	return cmd, nil
 }
 
 // wire.go:
 
 type Cmd struct {
-	Server *gin.Engine
+	Server       *gin.Engine
+	AgentService service4.AgentService
 }
 
 var HandlerSet = wire.NewSet(api.NewRoleHandler, api.NewApiHandler, api.NewAuditHandler, api.NewSystemHandler, api.NewUserHandler, api2.NewNotAuthHandler, api3.NewTerminalHandler, terminal.NewTerminalHandler, api4.NewFileHandler, api4.NewFileShareHandler, api4.NewShareAccessHandler, ProvideAgentHandler)
@@ -110,6 +123,12 @@ var AgentSet = wire.NewSet(
 	ProvideAgentConfig,
 	ProvideAgentRiskConfig,
 	ProvideAgentHubConfig,
+	ProvideAgentConfigDAO,
+	ProvideAgentConfigService,
+	ProvideAgentLLMAuditor,
+	ProvideSearchEngine,
+	ProvideAgentSkillStore,
+	ProvideAgentSkillManagerTool,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
 	ProvideAgentAuditStore,
@@ -118,4 +137,6 @@ var AgentSet = wire.NewSet(
 	ProvideAgentGuardChain,
 	ProvideAgentMemoryProvider,
 	ProvideAgentPipeline,
+	ProvideAgentNudgeReviewer,
+	ProvideAgentInsightsEngine,
 )

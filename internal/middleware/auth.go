@@ -43,6 +43,12 @@ var skipAuthPaths = map[string]bool{
 	"/api/user/profile":       true,
 	"/api/user/codes":         true,
 	"/favicon.ico":            true,
+	"/favicon.svg":            true,
+	"/favicon-32.png":         true,
+	"/apple-touch-icon.png":   true,
+	"/control-ui-config.json": true,
+	"/sw.js":                  true,
+	"/manifest.webmanifest":   true,
 }
 
 // 静态资源和WebSocket路径前缀
@@ -50,6 +56,9 @@ var skipPrefixes = []string{
 	"/api/ai/chat/ws",
 	"/api/tree/local/terminal",
 	"/api/share",
+	"/ui",
+	"/assets",
+	"/login",
 }
 
 // HTTP方法映射

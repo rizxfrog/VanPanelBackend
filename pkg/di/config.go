@@ -90,11 +90,27 @@ type FileManagerConfig struct {
 	AllowedArchiveTypes []string                `mapstructure:"allowed_archive_types"`
 }
 
+type AgentSearchConfig struct {
+	MaxResults int `mapstructure:"max_results" default:"20" env:"AGENT_SEARCH_MAX_RESULTS"`
+}
+
+type AgentNudgeConfig struct {
+	MemoryInterval int `mapstructure:"memory_interval" default:"10" env:"AGENT_NUDGE_MEMORY_INTERVAL"`
+	SkillInterval  int `mapstructure:"skill_interval" default:"10" env:"AGENT_NUDGE_SKILL_INTERVAL"`
+}
+
+type AgentSkillConfig struct {
+	BaseDir string `mapstructure:"base_dir" default:"data/skills" env:"AGENT_SKILL_BASE_DIR"`
+}
+
 type AgentConfig struct {
-	LLM        AgentLLMConfig  `mapstructure:"llm"`
-	Risk       AgentRiskConfig `mapstructure:"risk"`
-	Hub        AgentHubConfig  `mapstructure:"hub"`
-	MaxHistory int             `mapstructure:"max_history" .env:"AGENT_MAX_HISTORY" default:"20"`
+	LLM        AgentLLMConfig    `mapstructure:"llm"`
+	Risk       AgentRiskConfig   `mapstructure:"risk"`
+	Hub        AgentHubConfig    `mapstructure:"hub"`
+	MaxHistory int               `mapstructure:"max_history" .env:"AGENT_MAX_HISTORY" default:"20"`
+	Search     AgentSearchConfig `mapstructure:"search"`
+	Nudge      AgentNudgeConfig  `mapstructure:"nudge"`
+	Skill      AgentSkillConfig  `mapstructure:"skill"`
 }
 
 type AgentLLMConfig struct {

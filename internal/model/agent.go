@@ -94,8 +94,9 @@ type AgentMessage struct {
 	Content    string           `json:"content" gorm:"type:text;not null;comment:消息内容"`
 	ToolCalls  JSONMap          `json:"tool_calls" gorm:"type:json;comment:工具调用信息"`
 	ToolCallID string           `json:"tool_call_id" gorm:"type:varchar(100);comment:工具调用ID"`
-	Metadata   JSONMap          `json:"metadata" gorm:"type:json;comment:元数据"`
-	CreatedAt  time.Time        `json:"created_at" gorm:"autoCreateTime;comment:创建时间"`
+	Metadata     JSONMap          `json:"metadata" gorm:"type:json;comment:元数据"`
+	SearchVector string           `json:"-" gorm:"->;-:migration;type:tsvector;comment:全文搜索向量(PostgreSQL GENERATED列)"`
+	CreatedAt    time.Time        `json:"created_at" gorm:"autoCreateTime;comment:创建时间"`
 }
 
 func (AgentMessage) TableName() string {
@@ -318,4 +319,18 @@ type TestRemoteMCPResult struct {
 	Reachable bool     `json:"reachable"`
 	Tools     []string `json:"tools"`
 	Error     string   `json:"error"`
+}
+
+// AgentConfig agent 配置项（key-value，JSON value）
+type AgentConfig struct {
+	ID          int       `json:"id" gorm:"primaryKey;autoIncrement"`
+	ConfigKey   string    `json:"config_key" gorm:"type:varchar(100);uniqueIndex;not null"`
+	ConfigValue string    `json:"config_value" gorm:"type:text;not null"`
+	Description string    `json:"description" gorm:"type:varchar(500)"`
+	UpdatedAt   time.Time `json:"updated_at"`
+	CreatedAt   time.Time `json:"created_at"`
+}
+
+func (AgentConfig) TableName() string {
+	return "cl_agent_config"
 }
