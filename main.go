@@ -14,7 +14,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/rizxfrog/VanPanelBackend/internal/gateway"
-	_ "github.com/rizxfrog/VanPanelBackend/internal/gateway/rpc" // trigger init() registration
+	gatewayRpc "github.com/rizxfrog/VanPanelBackend/internal/gateway/rpc"
 	"github.com/rizxfrog/VanPanelBackend/mock"
 	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 	"github.com/rizxfrog/VanPanelBackend/pkg/di"
@@ -38,6 +38,9 @@ func run() error {
 	cmd, err := di.ProvideCmd()
 	if err != nil {
 		return fmt.Errorf("failed to initialize DI: %v", err)
+	}
+	if cmd.AgentService != nil {
+		gatewayRpc.SetAgentService(cmd.AgentService)
 	}
 	db := di.InitDB()
 
