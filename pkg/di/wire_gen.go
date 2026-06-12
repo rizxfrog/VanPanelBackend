@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/google/wire"
 	service4 "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
+	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
 	api4 "github.com/rizxfrog/VanPanelBackend/internal/files/api"
 	dao2 "github.com/rizxfrog/VanPanelBackend/internal/files/dao"
 	service3 "github.com/rizxfrog/VanPanelBackend/internal/files/service"
@@ -88,6 +89,7 @@ func ProvideCmd() (*Cmd, error) {
 	cmd := &Cmd{
 		Server:       engine,
 		AgentService: agentService,
+		ToolManager:  toolManager,
 	}
 	return cmd, nil
 }
@@ -97,6 +99,7 @@ func ProvideCmd() (*Cmd, error) {
 type Cmd struct {
 	Server       *gin.Engine
 	AgentService service4.AgentService
+	ToolManager  *manager.ToolManager
 }
 
 var HandlerSet = wire.NewSet(api.NewRoleHandler, api.NewApiHandler, api.NewAuditHandler, api.NewSystemHandler, api.NewUserHandler, api2.NewNotAuthHandler, api3.NewTerminalHandler, terminal.NewTerminalHandler, api4.NewFileHandler, api4.NewFileShareHandler, api4.NewShareAccessHandler, ProvideAgentHandler)

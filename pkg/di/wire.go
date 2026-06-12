@@ -7,6 +7,7 @@ import (
 	"github.com/google/wire"
 	_ "github.com/google/wire"
 	agentService "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
+	agentToolManager "github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
 	filesHandler "github.com/rizxfrog/VanPanelBackend/internal/files/api"
 	filesDao "github.com/rizxfrog/VanPanelBackend/internal/files/dao"
 	filesService "github.com/rizxfrog/VanPanelBackend/internal/files/service"
@@ -24,6 +25,7 @@ import (
 type Cmd struct {
 	Server       *gin.Engine
 	AgentService agentService.AgentService
+	ToolManager  *agentToolManager.ToolManager
 }
 
 var HandlerSet = wire.NewSet(
