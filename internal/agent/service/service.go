@@ -53,6 +53,7 @@ type AgentService interface {
 	ListSessions(ctx context.Context, req *model.ListAgentSessionsReq, userID int) (model.ListResp[*model.AgentSession], error)
 	GetSession(ctx context.Context, id int) (*model.AgentSession, error)
 	DeleteSession(ctx context.Context, id int) error
+	UpdateSession(ctx context.Context, session *model.AgentSession) error
 	ListMessages(ctx context.Context, req *model.ListAgentMessagesReq) (model.ListResp[*model.AgentMessage], error)
 	ListTools(ctx context.Context) ([]map[string]interface{}, error)
 }
@@ -65,8 +66,8 @@ type agentService struct {
 	auditStore    agentaudit.Store
 	cfg           *Config
 	logger        *zap.Logger
-	pipelineStage *pipeline.Stage             // optional pipeline enhancement
-	nudgeReviewer *nudge.MemoryNudgeReviewer  // optional memory nudge
+	pipelineStage *pipeline.Stage            // optional pipeline enhancement
+	nudgeReviewer *nudge.MemoryNudgeReviewer // optional memory nudge
 }
 
 // NewAgentService 创建智能体服务实例
@@ -822,6 +823,14 @@ func (s *agentService) GetSession(ctx context.Context, id int) (*model.AgentSess
 func (s *agentService) DeleteSession(ctx context.Context, id int) error {
 	if err := s.dao.DeleteSession(ctx, id); err != nil {
 		return fmt.Errorf("删除会话失败: %w", err)
+	}
+	return nil
+}
+
+// UpdateSession 更新会话
+func (s *agentService) UpdateSession(ctx context.Context, session *model.AgentSession) error {
+	if err := s.dao.UpdateSession(ctx, session); err != nil {
+		return fmt.Errorf("更新会话失败: %w", err)
 	}
 	return nil
 }
