@@ -68,6 +68,11 @@ file_manager:
   allowed_archive_types:
     - zip
     - tar.gz
+mcp:
+  serve: false
+  transport: "stdio"
+  port: 8890
+
 agent:
   llm:
     provider: "openai"

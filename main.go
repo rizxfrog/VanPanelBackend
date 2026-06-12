@@ -15,6 +15,7 @@ import (
 	"github.com/joho/godotenv"
 	"github.com/rizxfrog/VanPanelBackend/internal/gateway"
 	gatewayRpc "github.com/rizxfrog/VanPanelBackend/internal/gateway/rpc"
+	mcpserver "github.com/rizxfrog/VanPanelBackend/internal/agent/mcp/server"
 	"github.com/rizxfrog/VanPanelBackend/mock"
 	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 	"github.com/rizxfrog/VanPanelBackend/pkg/di"
@@ -58,6 +59,34 @@ func run() error {
 
 	// Register embedded OpenClaw Web UI + WebSocket gateway upgrade
 	registerWebUI(cmd.Server, gatewaySrv)
+
+	// MCP server mode: activated via config mcp.serve=true or --mcp-serve env
+	if viper.GetBool("mcp.serve") {
+		if cmd.ToolManager == nil {
+			log.Fatalf("MCP server requires ToolManager, but it was not provided by DI")
+		}
+
+		transport := viper.GetString("mcp.transport")
+		if transport == "" {
+			transport = "stdio"
+		}
+		port := viper.GetInt("mcp.port")
+		if port == 0 {
+			port = 8890
+		}
+
+		mcpLogger, _ := zap.NewDevelopment()
+		if err := mcpserver.Serve(
+			context.Background(),
+			mcpserver.ServeOptions{Transport: transport, Port: port},
+			cmd.ToolManager,
+			nil, // riskEval to be wired separately
+			mcpLogger,
+		); err != nil {
+			log.Fatalf("MCP server failed: %v", err)
+		}
+		return nil
+	}
 
 	cmd.Server.POST("/api/v1/debug/test", func(c *gin.Context) {
 		log.Printf("DEBUG test request method=%s path=%s", c.Request.Method, c.Request.URL.Path)
