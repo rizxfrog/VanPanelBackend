@@ -3,14 +3,14 @@ package adapter
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/rizxfrog/VanPanelBackend/internal/gateway"
 )
 
-// ChatStreamAdapter adapts Eino Agent SSE streaming to OpenClaw Gateway chat events.
+// ChatStreamAdapter adapts Eino Agent SSE streaming to OpenClaw Gateway chat/agent events.
 // It implements io.Writer to receive SSE-formatted events from AgentService.QueryStream().
 type ChatStreamAdapter struct {
 	conn       *gateway.GatewayConnection
@@ -18,7 +18,7 @@ type ChatStreamAdapter struct {
 	sessionKey string
 	agentID    string
 	seq        atomic.Int32
-	builder    strings.Builder // accumulates assistant text
+	builder    strings.Builder // accumulates assistant text for streaming display
 	ctx        context.Context
 }
 
@@ -92,7 +92,6 @@ func (a *ChatStreamAdapter) handleDelta(data string) {
 	}
 
 	a.builder.WriteString(delta)
-	full := a.builder.String()
 
 	seq := int(a.seq.Add(1))
 	replace := false
@@ -107,7 +106,7 @@ func (a *ChatStreamAdapter) handleDelta(data string) {
 		Message: gateway.ChatMessage{
 			Role: "assistant",
 			Content: []gateway.ContentBlock{
-				{Type: "text", Text: full},
+				{Type: "text", Text: a.builder.String()},
 			},
 		},
 	})
@@ -122,18 +121,25 @@ func (a *ChatStreamAdapter) handleToolCall(data string) {
 	toolName := m["name"]
 	args := m["arguments"]
 
+	// Parse args from JSON string to interface{} for structured output
+	var argsObj interface{}
+	if args != "" {
+		json.Unmarshal([]byte(args), &argsObj)
+	}
+
 	seq := int(a.seq.Add(1))
-	a.conn.SendEvent("chat", gateway.ChatEvent{
+	a.conn.SendEvent("agent", gateway.AgentToolPayload{
 		RunID:      a.runID,
+		Seq:        seq,
+		Stream:     "tool",
+		TS:         time.Now().UnixMilli(),
 		SessionKey: a.sessionKey,
 		AgentID:    a.agentID,
-		Seq:        seq,
-		State:      gateway.ChatStateDelta,
-		Message: gateway.ChatMessage{
-			Role: "assistant",
-			Content: []gateway.ContentBlock{
-				{Type: "tool_use", Text: fmt.Sprintf(`{"id":"%s","name":"%s","input":%s}`, toolID, toolName, args)},
-			},
+		Data: gateway.ToolStreamData{
+			ToolCallID: toolID,
+			Name:       toolName,
+			Phase:      "start",
+			Args:       argsObj,
 		},
 	})
 }
@@ -145,20 +151,36 @@ func (a *ChatStreamAdapter) handleToolResult(data string) {
 	}
 	toolID, _ := m["id"].(string)
 	toolName, _ := m["name"].(string)
-	result, _ := json.Marshal(m["result"])
+
+	// Extract result text - may be string or complex object
+	var resultText string
+	if s, ok := m["result"].(string); ok {
+		resultText = s
+	} else {
+		b, _ := json.Marshal(m["result"])
+		resultText = string(b)
+	}
+
+	// Check error status
+	isError := false
+	if status, ok := m["status"].(string); ok && status == "error" {
+		isError = true
+	}
 
 	seq := int(a.seq.Add(1))
-	a.conn.SendEvent("chat", gateway.ChatEvent{
+	a.conn.SendEvent("agent", gateway.AgentToolPayload{
 		RunID:      a.runID,
+		Seq:        seq,
+		Stream:     "tool",
+		TS:         time.Now().UnixMilli(),
 		SessionKey: a.sessionKey,
 		AgentID:    a.agentID,
-		Seq:        seq,
-		State:      gateway.ChatStateDelta,
-		Message: gateway.ChatMessage{
-			Role: "tool",
-			Content: []gateway.ContentBlock{
-				{Type: "tool_result", Text: fmt.Sprintf(`{"id":"%s","name":"%s","result":%s}`, toolID, toolName, string(result))},
-			},
+		Data: gateway.ToolStreamData{
+			ToolCallID: toolID,
+			Name:       toolName,
+			Phase:      "result",
+			Result:     resultText,
+			IsError:    isError,
 		},
 	})
 }

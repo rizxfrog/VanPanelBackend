@@ -52,6 +52,7 @@ type AgentService interface {
 	CreateSession(ctx context.Context, req *model.CreateAgentSessionReq, userID int) (*model.AgentSession, error)
 	ListSessions(ctx context.Context, req *model.ListAgentSessionsReq, userID int) (model.ListResp[*model.AgentSession], error)
 	GetSession(ctx context.Context, id int) (*model.AgentSession, error)
+	GetSessionByKey(ctx context.Context, key string) (*model.AgentSession, error)
 	DeleteSession(ctx context.Context, id int) error
 	UpdateSession(ctx context.Context, session *model.AgentSession) error
 	ListMessages(ctx context.Context, req *model.ListAgentMessagesReq) (model.ListResp[*model.AgentMessage], error)
@@ -502,6 +503,13 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 			func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 				s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 			},
+			func(toolCallID, toolName, args string) {
+				_ = s.writeSSEEvent(writer, "tool_call", map[string]interface{}{
+					"id":        toolCallID,
+					"name":      toolName,
+					"arguments": args,
+				})
+			},
 			func(toolCallID, toolName, result, status string) {
 				_ = s.writeSSEEvent(writer, "tool_result", map[string]interface{}{
 					"id":     toolCallID,
@@ -525,6 +533,7 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 		req.SessionID, personaPrompt,
 	)
 	if err != nil {
+		s.logger.Error("Agent Stream 执行失败", zap.Error(err))
 		return fmt.Errorf("Agent Stream 失败: %w", err)
 	}
 
@@ -646,6 +655,13 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 			func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 				s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 			},
+			func(toolCallID, toolName, args string) {
+				_ = s.writeSSEEvent(writer, "tool_call", map[string]interface{}{
+					"id":        toolCallID,
+					"name":      toolName,
+					"arguments": args,
+				})
+			},
 			func(toolCallID, toolName, result, status string) {
 				_ = s.writeSSEEvent(writer, "tool_result", map[string]interface{}{
 					"id":     toolCallID,
@@ -669,6 +685,7 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 		req.SessionID, enrichedPrompt,
 	)
 	if err != nil {
+		s.logger.Error("Agent Stream 执行失败", zap.Error(err))
 		return fmt.Errorf("Agent Stream 失败: %w", err)
 	}
 
@@ -783,11 +800,12 @@ func (s *agentService) CreateSession(ctx context.Context, req *model.CreateAgent
 	tools := s.toolMgr.GetAllTools(ctx)
 
 	session := &model.AgentSession{
-		UserID:    userID,
-		Title:     title,
-		ModelName: modelName,
-		ToolCount: len(tools),
-		Status:    model.AgentSessionStatusActive,
+		UserID:     userID,
+		SessionKey: req.SessionKey,
+		Title:      title,
+		ModelName:  modelName,
+		ToolCount:  len(tools),
+		Status:     model.AgentSessionStatusActive,
 	}
 
 	if err := s.dao.CreateSession(ctx, session); err != nil {
@@ -813,6 +831,14 @@ func (s *agentService) ListSessions(ctx context.Context, req *model.ListAgentSes
 // GetSession 获取会话详情
 func (s *agentService) GetSession(ctx context.Context, id int) (*model.AgentSession, error) {
 	session, err := s.dao.GetSession(ctx, id)
+	if err != nil {
+		return nil, fmt.Errorf("获取会话失败: %w", err)
+	}
+	return session, nil
+}
+
+func (s *agentService) GetSessionByKey(ctx context.Context, key string) (*model.AgentSession, error) {
+	session, err := s.dao.GetSessionByKey(ctx, key)
 	if err != nil {
 		return nil, fmt.Errorf("获取会话失败: %w", err)
 	}

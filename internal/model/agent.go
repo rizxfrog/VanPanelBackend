@@ -75,6 +75,7 @@ const (
 type AgentSession struct {
 	Model
 	UserID       int                `json:"user_id" gorm:"index;not null;comment:用户ID"`
+	SessionKey   string             `json:"session_key" gorm:"type:varchar(200);uniqueIndex;default:'';comment:网关会话Key"`
 	Title        string             `json:"title" gorm:"type:varchar(200);not null;default:'';comment:会话标题"`
 	ModelName    string             `json:"model" gorm:"column:model;type:varchar(100);not null;default:'';comment:使用的模型"`
 	ToolCount    int                `json:"tool_count" gorm:"not null;default:0;comment:可用工具数"`
@@ -88,12 +89,12 @@ func (AgentSession) TableName() string {
 
 // AgentMessage 智能体对话消息
 type AgentMessage struct {
-	ID         int64            `json:"id" gorm:"primaryKey;autoIncrement;type:bigint;comment:主键ID"`
-	SessionID  string           `json:"session_id" gorm:"type:varchar(36);not null;index;comment:会话UUID"`
-	Role       AgentMessageRole `json:"role" gorm:"type:varchar(20);not null;comment:角色 user/assistant/system/tool"`
-	Content    string           `json:"content" gorm:"type:text;not null;comment:消息内容"`
-	ToolCalls  JSONMap          `json:"tool_calls" gorm:"type:json;comment:工具调用信息"`
-	ToolCallID string           `json:"tool_call_id" gorm:"type:varchar(100);comment:工具调用ID"`
+	ID           int64            `json:"id" gorm:"primaryKey;autoIncrement;type:bigint;comment:主键ID"`
+	SessionID    string           `json:"session_id" gorm:"type:varchar(36);not null;index;comment:会话UUID"`
+	Role         AgentMessageRole `json:"role" gorm:"type:varchar(20);not null;comment:角色 user/assistant/system/tool"`
+	Content      string           `json:"content" gorm:"type:text;not null;comment:消息内容"`
+	ToolCalls    JSONMap          `json:"tool_calls" gorm:"type:json;comment:工具调用信息"`
+	ToolCallID   string           `json:"tool_call_id" gorm:"type:varchar(100);comment:工具调用ID"`
 	Metadata     JSONMap          `json:"metadata" gorm:"type:json;comment:元数据"`
 	SearchVector string           `json:"-" gorm:"->;-:migration;type:tsvector;comment:全文搜索向量(PostgreSQL GENERATED列)"`
 	CreatedAt    time.Time        `json:"created_at" gorm:"autoCreateTime;comment:创建时间"`
@@ -193,8 +194,9 @@ func (AgentAuditEvent) TableName() string {
 
 // CreateAgentSessionReq 创建会话请求
 type CreateAgentSessionReq struct {
-	Title string `json:"title" binding:"omitempty,max=200"`
-	Model string `json:"model" binding:"omitempty,max=100"`
+	Title      string `json:"title" binding:"omitempty,max=200"`
+	Model      string `json:"model" binding:"omitempty,max=100"`
+	SessionKey string `json:"session_key"` // 网关会话 Key (agent:main:<id>)
 }
 
 // ListAgentSessionsReq 会话列表请求

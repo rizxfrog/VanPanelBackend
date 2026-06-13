@@ -37,7 +37,11 @@ func runAgentStream(
 
 	sr, err := agent.Stream(ctx, messages)
 	if err != nil {
-		return "", fmt.Errorf("Agent Stream 失败: %w", err)
+		// 发送错误事件到前端，包含完整错误信息
+		_ = writeSSE(writer, "error", map[string]interface{}{
+			"error": fmt.Sprintf("Agent Stream 创建失败: %s", err.Error()),
+		})
+		return "", fmt.Errorf("创建 Agent 流失败: %w", err)
 	}
 
 	var finalContent string
@@ -48,6 +52,9 @@ func runAgentStream(
 			if err == io.EOF {
 				break
 			}
+			_ = writeSSE(writer, "error", map[string]interface{}{
+				"error": fmt.Sprintf("Agent Stream 读取错误: %s", err.Error()),
+			})
 			return finalContent, fmt.Errorf("流读取失败: %w", err)
 		}
 
@@ -61,15 +68,8 @@ func runAgentStream(
 			}
 		}
 
-		for _, tc := range msg.ToolCalls {
-			if err := writeSSE(writer, "tool_call", map[string]string{
-				"id":        tc.ID,
-				"name":      tc.Function.Name,
-				"arguments": tc.Function.Arguments,
-			}); err != nil {
-				zap.L().Warn("写入 tool_call SSE 事件失败", zap.Error(err))
-			}
-		}
+		// tool_call 事件已移至 safe_tool.preCallback 中发送，
+		// 确保即使工具执行失败，前端也能看到工具调用信息。
 	}
 
 	if err := writeSSE(writer, "done", map[string]interface{}{

@@ -16,12 +16,17 @@ type toolCallIDKey struct{}
 // resultCallbackType is the callback type, now includes toolCallID and status.
 type resultCallbackType func(toolCallID, toolName, result, status string)
 
+// preCallbackType is called BEFORE the tool executes, so the client knows
+// which tool is about to be invoked even if execution fails afterwards.
+type preCallbackType func(toolCallID, toolName, args string)
+
 // safeTool wraps an InvokableTool to intercept tool execution with risk evaluation and audit.
 type safeTool struct {
 	inner          tool.InvokableTool
 	riskEval       *risk.Evaluator
 	auditFn        func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string)
 	info           *schema.ToolInfo
+	preCallback    preCallbackType
 	resultCallback resultCallbackType
 }
 
@@ -45,6 +50,7 @@ func wrapToolWithCallback(
 	t tool.BaseTool,
 	riskEval *risk.Evaluator,
 	auditFn func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string),
+	preCallback preCallbackType,
 	resultCallback resultCallbackType,
 ) (tool.BaseTool, error) {
 	it, ok := t.(tool.InvokableTool)
@@ -55,7 +61,7 @@ func wrapToolWithCallback(
 	if err != nil {
 		return t, fmt.Errorf("tool Info failed: %w", err)
 	}
-	return &safeTool{inner: it, riskEval: riskEval, auditFn: auditFn, info: info, resultCallback: resultCallback}, nil
+	return &safeTool{inner: it, riskEval: riskEval, auditFn: auditFn, info: info, preCallback: preCallback, resultCallback: resultCallback}, nil
 }
 
 func (st *safeTool) Info(ctx context.Context) (*schema.ToolInfo, error) {
@@ -63,6 +69,14 @@ func (st *safeTool) Info(ctx context.Context) (*schema.ToolInfo, error) {
 }
 
 func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ...tool.Option) (string, error) {
+	// 从上下文中提取 Eino 框架注入的 tool call ID
+	toolCallID, _ := ctx.Value(toolCallIDKey{}).(string)
+
+	// 预执行回调：通知客户端即将调用哪个工具（即使后续执行失败，前端也能看到工具调用信息）
+	if st.preCallback != nil {
+		st.preCallback(toolCallID, st.info.Name, argsInJSON)
+	}
+
 	if st.riskEval != nil {
 		evalResult := st.riskEval.Evaluate(st.info.Name, argsInJSON)
 
@@ -80,7 +94,7 @@ func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ..
 					agentmodel.RiskLevel(evalResult.Level), false, argsInJSON, blockedMsg)
 			}
 			if st.resultCallback != nil {
-				st.resultCallback("", st.info.Name, blockedMsg, "error")
+				st.resultCallback(toolCallID, st.info.Name, blockedMsg, "error")
 			}
 			return blockedMsg, nil
 		}
@@ -88,10 +102,21 @@ func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ..
 
 	result, err := st.inner.InvokableRun(ctx, argsInJSON, opts...)
 	if err != nil {
-		if st.resultCallback != nil {
-			st.resultCallback("", st.info.Name, err.Error(), "error")
+		// 关键改动：工具执行失败时，将错误信息作为文本结果返回给 Eino 框架，
+		// 而不是返回 Go error。这样 LLM 能看到失败原因并自动重试修正后的命令，
+		// 符合 ReAct 模式的设计理念（MaxStep=10 限制了最大重试次数）。
+		errorMsg := fmt.Sprintf("❌ 执行失败: %s\n\n%s 调用参数: %s\n错误详情: %s",
+			st.info.Name, st.info.Name, argsInJSON, err.Error())
+
+		if st.auditFn != nil {
+			st.auditFn(ctx, "tool.execute", st.info.Name, "execution failed",
+				agentmodel.RiskSafe, true, argsInJSON, truncateString(errorMsg, 2000))
 		}
-		return "", err
+		if st.resultCallback != nil {
+			st.resultCallback(toolCallID, st.info.Name, errorMsg, "error")
+		}
+		// 返回 nil error 是关键：让 Eino 将此作为正常工具结果传递给 LLM
+		return errorMsg, nil
 	}
 
 	if st.auditFn != nil {
@@ -100,7 +125,7 @@ func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ..
 	}
 
 	if st.resultCallback != nil {
-		st.resultCallback("", st.info.Name, result, "success")
+		st.resultCallback(toolCallID, st.info.Name, result, "success")
 	}
 
 	return result, nil

@@ -29,6 +29,7 @@ type AgentDAO interface {
 	// 会话
 	CreateSession(ctx context.Context, session *model.AgentSession) error
 	GetSession(ctx context.Context, id int) (*model.AgentSession, error)
+	GetSessionByKey(ctx context.Context, key string) (*model.AgentSession, error)
 	ListSessions(ctx context.Context, req *model.ListAgentSessionsReq) ([]*model.AgentSession, int64, error)
 	UpdateSession(ctx context.Context, session *model.AgentSession) error
 	DeleteSession(ctx context.Context, id int) error
@@ -118,6 +119,21 @@ func (d *agentDAO) GetSession(ctx context.Context, id int) (*model.AgentSession,
 			return nil, gorm.ErrRecordNotFound
 		}
 		d.l.Error("GetSession: 查询会话失败", zap.Int("id", id), zap.Error(err))
+		return nil, fmt.Errorf("查询会话失败: %w", err)
+	}
+	return &session, nil
+}
+
+func (d *agentDAO) GetSessionByKey(ctx context.Context, key string) (*model.AgentSession, error) {
+	if key == "" {
+		return nil, errors.New("session key 不能为空")
+	}
+	var session model.AgentSession
+	if err := d.db.WithContext(ctx).Where("session_key = ?", key).First(&session).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, gorm.ErrRecordNotFound
+		}
+		d.l.Error("GetSessionByKey: 查询会话失败", zap.String("key", key), zap.Error(err))
 		return nil, fmt.Errorf("查询会话失败: %w", err)
 	}
 	return &session, nil
