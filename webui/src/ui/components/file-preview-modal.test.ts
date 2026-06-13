@@ -2,7 +2,7 @@
 
 import { html, nothing, render } from "lit";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import type { OpenClawFilePreviewModal } from "./file-preview-modal.ts";
+import type { AgentOpsFilePreviewModal } from "./file-preview-modal.ts";
 import "./file-preview-modal.ts";
 
 let container: HTMLDivElement;
@@ -23,17 +23,17 @@ const files = [
 async function renderPreview(query = "") {
   render(
     html`
-      <openclaw-file-preview-modal
+      <agentops-file-preview-modal
         .files=${files}
         .activePath=${"templates/digest.md"}
         .query=${query}
         .contextLabel=${"in morning-catchup"}
-      ></openclaw-file-preview-modal>
+      ></agentops-file-preview-modal>
     `,
     container,
   );
 
-  const modal = container.querySelector<OpenClawFilePreviewModal>("openclaw-file-preview-modal");
+  const modal = container.querySelector<AgentOpsFilePreviewModal>("agentops-file-preview-modal");
   expect(modal).toBeInstanceOf(HTMLElement);
   if (!modal) {
     throw new Error("expected file preview modal");
@@ -42,11 +42,11 @@ async function renderPreview(query = "") {
   return modal;
 }
 
-function shadowText(modal: OpenClawFilePreviewModal): string {
+function shadowText(modal: AgentOpsFilePreviewModal): string {
   return modal.shadowRoot?.textContent ?? "";
 }
 
-describe("openclaw-file-preview-modal", () => {
+describe("agentops-file-preview-modal", () => {
   beforeEach(() => {
     container = document.createElement("div");
     document.body.append(container);

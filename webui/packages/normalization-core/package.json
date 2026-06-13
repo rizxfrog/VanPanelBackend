@@ -1,5 +1,5 @@
 {
-  "name": "@openclaw/normalization-core",
+  "name": "@agentops/normalization-core",
   "version": "1.0.0",
   "private": true,
   "type": "module",

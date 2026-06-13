@@ -9,7 +9,7 @@ type ViteImportMeta = ImportMeta & {
   };
 };
 
-declare const OPENCLAW_CONTROL_UI_BUILD_ID: string | undefined;
+declare const AGENTOPS_CONTROL_UI_BUILD_ID: string | undefined;
 
 const isProd = (import.meta as ViteImportMeta).env?.PROD === true;
 
@@ -17,7 +17,7 @@ syncDocumentPublicAssetLinks();
 
 if (isProd && "serviceWorker" in navigator) {
   const swUrl = new URL(inferControlUiPublicAssetPath("sw.js"), window.location.origin);
-  swUrl.searchParams.set("v", OPENCLAW_CONTROL_UI_BUILD_ID || "dev");
+  swUrl.searchParams.set("v", AGENTOPS_CONTROL_UI_BUILD_ID || "dev");
   void navigator.serviceWorker.register(swUrl, { updateViaCache: "none" });
 } else if (!isProd && "serviceWorker" in navigator) {
   // Unregister any leftover dev SW to avoid stale cache issues.

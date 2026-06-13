@@ -1,5 +1,5 @@
 // Control UI module implements provider quota summary behavior.
-import { asDateTimestampMs } from "@openclaw/normalization-core/number-coercion";
+import { asDateTimestampMs } from "@agentops/normalization-core/number-coercion";
 import type { ModelAuthStatusProvider, ModelAuthStatusResult } from "./types.ts";
 
 export type QuotaWindowSummary = {

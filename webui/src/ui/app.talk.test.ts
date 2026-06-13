@@ -8,7 +8,7 @@ const { realtimeTalkCtor, startMock, stopMock } = vi.hoisted(() => ({
   stopMock: vi.fn(),
 }));
 
-describe("OpenClawApp Talk controls", () => {
+describe("AgentOpsApp Talk controls", () => {
   beforeEach(() => {
     vi.resetModules();
     vi.doMock("./chat/realtime-talk.ts", () => ({
@@ -27,8 +27,8 @@ describe("OpenClawApp Talk controls", () => {
   });
 
   it("retries Talk immediately when the previous session is already in error state", async () => {
-    const { OpenClawApp } = await import("./app.ts");
-    const app = Object.create(OpenClawApp.prototype) as {
+    const { AgentOpsApp } = await import("./app.ts");
+    const app = Object.create(AgentOpsApp.prototype) as {
       client: unknown;
       connected: boolean;
       lastError: string | null;
@@ -54,7 +54,7 @@ describe("OpenClawApp Talk controls", () => {
       sessionKey: { value: "main", writable: true },
     });
 
-    await OpenClawApp.prototype.toggleRealtimeTalk.call(app as never);
+    await AgentOpsApp.prototype.toggleRealtimeTalk.call(app as never);
 
     expect(staleStop).toHaveBeenCalledOnce();
     expect(realtimeTalkCtor).toHaveBeenCalledOnce();
@@ -67,8 +67,8 @@ describe("OpenClawApp Talk controls", () => {
   });
 
   it("accumulates Talk transcripts as ordered conversation turns", async () => {
-    const { OpenClawApp } = await import("./app.ts");
-    const app = Object.create(OpenClawApp.prototype) as {
+    const { AgentOpsApp } = await import("./app.ts");
+    const app = Object.create(AgentOpsApp.prototype) as {
       client: unknown;
       connected: boolean;
       lastError: string | null;
@@ -93,7 +93,7 @@ describe("OpenClawApp Talk controls", () => {
       sessionKey: { value: "main", writable: true },
     });
 
-    await OpenClawApp.prototype.toggleRealtimeTalk.call(app as never);
+    await AgentOpsApp.prototype.toggleRealtimeTalk.call(app as never);
     const callbacks = realtimeTalkCtor.mock.calls[0]?.[2] as
       | {
           onTranscript?: (entry: {
@@ -118,8 +118,8 @@ describe("OpenClawApp Talk controls", () => {
 
   it("routes Talk startup failures through the chat error surface", async () => {
     startMock.mockRejectedValueOnce(new Error("voice provider missing"));
-    const { OpenClawApp } = await import("./app.ts");
-    const app = Object.create(OpenClawApp.prototype) as {
+    const { AgentOpsApp } = await import("./app.ts");
+    const app = Object.create(AgentOpsApp.prototype) as {
       chatError: string | null;
       client: unknown;
       connected: boolean;
@@ -146,7 +146,7 @@ describe("OpenClawApp Talk controls", () => {
       sessionKey: { value: "main", writable: true },
     });
 
-    await OpenClawApp.prototype.toggleRealtimeTalk.call(app as never);
+    await AgentOpsApp.prototype.toggleRealtimeTalk.call(app as never);
 
     expect(app.lastError).toBe("voice provider missing");
     expect(app.chatError).toBe("voice provider missing");
@@ -155,7 +155,7 @@ describe("OpenClawApp Talk controls", () => {
 
   it("keeps the Talk options toggle inside the open-panel click guard", async () => {
     await import("./app.ts");
-    const app = document.createElement("openclaw-app");
+    const app = document.createElement("agentops-app");
     const guardHost = app as unknown as {
       chatMobileControlsPointerdownHandler: (event: Event) => void;
       realtimeTalkOptionsOpen: boolean;

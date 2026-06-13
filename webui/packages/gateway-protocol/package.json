@@ -1,5 +1,5 @@
 {
-  "name": "@openclaw/gateway-protocol",
+  "name": "@agentops/gateway-protocol",
   "version": "1.0.0",
   "private": true,
   "type": "module"

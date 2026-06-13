@@ -34,8 +34,8 @@ async function createApp(
   request: RequestFn,
   queue: ExecApprovalRequest[] = [createExecApproval()],
 ) {
-  const { OpenClawApp } = await import("./app.ts");
-  const app = Object.create(OpenClawApp.prototype) as InstanceType<typeof OpenClawApp>;
+  const { AgentOpsApp } = await import("./app.ts");
+  const app = Object.create(AgentOpsApp.prototype) as InstanceType<typeof AgentOpsApp>;
   Object.defineProperties(app, {
     client: { value: { request }, writable: true },
     execApprovalBusy: { value: false, writable: true },
@@ -45,7 +45,7 @@ async function createApp(
   return app;
 }
 
-describe("OpenClawApp exec approval decisions", () => {
+describe("AgentOpsApp exec approval decisions", () => {
   beforeEach(() => {
     vi.stubGlobal("localStorage", createStorageMock());
   });

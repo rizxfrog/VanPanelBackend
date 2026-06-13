@@ -1,1 +1,1 @@
-export const OpenClawSchema = {} as const;
+export const AgentOpsSchema = {} as const;

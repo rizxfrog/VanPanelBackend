@@ -85,7 +85,7 @@ function logPerformanceEvent(event: string, payload: Record<string, unknown>, wa
   if (typeof logger !== "function") {
     return;
   }
-  logger(`[openclaw] ${event}`, payload);
+  logger(`[agentops] ${event}`, payload);
 }
 
 export function recordControlUiPerformanceEvent(

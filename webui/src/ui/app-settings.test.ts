@@ -346,13 +346,13 @@ describe("applySettingsFromUrl", () => {
   it("hydrates query token params and strips them from the URL", () => {
     setTestWindowUrl("https://control.example/ui/overview?token=abc123&password=sekret");
     const host = createHost("overview");
-    host.settings.gatewayUrl = "wss://control.example/openclaw";
+    host.settings.gatewayUrl = "wss://control.example/agentops";
 
     applySettingsFromUrl(host);
 
     expect(host.settings.token).toBe("abc123");
     expect(window.location.search).toBe("");
-    expect(JSON.parse(localStorage.getItem("openclaw.control.settings.v1") ?? "{}").token).toBe(
+    expect(JSON.parse(localStorage.getItem("agentops.control.settings.v1") ?? "{}").token).toBe(
       undefined,
     );
   });
@@ -360,7 +360,7 @@ describe("applySettingsFromUrl", () => {
   it("prefers fragment tokens over legacy query tokens when both are present", () => {
     setTestWindowUrl("https://control.example/ui/overview?token=query-token#token=hash-token");
     const host = createHost("overview");
-    host.settings.gatewayUrl = "wss://control.example/openclaw";
+    host.settings.gatewayUrl = "wss://control.example/agentops";
 
     applySettingsFromUrl(host);
 
@@ -373,13 +373,13 @@ describe("applySettingsFromUrl", () => {
     setTestWindowUrl("https://control.example/ui/chat");
     (
       window as unknown as {
-        __OPENCLAW_NATIVE_CONTROL_AUTH__?: {
+        __AGENTOPS_NATIVE_CONTROL_AUTH__?: {
           gatewayUrl?: string;
           token?: string;
           password?: string;
         };
       }
-    )["__OPENCLAW_NATIVE_CONTROL_AUTH__"] = {
+    )["__AGENTOPS_NATIVE_CONTROL_AUTH__"] = {
       gatewayUrl: "wss://control.example/ui/",
       token: "device-token",
       password: "shared-password",
@@ -394,9 +394,9 @@ describe("applySettingsFromUrl", () => {
     expect(
       (
         window as unknown as {
-          __OPENCLAW_NATIVE_CONTROL_AUTH__?: unknown;
+          __AGENTOPS_NATIVE_CONTROL_AUTH__?: unknown;
         }
-      )["__OPENCLAW_NATIVE_CONTROL_AUTH__"],
+      )["__AGENTOPS_NATIVE_CONTROL_AUTH__"],
     ).toBeUndefined();
   });
 

@@ -62,7 +62,7 @@ export function renderDebug(props: DebugProps) {
                     ? ` · ${t("debug.security.info", { count: String(info) })}`
                     : ""}.
                   ${t("debug.security.runPrefix")}
-                  <span class="mono">openclaw security audit --deep</span>
+                  <span class="mono">agentops security audit --deep</span>
                   ${t("debug.security.runSuffix")}
                 </div>`
               : nothing}

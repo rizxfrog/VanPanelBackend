@@ -69,9 +69,9 @@ describe("renderDebug", () => {
     const callout = container.querySelector(".callout");
     expect(callout?.className).toBe("callout warn");
     expect(normalizedText(callout)).toBe(
-      "安全审计: 1 个警告 · 2 条信息. 运行 openclaw security audit --deep 查看详情。",
+      "安全审计: 1 个警告 · 2 条信息. 运行 agentops security audit --deep 查看详情。",
     );
-    expect(command.textContent).toBe("openclaw security audit --deep");
+    expect(command.textContent).toBe("agentops security audit --deep");
   });
 
   it("does not render Invalid Date for Date-invalid event timestamps", () => {

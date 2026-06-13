@@ -88,7 +88,7 @@ const MARKDOWN_CACHE_MAX_CHARS = 50_000;
 const INLINE_DATA_IMAGE_RE = /^data:image\/[a-z0-9.+-]+;base64,/i;
 const HOST_LOCAL_FILE_HREF_RE =
   /^(?:~\/|\/(?:Users|home|tmp|private\/tmp|var\/folders|private\/var\/folders)\/|\/[A-Za-z]:\/|[A-Za-z]:[\\/])/;
-const DOCS_ORIGIN = "https://docs.openclaw.ai";
+const DOCS_ORIGIN = "https://docs.agentops.ai";
 const DOCS_ROOT_SEGMENTS = new Set([
   "agent-runtime-architecture",
   "announcements",
@@ -111,7 +111,7 @@ const DOCS_ROOT_SEGMENTS = new Set([
   "maturity-scorecard",
   "network",
   "nodes",
-  "openclaw-agent-runtime",
+  "agentops-agent-runtime",
   "perplexity",
   "plan",
   "platforms",
@@ -289,8 +289,8 @@ const DOCS_SHORTLINK_PATHS = new Set([
   "/zai",
 ]);
 const APP_RESOURCE_ROOT_SEGMENTS = new Set([
-  "__openclaw",
-  "__openclaw__",
+  "__agentops",
+  "__agentops__",
   "_next",
   "api",
   "apple-touch-icon.png",
@@ -391,7 +391,7 @@ function currentControlUiBasePath(): string {
   if (typeof window === "undefined") {
     return "";
   }
-  const configured = (window as WindowWithControlUiBasePath)["__OPENCLAW_CONTROL_UI_BASE_PATH__"];
+  const configured = (window as WindowWithControlUiBasePath)["__AGENTOPS_CONTROL_UI_BASE_PATH__"];
   if (typeof configured === "string") {
     return normalizeBasePath(configured);
   }
@@ -419,7 +419,7 @@ function segmentsStartWith(segments: string[], prefix: string[]): boolean {
 }
 
 function isControlUiResourcePath(segments: string[]): boolean {
-  if (segments.includes("__openclaw__") || segments.includes("__openclaw")) {
+  if (segments.includes("__agentops__") || segments.includes("__agentops")) {
     return true;
   }
   const segment = segments[0];
@@ -847,7 +847,7 @@ md.core.ruler.after("linkify", "linkify-cjk-trim", (state) => {
         continue;
       }
       // Only trim linkify-generated autolinks, not explicit markdown links
-      // like [OpenClaw中文](https://docs.openclaw.ai) where CJK in display
+      // like [AgentOps中文](https://docs.agentops.ai) where CJK in display
       // text is intentional and href must not be rewritten.
       if (token.markup !== "linkify") {
         continue;

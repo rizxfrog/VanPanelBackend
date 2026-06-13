@@ -57,7 +57,7 @@ describe("RealtimeTalkSession consult handoff", () => {
       | undefined;
     expect(toolCall?.[0]).toBe("talk.client.toolCall");
     expect(toolCall?.[1]?.sessionKey).toBe("agent:main:main");
-    expect(toolCall?.[1]?.name).toBe("openclaw_agent_consult");
+    expect(toolCall?.[1]?.name).toBe("agentops_agent_consult");
     expect(toolCall?.[1]?.args).toEqual({ question: "Are the basement lights off?" });
     expect(submit).toHaveBeenCalledWith("call-1", { result: "Basement lights are off." });
   });
@@ -82,7 +82,7 @@ describe("RealtimeTalkSession consult handoff", () => {
               state: "final",
               message: {
                 role: "assistant",
-                provider: "openclaw",
+                provider: "agentops",
                 model: "delivery-mirror",
                 text: "The requested status is green.",
               },
@@ -143,7 +143,7 @@ describe("RealtimeTalkSession consult handoff", () => {
                   state: "final",
                   message: {
                     role: "assistant",
-                    provider: "openclaw",
+                    provider: "agentops",
                     model: "delivery-mirror",
                     text: "The slow source reply wins.",
                   },
@@ -215,7 +215,7 @@ describe("RealtimeTalkSession consult handoff", () => {
                 state: "final",
                 message: {
                   role: "assistant",
-                  provider: "openclaw",
+                  provider: "agentops",
                   model: "delivery-mirror",
                   text: "The source reply still wins.",
                 },
@@ -284,7 +284,7 @@ describe("RealtimeTalkSession consult handoff", () => {
                   state: "final",
                   message: {
                     role: "assistant",
-                    provider: "openclaw",
+                    provider: "agentops",
                     model: "delivery-mirror",
                     text: "The source reply beats the fallback.",
                   },
@@ -375,7 +375,7 @@ describe("RealtimeTalkSession consult handoff", () => {
       timeoutMs: 120_000,
     });
     expect(submit).toHaveBeenCalledWith("call-1", {
-      result: "OpenClaw finished with no text.",
+      result: "AgentOps finished with no text.",
     });
   });
 
@@ -555,7 +555,7 @@ describe("RealtimeTalkSession consult handoff", () => {
 
     expect(submit).toHaveBeenCalledWith("call-1", {
       status: "cancelled",
-      message: "Cancelled the active OpenClaw run.",
+      message: "Cancelled the active AgentOps run.",
     });
   });
 
@@ -590,7 +590,7 @@ describe("RealtimeTalkSession consult handoff", () => {
     expect(emitTalkEvent).toHaveBeenCalledWith({
       type: "tool.progress",
       payload: {
-        name: "openclaw_agent_control",
+        name: "agentops_agent_control",
         result: expect.objectContaining({ mode: "steer" }),
       },
       final: false,
@@ -603,7 +603,7 @@ describe("RealtimeTalkSession consult handoff", () => {
       mode: "status",
       sessionKey: "agent:main:main",
       active: true,
-      message: "OpenClaw is working in read (running).",
+      message: "AgentOps is working in read (running).",
       speak: true,
       show: true,
       suppress: false,
@@ -621,7 +621,7 @@ describe("RealtimeTalkSession consult handoff", () => {
     });
 
     expect(speakControlResult).toHaveBeenCalledWith(
-      expect.stringContaining('Status: "OpenClaw is working in read (running)."'),
+      expect.stringContaining('Status: "AgentOps is working in read (running)."'),
     );
   });
 
@@ -632,7 +632,7 @@ describe("RealtimeTalkSession consult handoff", () => {
       sessionKey: "agent:main:main",
       active: true,
       aborted: true,
-      message: "Cancelled the active OpenClaw run.",
+      message: "Cancelled the active AgentOps run.",
       speak: true,
       show: true,
       suppress: false,

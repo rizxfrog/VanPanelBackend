@@ -441,7 +441,7 @@ export const it: TranslationMap = {
     skillWorkshop: "Esamina, perfeziona e applica le proposte prima che diventino skill attive.",
     nodes: "Dispositivi associati e comandi.",
     chat: "Chat Gateway per interventi rapidi.",
-    config: "Modifica openclaw.json.",
+    config: "Modifica agentops.json.",
     communications: "Canali, messaggi e impostazioni audio.",
     appearance: "Tema, UI e impostazioni della procedura guidata di configurazione.",
     automation: "Comandi, hook, cron e plugin.",
@@ -729,7 +729,7 @@ export const it: TranslationMap = {
       metadataUpgradeSummary:
         "Questo dispositivo è già abbinato, ma la modifica dei metadati è in attesa di approvazione.",
       mobileHint:
-        "Su mobile? Copia l'URL completo (incluso #token=...) da openclaw dashboard --no-open sul desktop.",
+        "Su mobile? Copia l'URL completo (incluso #token=...) da agentops dashboard --no-open sul desktop.",
       docsTitle: "Documentazione sull'abbinamento dei dispositivi (si apre in una nuova scheda)",
       docsLink: "Docs: abbinamento dispositivi",
     },
@@ -767,7 +767,7 @@ export const it: TranslationMap = {
       modelAuthExpiresIn: "scade {when}",
       modelAuthAttentionExpiredTitle: "Autenticazione modello scaduta",
       modelAuthAttentionExpiringTitle: "Autenticazione modello in scadenza a breve",
-      modelAuthAttentionExpiredDesc: "{providers} — riautenticati con openclaw models auth",
+      modelAuthAttentionExpiredDesc: "{providers} — riautenticati con agentops models auth",
       modelAuthAttentionExpiringEntry: "{provider} ({when})",
     },
     attention: {
@@ -1195,9 +1195,9 @@ export const it: TranslationMap = {
         summary:
           "Il Gateway è raggiungibile, ma richiede un token o una password corrispondente prima che questo browser possa connettersi.",
         stepPaste:
-          "Incolla il token da openclaw dashboard --no-open oppure inserisci la password configurata.",
+          "Incolla il token da agentops dashboard --no-open oppure inserisci la password configurata.",
         stepGenerate:
-          "Se non è configurato alcun token, esegui openclaw doctor --generate-gateway-token sull’host Gateway.",
+          "Se non è configurato alcun token, esegui agentops doctor --generate-gateway-token sull’host Gateway.",
         stepConnect: "Fai clic di nuovo su Connect dopo aver aggiornato la credenziale.",
       },
       authFailed: {
@@ -1205,7 +1205,7 @@ export const it: TranslationMap = {
         summary:
           "La credenziale fornita è stata rifiutata. La causa più comune è un token obsoleto o copiato da un altro URL Gateway.",
         stepDashboard:
-          "Esegui openclaw dashboard --no-open e apri il nuovo URL oppure incolla il suo token.",
+          "Esegui agentops dashboard --no-open e apri il nuovo URL oppure incolla il suo token.",
         stepReplace:
           "Sostituisci i valori token/password obsoleti; non riutilizzare un token da un altro URL Gateway.",
         stepMode:
@@ -1230,8 +1230,8 @@ export const it: TranslationMap = {
           "Questo browser richiede un’approvazione una tantum dall’host Gateway prima di poter usare Control UI.",
         upgradeSummary:
           "Questo browser è già noto, ma l’accesso richiesto è cambiato e richiede una nuova approvazione.",
-        stepList: "Esegui openclaw devices list sull’host Gateway.",
-        stepApproveId: "Approva questa richiesta: openclaw devices approve {requestId}.",
+        stepList: "Esegui agentops devices list sull’host Gateway.",
+        stepApproveId: "Approva questa richiesta: agentops devices approve {requestId}.",
         stepApprove: "Approva la richiesta browser/dispositivo in sospeso da quell’elenco.",
         stepReconnect: "Riconnettiti al termine dell’approvazione.",
       },
@@ -1259,22 +1259,22 @@ export const it: TranslationMap = {
         summary:
           "La Control UI servita e il Gateway in esecuzione non concordano sul protocollo di connessione supportato.",
         stepDashboard:
-          "Riapri il dashboard servito con openclaw dashboard in modo che UI e Gateway provengano dalla stessa installazione.",
+          "Riapri il dashboard servito con agentops dashboard in modo che UI e Gateway provengano dalla stessa installazione.",
         stepDevUi:
           "Se usi pnpm ui:dev, ricompila o riavvia la UI di sviluppo contro il checkout corrente.",
         stepRestart:
-          "Riavvia il Gateway dopo aver aggiornato OpenClaw affinché serva il protocollo corrente.",
+          "Riavvia il Gateway dopo aver aggiornato AgentOps affinché serva il protocollo corrente.",
       },
       network: {
         title: "Impossibile connettersi",
         summary:
           "Il browser non è riuscito a completare la connessione al Gateway. Controlla destinazione e trasporto prima di riprovare le credenziali.",
         stepGateway:
-          "Conferma che il Gateway sia in esecuzione con openclaw status o openclaw gateway run.",
+          "Conferma che il Gateway sia in esecuzione con agentops status o agentops gateway run.",
         stepUrl:
           "Controlla l’URL WebSocket e usa wss:// quando il Gateway è dietro HTTPS/Tailscale Serve.",
         stepDashboard:
-          "Riapri il dashboard con openclaw dashboard --no-open per ricopiare l’URL corrente e i dettagli auth.",
+          "Riapri il dashboard con agentops dashboard --no-open per ricopiare l’URL corrente e i dettagli auth.",
       },
     },
   },

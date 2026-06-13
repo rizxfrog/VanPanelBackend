@@ -10,13 +10,13 @@ const outDir = path.resolve(here, "dist");
 export default {
   base: "/",
   define: {
-    OPENCLAW_CONTROL_UI_BUILD_ID: JSON.stringify("vanpanel"),
+    AGENTOPS_CONTROL_UI_BUILD_ID: JSON.stringify("vanpanel"),
   },
   publicDir: path.resolve(here, "public"),
   resolve: {
     alias: {
       zod: path.resolve(here, "stubs/zod.ts"),
-      "@openclaw/net-policy/redact-sensitive-url": path.resolve(here, "stubs/net-policy/redact-sensitive-url.ts"),
+      "@agentops/net-policy/redact-sensitive-url": path.resolve(here, "stubs/net-policy/redact-sensitive-url.ts"),
     },
   },
   optimizeDeps: {

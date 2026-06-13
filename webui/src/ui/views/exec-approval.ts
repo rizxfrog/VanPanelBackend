@@ -183,7 +183,7 @@ export function renderExecApprovalPrompt(state: AppViewState) {
     }
   };
   return html`
-    <openclaw-modal-dialog label=${title} description=${remaining} @modal-cancel=${handleCancel}>
+    <agentops-modal-dialog label=${title} description=${remaining} @modal-cancel=${handleCancel}>
       <div class="exec-approval-card">
         <div class="exec-approval-header">
           <div>
@@ -215,6 +215,6 @@ export function renderExecApprovalPrompt(state: AppViewState) {
           )}
         </div>
       </div>
-    </openclaw-modal-dialog>
+    </agentops-modal-dialog>
   `;
 }
