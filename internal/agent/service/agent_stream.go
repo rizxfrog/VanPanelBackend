@@ -37,12 +37,15 @@ func runAgentStream(
 
 	sr, err := agent.Stream(ctx, messages)
 	if err != nil {
+		zap.L().Error("[AgentStream] agent.Stream() 创建失败", zap.Error(err))
 		// 发送错误事件到前端，包含完整错误信息
 		_ = writeSSE(writer, "error", map[string]interface{}{
 			"error": fmt.Sprintf("Agent Stream 创建失败: %s", err.Error()),
 		})
 		return "", fmt.Errorf("创建 Agent 流失败: %w", err)
 	}
+
+	zap.L().Info("[AgentStream] 流式 Agent 已启动", zap.String("sessionID", sessionID))
 
 	var finalContent string
 
@@ -52,6 +55,7 @@ func runAgentStream(
 			if err == io.EOF {
 				break
 			}
+			zap.L().Error("[AgentStream] 流读取失败", zap.Error(err))
 			_ = writeSSE(writer, "error", map[string]interface{}{
 				"error": fmt.Sprintf("Agent Stream 读取错误: %s", err.Error()),
 			})

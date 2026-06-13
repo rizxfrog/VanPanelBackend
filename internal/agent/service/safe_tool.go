@@ -5,13 +5,12 @@ import (
 	"fmt"
 
 	"github.com/cloudwego/eino/components/tool"
+	"github.com/cloudwego/eino/compose"
 	"github.com/cloudwego/eino/schema"
 	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
+	"go.uber.org/zap"
 )
-
-// toolCallIDKey is the context key for storing pending tool call IDs.
-type toolCallIDKey struct{}
 
 // resultCallbackType is the callback type, now includes toolCallID and status.
 type resultCallbackType func(toolCallID, toolName, result, status string)
@@ -69,8 +68,14 @@ func (st *safeTool) Info(ctx context.Context) (*schema.ToolInfo, error) {
 }
 
 func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ...tool.Option) (string, error) {
-	// 从上下文中提取 Eino 框架注入的 tool call ID
-	toolCallID, _ := ctx.Value(toolCallIDKey{}).(string)
+	// 从 Eino 框架上下文中提取 tool call ID（LLM 生成的唯一标识）
+	toolCallID := compose.GetToolCallID(ctx)
+
+	zap.L().Info("[ToolCall] 开始执行工具",
+		zap.String("tool", st.info.Name),
+		zap.String("callID", toolCallID),
+		zap.String("args", argsInJSON),
+	)
 
 	// 预执行回调：通知客户端即将调用哪个工具（即使后续执行失败，前端也能看到工具调用信息）
 	if st.preCallback != nil {
@@ -102,6 +107,13 @@ func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ..
 
 	result, err := st.inner.InvokableRun(ctx, argsInJSON, opts...)
 	if err != nil {
+		zap.L().Warn("[ToolCall] 工具执行失败（将返回文本结果供 LLM 重试）",
+			zap.String("tool", st.info.Name),
+			zap.String("callID", toolCallID),
+			zap.String("args", argsInJSON),
+			zap.Error(err),
+		)
+
 		// 关键改动：工具执行失败时，将错误信息作为文本结果返回给 Eino 框架，
 		// 而不是返回 Go error。这样 LLM 能看到失败原因并自动重试修正后的命令，
 		// 符合 ReAct 模式的设计理念（MaxStep=10 限制了最大重试次数）。
@@ -127,6 +139,13 @@ func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ..
 	if st.resultCallback != nil {
 		st.resultCallback(toolCallID, st.info.Name, result, "success")
 	}
+
+	zap.L().Info("[ToolCall] 工具执行成功",
+		zap.String("tool", st.info.Name),
+		zap.String("callID", toolCallID),
+		zap.String("args", argsInJSON),
+		zap.String("result", truncateString(result, 200)),
+	)
 
 	return result, nil
 }

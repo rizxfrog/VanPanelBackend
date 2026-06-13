@@ -3,6 +3,7 @@ package adapter
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"strings"
 	"sync/atomic"
 	"time"
@@ -20,6 +21,7 @@ type ChatStreamAdapter struct {
 	seq        atomic.Int32
 	builder    strings.Builder // accumulates assistant text for streaming display
 	ctx        context.Context
+	toolBlocks []gateway.ContentBlock // tool_use + tool_result blocks in current turn
 }
 
 // NewChatStreamAdapter creates a new streaming adapter for the given connection.
@@ -93,6 +95,12 @@ func (a *ChatStreamAdapter) handleDelta(data string) {
 
 	a.builder.WriteString(delta)
 
+	// Build message content: text + any pending tool blocks
+	contentBlocks := []gateway.ContentBlock{
+		{Type: "text", Text: a.builder.String()},
+	}
+	contentBlocks = append(contentBlocks, a.toolBlocks...)
+
 	seq := int(a.seq.Add(1))
 	replace := false
 	a.conn.SendEvent("chat", gateway.ChatEvent{
@@ -104,10 +112,8 @@ func (a *ChatStreamAdapter) handleDelta(data string) {
 		DeltaText:  delta,
 		Replace:    &replace,
 		Message: gateway.ChatMessage{
-			Role: "assistant",
-			Content: []gateway.ContentBlock{
-				{Type: "text", Text: a.builder.String()},
-			},
+			Role:    "assistant",
+			Content: contentBlocks,
 		},
 	})
 }
@@ -127,6 +133,16 @@ func (a *ChatStreamAdapter) handleToolCall(data string) {
 		json.Unmarshal([]byte(args), &argsObj)
 	}
 
+	// Add tool_use block to the tool blocks list (for done/final message)
+	toolBlock := gateway.ContentBlock{
+		Type:  "tool_use",
+		ID:    toolID,
+		Name:  toolName,
+		Input: json.RawMessage(args),
+	}
+	a.toolBlocks = append(a.toolBlocks, toolBlock)
+
+	// Send agent event for dedicated tool stream handler
 	seq := int(a.seq.Add(1))
 	a.conn.SendEvent("agent", gateway.AgentToolPayload{
 		RunID:      a.runID,
@@ -140,6 +156,28 @@ func (a *ChatStreamAdapter) handleToolCall(data string) {
 			Name:       toolName,
 			Phase:      "start",
 			Args:       argsObj,
+		},
+	})
+
+	// Also send a chat delta so tool call text appears inline in the chat stream
+	deltaText := fmt.Sprintf("\n> 调用工具: **%s**\n> 参数: %s\n\n", toolName, args)
+	a.builder.WriteString(deltaText)
+	seq2 := int(a.seq.Add(1))
+	replace := false
+	a.conn.SendEvent("chat", gateway.ChatEvent{
+		RunID:      a.runID,
+		SessionKey: a.sessionKey,
+		AgentID:    a.agentID,
+		Seq:        seq2,
+		State:      gateway.ChatStateDelta,
+		DeltaText:  deltaText,
+		Replace:    &replace,
+		Message: gateway.ChatMessage{
+			Role: "assistant",
+			Content: []gateway.ContentBlock{
+				{Type: "text", Text: a.builder.String()},
+				toolBlock,
+			},
 		},
 	})
 }
@@ -167,6 +205,15 @@ func (a *ChatStreamAdapter) handleToolResult(data string) {
 		isError = true
 	}
 
+	// Add tool_result block to the tool blocks list
+	toolResultBlock := gateway.ContentBlock{
+		Type: "tool_result",
+		ID:   toolID,
+		Name: toolName,
+		Text: resultText,
+	}
+	a.toolBlocks = append(a.toolBlocks, toolResultBlock)
+
 	seq := int(a.seq.Add(1))
 	a.conn.SendEvent("agent", gateway.AgentToolPayload{
 		RunID:      a.runID,
@@ -183,10 +230,48 @@ func (a *ChatStreamAdapter) handleToolResult(data string) {
 			IsError:    isError,
 		},
 	})
+
+	// Also send inline chat delta for tool result
+	// Truncate long results for display
+	displayResult := resultText
+	if len(displayResult) > 500 {
+		displayResult = displayResult[:500] + "\n... (结果已截断)"
+	}
+	statusIcon := "[✓]"
+	if isError {
+		statusIcon = "[✗]"
+	}
+	deltaText := fmt.Sprintf("> %s 结果 (%s):\n```\n%s\n```\n\n", statusIcon, toolName, displayResult)
+	a.builder.WriteString(deltaText)
+	seq2 := int(a.seq.Add(1))
+	replace := false
+	a.conn.SendEvent("chat", gateway.ChatEvent{
+		RunID:      a.runID,
+		SessionKey: a.sessionKey,
+		AgentID:    a.agentID,
+		Seq:        seq2,
+		State:      gateway.ChatStateDelta,
+		DeltaText:  deltaText,
+		Replace:    &replace,
+		Message: gateway.ChatMessage{
+			Role: "assistant",
+			Content: []gateway.ContentBlock{
+				{Type: "text", Text: a.builder.String()},
+				toolResultBlock,
+			},
+		},
+	})
 }
 
 func (a *ChatStreamAdapter) handleDone(data string) {
 	full := a.builder.String()
+
+	// Build final message content: text + all tool blocks
+	contentBlocks := []gateway.ContentBlock{
+		{Type: "text", Text: full},
+	}
+	contentBlocks = append(contentBlocks, a.toolBlocks...)
+
 	seq := int(a.seq.Add(1))
 	a.conn.SendEvent("chat", gateway.ChatEvent{
 		RunID:      a.runID,
@@ -195,12 +280,13 @@ func (a *ChatStreamAdapter) handleDone(data string) {
 		Seq:        seq,
 		State:      gateway.ChatStateFinal,
 		Message: gateway.ChatMessage{
-			Role: "assistant",
-			Content: []gateway.ContentBlock{
-				{Type: "text", Text: full},
-			},
+			Role:    "assistant",
+			Content: contentBlocks,
 		},
 	})
+
+	// Reset per-turn state
+	a.toolBlocks = nil
 }
 
 func (a *ChatStreamAdapter) handleError(data string) {

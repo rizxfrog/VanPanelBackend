@@ -724,10 +724,26 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 func (s *agentService) writeSSEEvent(writer io.Writer, event string, data interface{}) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
+		s.logger.Warn("[SSE] JSON 序列化失败", zap.String("event", event), zap.Error(err))
 		return err
 	}
+	s.logger.Info("[SSE] 推送事件到前端",
+		zap.String("event", event),
+		zap.String("data", truncateStringForLog(string(jsonData), 500)),
+	)
 	_, err = fmt.Fprintf(writer, "event: %s\ndata: %s\n\n", event, string(jsonData))
+	if err != nil {
+		s.logger.Warn("[SSE] 写入失败", zap.String("event", event), zap.Error(err))
+	}
 	return err
+}
+
+// truncateStringForLog 截断字符串用于日志输出，避免日志过大
+func truncateStringForLog(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "...(truncated)"
 }
 
 // loadHistory 从数据库加载最近的历史消息并转换为 Eino 格式
