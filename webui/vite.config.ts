@@ -1,6 +1,8 @@
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import type { UserConfig } from "vite";
+import swc from "unplugin-swc";
+import type { PluginOption, UserConfig } from "vite";
+import { stubMissingMonorepoImports } from "./stub-missing-imports.js";
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.resolve(here, "dist");
@@ -11,6 +13,12 @@ export default {
     OPENCLAW_CONTROL_UI_BUILD_ID: JSON.stringify("vanpanel"),
   },
   publicDir: path.resolve(here, "public"),
+  resolve: {
+    alias: {
+      zod: path.resolve(here, "stubs/zod.ts"),
+      "@openclaw/net-policy/redact-sensitive-url": path.resolve(here, "stubs/net-policy/redact-sensitive-url.ts"),
+    },
+  },
   optimizeDeps: {
     include: [
       "ipaddr.js",
@@ -31,4 +39,20 @@ export default {
       "/api": "http://localhost:8889",
     },
   },
+  plugins: [
+    swc.vite({
+      jsc: {
+        parser: {
+          syntax: "typescript",
+          decorators: true,
+        },
+        transform: {
+          legacyDecorator: true,
+          decoratorMetadata: true,
+        },
+        target: "es2022",
+      },
+    }),
+    stubMissingMonorepoImports(here) as PluginOption,
+  ],
 } satisfies UserConfig;

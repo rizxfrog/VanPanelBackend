@@ -1,0 +1,11 @@
+{
+  "name": "@openclaw/normalization-core",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./number-coercion": "./src/number-coercion.ts",
+    "./string-coerce": "./src/string-coerce.ts",
+    "./string-normalization": "./src/string-normalization.ts"
+  }
+}
