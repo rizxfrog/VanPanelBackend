@@ -10,6 +10,7 @@ export const TAB_GROUPS = [
     tabs: ["overview", "activity", "workboard", "instances", "sessions", "usage", "cron"],
   },
   { label: "agent", tabs: ["agents", "skills", "skillWorkshop", "nodes", "dreams"] },
+  { label: "mcp", tabs: ["mcp"] },
   {
     label: "settings",
     tabs: ["config"],
@@ -47,7 +48,6 @@ export const SETTINGS_TABS = [
   "communications",
   "appearance",
   "automation",
-  "mcp",
   "infrastructure",
   "aiAgents",
   "debug",

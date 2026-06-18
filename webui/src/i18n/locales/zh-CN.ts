@@ -392,6 +392,7 @@ export const zh_CN: TranslationMap = {
     chat: "聊天",
     control: "控制",
     agent: "代理",
+    mcp: "MCP",
     settings: "设置",
     expand: "展开侧边栏",
     collapse: "折叠侧边栏",

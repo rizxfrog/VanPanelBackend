@@ -393,6 +393,7 @@ export const en: TranslationMap = {
     chat: "Chat",
     control: "Control",
     agent: "Agent",
+    mcp: "MCP",
     settings: "Settings",
     expand: "Expand sidebar",
     collapse: "Collapse sidebar",

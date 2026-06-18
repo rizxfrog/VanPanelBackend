@@ -69,7 +69,6 @@ import {
   updateConfigRawValue,
   updateConfigFormValue,
   removeConfigFormValue,
-  updateMcpServerEnabled,
 } from "./controllers/config.ts";
 import {
   loadCronJobsPage,
@@ -206,7 +205,7 @@ import { renderDreaming } from "./views/dreaming.ts";
 import { renderExecApprovalPrompt } from "./views/exec-approval.ts";
 import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation.ts";
 import { renderLoginGate } from "./views/login-gate.ts";
-import { renderMcp } from "./views/mcp.ts";
+import { renderMcpManager, setMcpManagerUpdateTrigger } from "./views/mcp-manager.ts";
 import { renderOverview } from "./views/overview.ts";
 
 let pendingUpdate: (() => void) | undefined;
@@ -1981,37 +1980,10 @@ export function renderApp(state: AppViewState) {
           navRootLabel: "Automation",
           includeSections: [...AUTOMATION_SECTION_KEYS],
         });
-      case "mcp":
-        return renderMcp({
-          configObject:
-            state.configForm ??
-            ((state.configSnapshot?.config as Record<string, unknown> | null) || {}),
-          configDirty: state.configFormDirty,
-          configSaving: state.configSaving,
-          configApplying: state.configApplying,
-          connected: state.connected,
-          onSaveConfig: () => void saveConfig(state),
-          onApplyConfig: () => void applyConfig(state),
-          onServerEnabledChange: (name, enabled) => {
-            updateMcpServerEnabled(state, name, enabled);
-            requestHostUpdate?.();
-          },
-          editor: renderConfigTab({
-            formMode: "form",
-            searchQuery: "",
-            activeSection: "mcp",
-            activeSubsection: null,
-            onFormModeChange: () => undefined,
-            onSearchChange: () => undefined,
-            onSectionChange: () => {
-              state.infrastructureActiveSection = "mcp";
-              state.infrastructureActiveSubsection = null;
-            },
-            onSubsectionChange: (section) => (state.infrastructureActiveSubsection = section),
-            navRootLabel: "MCP",
-            includeSections: ["mcp"],
-          }),
-        });
+      case "mcp": {
+        setMcpManagerUpdateTrigger(requestHostUpdate);
+        return renderMcpManager();
+      }
       case "infrastructure":
         return renderConfigTab({
           formMode: state.infrastructureFormMode,

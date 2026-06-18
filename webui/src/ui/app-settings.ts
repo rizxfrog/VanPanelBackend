@@ -426,7 +426,6 @@ export async function refreshActiveTab(host: SettingsHost, opts?: { chatStartup?
       case "communications":
       case "appearance":
       case "automation":
-      case "mcp":
       case "infrastructure":
       case "aiAgents":
         {
