@@ -1,7 +1,7 @@
 server:
   port: "8889"
 log:
-  dir: "a:/map/VanPanel/logs"
+  dir: "/mnt/ramdisk/map/VanPanel/logs"
   level: "debug"
 jwt:
   key1: "ebe3vxIP7sblVvUHXb7ZaiMPuz4oXo0l"
