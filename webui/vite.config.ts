@@ -49,6 +49,7 @@ export default {
         transform: {
           legacyDecorator: true,
           decoratorMetadata: true,
+          useDefineForClassFields: false,
         },
         target: "es2022",
       },

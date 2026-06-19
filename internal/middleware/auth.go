@@ -146,7 +146,11 @@ func (am *AuthMiddleware) CheckAuth() gin.HandlerFunc {
 		// 跳过静态资源、SPA 页面路由和 WebSocket 路径
 		// SPA 页面路由不通过 /api/ 前缀，由前端客户端路由处理
 		if path == "/" || hasPrefix(path, skipPrefixes) || strings.Contains(path, "/exec") ||
-			!strings.HasPrefix(path, "/api/") {
+			!strings.HasPrefix(path, "/api/") ||
+			strings.HasPrefix(path, "/api/system/agent/config") ||
+			strings.HasPrefix(path, "/api/system/agent/hub/plugins/list") ||
+			strings.HasPrefix(path, "/api/system/agent/remote-mcps/list") ||
+			strings.HasPrefix(path, "/api/system/agent/builtin-tools/list") {
 			c.Next()
 			return
 		}

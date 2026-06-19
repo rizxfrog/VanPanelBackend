@@ -126,3 +126,9 @@ AI-CloudOps
 /vanpanel
 /ai-cloudops
 /VanPanelBackend
+/webui/src/ui/__screenshots__/config-form.browser.test.ts/config-form-renderer-flags-unsupported-unions-1.png
+/webui/src/ui/__screenshots__/config-form.browser.test.ts/config-form-renderer-renders-inputs-and-patches-values-1.png
+/webui/src/ui/__screenshots__/config-form.browser.test.ts/config-form-renderer-renders-union-literals-as-select-options-1.png
+/webui/src/ui/__screenshots__/navigation.browser.test.ts/control-UI-routing-auto-scrolls-chat-history-to-the-latest-message-1.png
+/webui/public/apple-touch-icon.png
+/webui/public/favicon-32.png
