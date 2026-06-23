@@ -25,6 +25,7 @@ import (
 type Cmd struct {
 	Server       *gin.Engine
 	AgentService agentService.AgentService
+	ConfigService *agentService.ConfigService
 	ToolManager  *agentToolManager.ToolManager
 }
 

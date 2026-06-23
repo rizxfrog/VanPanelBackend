@@ -44,3 +44,8 @@ func (d *AgentConfigDAO) Upsert(ctx context.Context, key string, value string, d
 		Assign(cfg).
 		FirstOrCreate(&cfg).Error
 }
+
+// Delete removes a config entry by key.
+func (d *AgentConfigDAO) Delete(ctx context.Context, key string) error {
+	return d.db.WithContext(ctx).Where("config_key = ?", key).Delete(&model.AgentConfig{}).Error
+}

@@ -44,6 +44,8 @@ type GatewayServer struct {
 	healthState     *HealthState
 	authHandler     *AuthHandler
 	config          *GatewayConfig
+	runTracker      *RunTracker
+	subHub          *SubscriptionHub
 }
 
 // NewGatewayServer creates a new GatewayServer.
@@ -54,6 +56,8 @@ func NewGatewayServer(
 	healthState *HealthState,
 	authHandler *AuthHandler,
 	config *GatewayConfig,
+	runTracker *RunTracker,
+	subHub *SubscriptionHub,
 ) *GatewayServer {
 	if config == nil {
 		config = DefaultGatewayConfig()
@@ -82,6 +86,8 @@ func NewGatewayServer(
 		healthState:     healthState,
 		authHandler:     authHandler,
 		config:          config,
+		runTracker:      runTracker,
+		subHub:          subHub,
 	}
 }
 
@@ -117,6 +123,11 @@ func (s *GatewayServer) handleConnection(conn *websocket.Conn) {
 	// Register the connection on the broadcaster.
 	s.broadcastMgr.Add(gwConn)
 	defer s.broadcastMgr.Remove(connID)
+
+	// Clean up subscriptions on disconnect.
+	if s.subHub != nil {
+		defer s.subHub.CleanupConn(connID)
+	}
 
 	// Clean up from presence tracker on disconnect.
 	defer s.presenceTracker.Remove(connID)

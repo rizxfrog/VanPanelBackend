@@ -87,9 +87,10 @@ func ProvideCmd() (*Cmd, error) {
 	handler2 := ProvideAgentHandler(agentService, hubService, configService, searchEngine, skillStore, insightsEngine)
 	engine := InitGinServer(v, userHandler, apiHandler, roleHandler, systemHandler, notAuthHandler, auditHandler, terminalHandler, fileHandler, fileShareHandler, shareAccessHandler, handler2)
 	cmd := &Cmd{
-		Server:       engine,
-		AgentService: agentService,
-		ToolManager:  toolManager,
+		Server:        engine,
+		AgentService:  agentService,
+		ConfigService: configService,
+		ToolManager:   toolManager,
 	}
 	return cmd, nil
 }
@@ -97,9 +98,10 @@ func ProvideCmd() (*Cmd, error) {
 // wire.go:
 
 type Cmd struct {
-	Server       *gin.Engine
-	AgentService service4.AgentService
-	ToolManager  *manager.ToolManager
+	Server        *gin.Engine
+	AgentService  service4.AgentService
+	ConfigService *service4.ConfigService
+	ToolManager   *manager.ToolManager
 }
 
 var HandlerSet = wire.NewSet(api.NewRoleHandler, api.NewApiHandler, api.NewAuditHandler, api.NewSystemHandler, api.NewUserHandler, api2.NewNotAuthHandler, api3.NewTerminalHandler, terminal.NewTerminalHandler, api4.NewFileHandler, api4.NewFileShareHandler, api4.NewShareAccessHandler, ProvideAgentHandler)

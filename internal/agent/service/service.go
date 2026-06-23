@@ -69,6 +69,9 @@ type AgentService interface {
 	CreateAgent(ctx context.Context, agent *model.GatewayAgent) error
 	UpdateAgent(ctx context.Context, agent *model.GatewayAgent) error
 	DeleteAgent(ctx context.Context, agentID string) error
+
+	// ReloadConfig 热重载运行时配置（DB 覆盖值）
+	ReloadConfig(ctx context.Context, cfg *Config) error
 }
 
 // ModelCatalog 模型目录，返回可用的 LLM 模型和提供商信息
@@ -1094,6 +1097,24 @@ func (s *agentService) resolveSession(ctx context.Context, sessionKey string) (*
 	}
 	// 尝试完整 key 查找
 	return s.dao.GetSessionByKey(ctx, sessionKey)
+}
+
+// ReloadConfig 用热重载配置覆盖当前内存中的服务配置。
+// 主要用于 DB 运行时配置覆盖 YAML 默认值后，立即让已有服务实例生效。
+func (s *agentService) ReloadConfig(ctx context.Context, cfg *Config) error {
+	if cfg == nil {
+		return fmt.Errorf("重载配置不能为空")
+	}
+	s.cfg = cfg
+	s.logger.Info("AgentService 配置已热重载",
+		zap.String("provider", cfg.LLM.Provider),
+		zap.String("model", cfg.LLM.Model),
+		zap.String("base_url", cfg.LLM.BaseURL),
+		zap.Float64("temperature", cfg.LLM.Temperature),
+		zap.Int("max_tokens", cfg.LLM.MaxTokens),
+		zap.Int("max_history", cfg.MaxHistory),
+	)
+	return nil
 }
 
 // buildConversationText 将消息列表和回复转换为对话文本，用于记忆审查

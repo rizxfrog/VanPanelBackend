@@ -71,6 +71,11 @@ func (s *ConfigService) UpsertConfig(ctx context.Context, key string, value stri
 	return s.dao.Upsert(ctx, key, value, "")
 }
 
+// DeleteConfig removes a config entry by key.
+func (s *ConfigService) DeleteConfig(ctx context.Context, key string) error {
+	return s.dao.Delete(ctx, key)
+}
+
 // GetInjectionRules loads injection regex rules from DB and compiles them
 func (s *ConfigService) GetInjectionRules(ctx context.Context) ([]InjectionRule, error) {
 	cfgJSON, err := s.GetConfig(ctx, "injection_rules")

@@ -43,10 +43,17 @@ func run() error {
 	if cmd.AgentService != nil {
 		gatewayRpc.SetAgentService(cmd.AgentService)
 	}
+	if cmd.ConfigService != nil {
+		gatewayRpc.SetConfigService(cmd.ConfigService)
+	}
 	db := di.InitDB()
 
 	if db != nil && di.CheckDBHealth(db) == nil {
 		log.Printf("database health check passed")
+		// 重启后应用 DB 中的运行时配置覆盖（DB > YAML/env）
+		if err := gatewayRpc.LoadRuntimeConfig(context.Background()); err != nil {
+			log.Printf("load runtime config failed: %v", err)
+		}
 	} else {
 		log.Printf("database unavailable, running in degraded mode")
 	}
