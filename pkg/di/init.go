@@ -29,6 +29,14 @@ func InitTables(db *gorm.DB) error {
 
 		// agent
 		&model.AgentConfig{},
+		&model.GatewayAgent{},
+		&model.AgentSession{},
+		&model.AgentMessage{},
+		&model.BuiltinTool{},
+		&model.MCPPlugin{},
+		&model.MCPPluginInstall{},
+		&model.RemoteMCPConfig{},
+		&model.AgentAuditEvent{},
 	)
 }
 

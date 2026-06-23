@@ -336,3 +336,19 @@ type AgentConfig struct {
 func (AgentConfig) TableName() string {
 	return "cl_agent_config"
 }
+
+// GatewayAgent represents a configurable AI agent profile.
+type GatewayAgent struct {
+	ID           int       `json:"id" gorm:"primaryKey;autoIncrement"`
+	AgentID      string    `json:"agent_id" gorm:"type:varchar(100);uniqueIndex;not null;comment:逻辑ID (main/work/ops)"`
+	Name         string    `json:"name" gorm:"type:varchar(200);not null;comment:Agent名称"`
+	Model        string    `json:"model" gorm:"type:varchar(100);not null;default:'';comment:默认模型"`
+	SystemPrompt string    `json:"system_prompt" gorm:"type:text;comment:系统提示词"`
+	Status       string    `json:"status" gorm:"type:varchar(20);not null;default:'ready';comment:状态 ready/disabled"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
+}
+
+func (GatewayAgent) TableName() string {
+	return "cl_agent_agents"
+}

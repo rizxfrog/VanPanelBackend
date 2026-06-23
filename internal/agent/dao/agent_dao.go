@@ -38,6 +38,9 @@ type AgentDAO interface {
 	// 消息
 	CreateMessage(ctx context.Context, msg *model.AgentMessage) error
 	ListMessages(ctx context.Context, req *model.ListAgentMessagesReq) ([]*model.AgentMessage, int64, error)
+	GetMessage(ctx context.Context, sessionID string, messageID int64) (*model.AgentMessage, error)
+	DeleteMessagesBySession(ctx context.Context, sessionID string) error
+	DeleteMessagesExcludingRecent(ctx context.Context, sessionID string, keepCount int) error
 
 	// 内置工具
 	ListBuiltinTools(ctx context.Context) ([]*model.BuiltinTool, error)
@@ -81,6 +84,13 @@ type AgentDAO interface {
 	SearchMessages(ctx context.Context, query string, limit int) ([]*search.SearchResult, error)
 	GetMessageContext(ctx context.Context, sessionID string, messageID int64, contextSize int) ([]*model.AgentMessage, error)
 	ListRecentSessions(ctx context.Context, limit int) ([]*search.BrowseResult, error)
+
+	// Agent管理
+	ListAgents(ctx context.Context) ([]*model.GatewayAgent, error)
+	GetAgent(ctx context.Context, agentID string) (*model.GatewayAgent, error)
+	CreateAgent(ctx context.Context, agent *model.GatewayAgent) error
+	UpdateAgent(ctx context.Context, agent *model.GatewayAgent) error
+	DeleteAgent(ctx context.Context, agentID string) error
 }
 
 type agentDAO struct {
@@ -258,6 +268,60 @@ func (d *agentDAO) ListMessages(ctx context.Context, req *model.ListAgentMessage
 		return nil, 0, fmt.Errorf("查询列表失败: %w", err)
 	}
 	return messages, total, nil
+}
+
+func (d *agentDAO) GetMessage(ctx context.Context, sessionID string, messageID int64) (*model.AgentMessage, error) {
+	if sessionID == "" || messageID <= 0 {
+		return nil, errors.New("无效的会话ID或消息ID")
+	}
+	var msg model.AgentMessage
+	if err := d.db.WithContext(ctx).
+		Where("session_id = ? AND id = ?", sessionID, messageID).
+		First(&msg).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		d.l.Error("GetMessage: 查询消息失败", zap.String("session_id", sessionID), zap.Int64("message_id", messageID), zap.Error(err))
+		return nil, fmt.Errorf("查询消息失败: %w", err)
+	}
+	return &msg, nil
+}
+
+func (d *agentDAO) DeleteMessagesBySession(ctx context.Context, sessionID string) error {
+	if sessionID == "" {
+		return errors.New("会话ID不能为空")
+	}
+	result := d.db.WithContext(ctx).Where("session_id = ?", sessionID).Delete(&model.AgentMessage{})
+	if result.Error != nil {
+		d.l.Error("DeleteMessagesBySession: 删除消息失败", zap.String("session_id", sessionID), zap.Error(result.Error))
+		return fmt.Errorf("删除消息失败: %w", result.Error)
+	}
+	return nil
+}
+
+func (d *agentDAO) DeleteMessagesExcludingRecent(ctx context.Context, sessionID string, keepCount int) error {
+	if sessionID == "" {
+		return errors.New("会话ID不能为空")
+	}
+	if keepCount <= 0 {
+		keepCount = 50
+	}
+	// 删除除最近 keepCount 条以外的所有消息
+	subQuery := d.db.WithContext(ctx).
+		Model(&model.AgentMessage{}).
+		Select("id").
+		Where("session_id = ?", sessionID).
+		Order("created_at DESC, id DESC").
+		Limit(keepCount)
+
+	result := d.db.WithContext(ctx).
+		Where("session_id = ? AND id NOT IN (?)", sessionID, subQuery).
+		Delete(&model.AgentMessage{})
+	if result.Error != nil {
+		d.l.Error("DeleteMessagesExcludingRecent: 压缩消息失败", zap.String("session_id", sessionID), zap.Error(result.Error))
+		return fmt.Errorf("压缩消息失败: %w", result.Error)
+	}
+	return nil
 }
 
 // ==================== 内置工具 ====================
@@ -731,4 +795,54 @@ func (d *agentDAO) ListRecentSessions(ctx context.Context, limit int) ([]*search
 		return nil, fmt.Errorf("搜索引擎未初始化")
 	}
 	return d.searchEngine.Browse(ctx, limit)
+}
+
+// ==================== Agent管理 ====================
+
+func (d *agentDAO) ListAgents(ctx context.Context) ([]*model.GatewayAgent, error) {
+	var agents []*model.GatewayAgent
+	if err := d.db.WithContext(ctx).Order("id ASC").Find(&agents).Error; err != nil {
+		d.l.Error("ListAgents: 查询Agent列表失败", zap.Error(err))
+		return nil, fmt.Errorf("查询Agent列表失败: %w", err)
+	}
+	return agents, nil
+}
+
+func (d *agentDAO) GetAgent(ctx context.Context, agentID string) (*model.GatewayAgent, error) {
+	var agent model.GatewayAgent
+	if err := d.db.WithContext(ctx).Where("agent_id = ?", agentID).First(&agent).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
+		d.l.Error("GetAgent: 查询Agent失败", zap.String("agent_id", agentID), zap.Error(err))
+		return nil, fmt.Errorf("查询Agent失败: %w", err)
+	}
+	return &agent, nil
+}
+
+func (d *agentDAO) CreateAgent(ctx context.Context, agent *model.GatewayAgent) error {
+	if agent == nil {
+		return errors.New("agent不能为空")
+	}
+	if err := d.db.WithContext(ctx).Create(agent).Error; err != nil {
+		d.l.Error("CreateAgent: 创建Agent失败", zap.Error(err))
+		return fmt.Errorf("创建Agent失败: %w", err)
+	}
+	return nil
+}
+
+func (d *agentDAO) UpdateAgent(ctx context.Context, agent *model.GatewayAgent) error {
+	if err := d.db.WithContext(ctx).Save(agent).Error; err != nil {
+		d.l.Error("UpdateAgent: 更新Agent失败", zap.String("agent_id", agent.AgentID), zap.Error(err))
+		return fmt.Errorf("更新Agent失败: %w", err)
+	}
+	return nil
+}
+
+func (d *agentDAO) DeleteAgent(ctx context.Context, agentID string) error {
+	if err := d.db.WithContext(ctx).Where("agent_id = ?", agentID).Delete(&model.GatewayAgent{}).Error; err != nil {
+		d.l.Error("DeleteAgent: 删除Agent失败", zap.String("agent_id", agentID), zap.Error(err))
+		return fmt.Errorf("删除Agent失败: %w", err)
+	}
+	return nil
 }
