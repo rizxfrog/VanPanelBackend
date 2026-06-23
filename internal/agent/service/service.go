@@ -61,6 +61,7 @@ type AgentService interface {
 	CompactSession(ctx context.Context, sessionKey string, maxMessages int, userID int) error
 	GetModelCatalog(ctx context.Context) (*ModelCatalog, error)
 	ListTools(ctx context.Context) ([]map[string]interface{}, error)
+	InvokeTool(ctx context.Context, toolName, argsJSON string) (string, error)
 
 	// Agent管理
 	ListAgents(ctx context.Context) ([]*model.GatewayAgent, error)
@@ -939,6 +940,30 @@ func (s *agentService) ListTools(ctx context.Context) ([]map[string]interface{},
 		}
 	}
 	return result, nil
+}
+
+// InvokeTool executes a single tool by name with the given JSON arguments.
+func (s *agentService) InvokeTool(ctx context.Context, toolName, argsJSON string) (string, error) {
+	if s.toolMgr == nil {
+		return "", fmt.Errorf("ToolManager 未初始化")
+	}
+
+	tools := s.toolMgr.GetAllTools(ctx)
+	for _, t := range tools {
+		it, ok := t.(tool.InvokableTool)
+		if !ok {
+			continue
+		}
+		info, err := it.Info(ctx)
+		if err != nil {
+			continue
+		}
+		if info.Name != toolName {
+			continue
+		}
+		return it.InvokableRun(ctx, argsJSON)
+	}
+	return "", fmt.Errorf("工具 %s 不存在", toolName)
 }
 
 // Agent CRUD
