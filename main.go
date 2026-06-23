@@ -187,6 +187,15 @@ func setupGateway(logger *zap.Logger) *gateway.GatewayServer {
 	// Auth handler with "none" mode for local development
 	authHandler := gateway.NewAuthHandler(logger, nil, "none", "", "")
 
+	// Create RunTracker and SubscriptionHub for RPC handlers
+	runTracker := gateway.NewRunTracker()
+	subHub := gateway.NewSubscriptionHub()
+
+	// Pass infrastructure to RPC package
+	gatewayRpc.SetRunTracker(runTracker)
+	gatewayRpc.SetSubscriptionHub(subHub)
+	gatewayRpc.SetBroadcastManager(broadcastMgr)
+
 	config.Methods = gateway.GetRegisteredMethods()
 	config.Events = gateway.GetRegisteredEvents()
 
@@ -197,6 +206,8 @@ func setupGateway(logger *zap.Logger) *gateway.GatewayServer {
 		healthState,
 		authHandler,
 		config,
+		runTracker,
+		subHub,
 	)
 
 	gatewayServerInstance = gwServer

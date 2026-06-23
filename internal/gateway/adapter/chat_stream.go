@@ -22,16 +22,46 @@ type ChatStreamAdapter struct {
 	builder    strings.Builder // accumulates assistant text for streaming display
 	ctx        context.Context
 	toolBlocks []gateway.ContentBlock // tool_use + tool_result blocks in current turn
+	bm         *gateway.BroadcastManager
+	subHub     *gateway.SubscriptionHub
 }
 
 // NewChatStreamAdapter creates a new streaming adapter for the given connection.
-func NewChatStreamAdapter(ctx context.Context, conn *gateway.GatewayConnection, runID, sessionKey, agentID string) *ChatStreamAdapter {
+func NewChatStreamAdapter(ctx context.Context, conn *gateway.GatewayConnection, runID, sessionKey, agentID string, bm *gateway.BroadcastManager, subHub *gateway.SubscriptionHub) *ChatStreamAdapter {
 	return &ChatStreamAdapter{
 		conn:       conn,
 		runID:      runID,
 		sessionKey: sessionKey,
 		agentID:    agentID,
 		ctx:        ctx,
+		bm:         bm,
+		subHub:     subHub,
+	}
+}
+
+// sendChatEvent pushes a chat event to the originating connection AND
+// to all other connections subscribed to message events for this session.
+func (a *ChatStreamAdapter) sendChatEvent(event gateway.ChatEvent) {
+	a.conn.SendEvent("chat", event)
+	if a.bm != nil && a.subHub != nil {
+		for _, connID := range a.subHub.GetMessageSubscribers(a.sessionKey) {
+			if connID != a.conn.ID {
+				a.bm.BroadcastTo(connID, "chat", event)
+			}
+		}
+	}
+}
+
+// sendAgentEvent pushes an agent tool event to the originating connection AND
+// to all other connections subscribed to message events for this session.
+func (a *ChatStreamAdapter) sendAgentEvent(event gateway.AgentToolPayload) {
+	a.conn.SendEvent("agent", event)
+	if a.bm != nil && a.subHub != nil {
+		for _, connID := range a.subHub.GetMessageSubscribers(a.sessionKey) {
+			if connID != a.conn.ID {
+				a.bm.BroadcastTo(connID, "agent", event)
+			}
+		}
 	}
 }
 
@@ -103,7 +133,7 @@ func (a *ChatStreamAdapter) handleDelta(data string) {
 
 	seq := int(a.seq.Add(1))
 	replace := false
-	a.conn.SendEvent("chat", gateway.ChatEvent{
+	a.sendChatEvent(gateway.ChatEvent{
 		RunID:      a.runID,
 		SessionKey: a.sessionKey,
 		AgentID:    a.agentID,
@@ -144,7 +174,7 @@ func (a *ChatStreamAdapter) handleToolCall(data string) {
 
 	// Send agent event for dedicated tool stream handler
 	seq := int(a.seq.Add(1))
-	a.conn.SendEvent("agent", gateway.AgentToolPayload{
+	a.sendAgentEvent(gateway.AgentToolPayload{
 		RunID:      a.runID,
 		Seq:        seq,
 		Stream:     "tool",
@@ -164,7 +194,7 @@ func (a *ChatStreamAdapter) handleToolCall(data string) {
 	a.builder.WriteString(deltaText)
 	seq2 := int(a.seq.Add(1))
 	replace := false
-	a.conn.SendEvent("chat", gateway.ChatEvent{
+	a.sendChatEvent(gateway.ChatEvent{
 		RunID:      a.runID,
 		SessionKey: a.sessionKey,
 		AgentID:    a.agentID,
@@ -215,7 +245,7 @@ func (a *ChatStreamAdapter) handleToolResult(data string) {
 	a.toolBlocks = append(a.toolBlocks, toolResultBlock)
 
 	seq := int(a.seq.Add(1))
-	a.conn.SendEvent("agent", gateway.AgentToolPayload{
+	a.sendAgentEvent(gateway.AgentToolPayload{
 		RunID:      a.runID,
 		Seq:        seq,
 		Stream:     "tool",
@@ -245,7 +275,7 @@ func (a *ChatStreamAdapter) handleToolResult(data string) {
 	a.builder.WriteString(deltaText)
 	seq2 := int(a.seq.Add(1))
 	replace := false
-	a.conn.SendEvent("chat", gateway.ChatEvent{
+	a.sendChatEvent(gateway.ChatEvent{
 		RunID:      a.runID,
 		SessionKey: a.sessionKey,
 		AgentID:    a.agentID,
@@ -273,7 +303,7 @@ func (a *ChatStreamAdapter) handleDone(data string) {
 	contentBlocks = append(contentBlocks, a.toolBlocks...)
 
 	seq := int(a.seq.Add(1))
-	a.conn.SendEvent("chat", gateway.ChatEvent{
+	a.sendChatEvent(gateway.ChatEvent{
 		RunID:      a.runID,
 		SessionKey: a.sessionKey,
 		AgentID:    a.agentID,
@@ -299,7 +329,7 @@ func (a *ChatStreamAdapter) handleError(data string) {
 		errMsg = "agent error"
 	}
 	seq := int(a.seq.Add(1))
-	a.conn.SendEvent("chat", gateway.ChatEvent{
+	a.sendChatEvent(gateway.ChatEvent{
 		RunID:      a.runID,
 		SessionKey: a.sessionKey,
 		AgentID:    a.agentID,
