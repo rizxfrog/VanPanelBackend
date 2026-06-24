@@ -13,9 +13,9 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	mcpserver "github.com/rizxfrog/VanPanelBackend/internal/agent/mcp/server"
 	"github.com/rizxfrog/VanPanelBackend/internal/gateway"
 	gatewayRpc "github.com/rizxfrog/VanPanelBackend/internal/gateway/rpc"
-	mcpserver "github.com/rizxfrog/VanPanelBackend/internal/agent/mcp/server"
 	"github.com/rizxfrog/VanPanelBackend/mock"
 	"github.com/rizxfrog/VanPanelBackend/pkg/base"
 	"github.com/rizxfrog/VanPanelBackend/pkg/di"
@@ -45,6 +45,9 @@ func run() error {
 	}
 	if cmd.ConfigService != nil {
 		gatewayRpc.SetConfigService(cmd.ConfigService)
+	}
+	if cmd.CronService != nil {
+		gatewayRpc.SetCronService(cmd.CronService)
 	}
 	db := di.InitDB()
 
@@ -113,6 +116,20 @@ func run() error {
 		log.Printf("database unavailable, skipping mock initialization")
 	}
 
+	// 启动 Cron 调度管理器和 Asynq 任务消费端
+	if cmd.CronManager != nil && db != nil && di.CheckDBHealth(db) == nil {
+		cmd.CronManager.Start(context.Background())
+		log.Printf("cron manager started")
+	}
+	if cmd.CronAsynqServer != nil {
+		go func() {
+			if err := cmd.CronAsynqServer.Server.Run(cmd.CronAsynqServer.Mux); err != nil {
+				log.Printf("cron asynq server error: %v", err)
+			}
+		}()
+		log.Printf("cron asynq server started")
+	}
+
 	log.Printf("system startup completed")
 
 	srv := &http.Server{
@@ -134,6 +151,15 @@ func run() error {
 
 	<-ctx.Done()
 	log.Println("shutting down server")
+
+	if cmd.CronManager != nil {
+		cmd.CronManager.Stop()
+		log.Println("cron manager stopped")
+	}
+	if cmd.CronAsynqServer != nil {
+		cmd.CronAsynqServer.Server.Stop()
+		log.Println("cron asynq server stopped")
+	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()

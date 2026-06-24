@@ -1,10 +1,10 @@
 # VanPanelBackend vs OpenClaw 功能差距分析报告
 
-> 生成日期：2026-06-20（v7 — 2026-06-23 更新：聊天增强+会话管理+Agent管理+工具系统+配置管理+模型管理已完成）
+> 生成日期：2026-06-20（v8 — 2026-06-24 更新：聊天增强+会话管理+Agent管理+工具系统+配置管理+模型管理+Cron 定时任务已完成）
 
 ## 概述
 
-本项目的目标是用 Go 后端 + 内嵌 Web UI 替代 OpenClaw 的 Node.js 网关 + 前端。前端（`webui/`）是 OpenClaw Control UI 的 Lit 实现，**23 个页面全部已实现**。后端 Gateway RPC 层（`internal/gateway/rpc/`）中**约 55% 的方法仍是桩实现**（2026-06-23 已完成聊天增强、会话管理、Agent管理、工具系统、配置管理、模型管理六大模块）。此外，后端 Agent 子系统内部存在多个关键缺陷（记忆系统死代码、LLM 提供商硬编码、数据库表缺失迁移等），即使 Gateway 桥接完成，这些问题仍会导致功能不可用。
+本项目的目标是用 Go 后端 + 内嵌 Web UI 替代 OpenClaw 的 Node.js 网关 + 前端。前端（`webui/`）是 OpenClaw Control UI 的 Lit 实现，**23 个页面全部已实现**。后端 Gateway RPC 层（`internal/gateway/rpc/`）中**约 50% 的方法仍是桩实现**（2026-06-24 已完成聊天增强、会话管理、Agent管理、工具系统、配置管理、模型管理、Cron 定时任务七大模块）。此外，后端 Agent 子系统内部存在多个关键缺陷（记忆系统死代码、LLM 提供商硬编码、数据库表缺失迁移等），即使 Gateway 桥接完成，这些问题仍会导致功能不可用。
 
 ---
 
@@ -67,6 +67,7 @@
 | 工具系统 | `tools.catalog/effective/invoke` | ✅ 动态工具目录 + 实际执行 |
 | 配置管理 | `config.get/set/apply/patch/schema/schema.lookup` | ✅ DB 运行时配置 + YAML 默认值回退 |
 | 模型管理 | `models.list/authStatus/authLogout` | ✅ AgentService.GetModelCatalog 桥接 + API key 授权状态 |
+| Cron 定时任务 | `cron.status/list/get/add/update/remove/run/runs` | ✅ 新增 internal/cron/ 子系统 + 内存调度 + Asynq 手动执行 |
 
 ### 二、前端已实现但后端为 Stub 的功能
 
@@ -131,9 +132,9 @@
 
 | Gateway 方法 | 后端状态 | 影响 |
 |-------------|---------|------|
-| `cron.status/list/add/update/remove/run` | ❌ Stubs | 无法管理定时任务 |
+| `cron.status/list/get/add/update/remove/run/runs` | ✅ 已实现 | 可创建、编辑、删除、启停、手动运行并查看运行历史 |
 
-> 注：后端有完整的 Asynq cron 系统（`internal/cron/`），但未桥接到 Gateway RPC。
+> 注：新增 `internal/cron/` 子系统，包含 `cl_agent_cron_jobs` / `cl_agent_cron_runs` 表、DAO/Service、内存调度器（10s tick）及 Asynq 手动任务队列。`cron.run` 通过 Asynq 异步执行，`cron.runs` 返回运行日志。已用 agent-browser 验证：创建 systemEvent 任务、启停切换、手动运行后运行历史正确显示。
 
 #### 8. 技能系统
 
@@ -375,7 +376,7 @@ UserID 写死为 0，未从 context 中提取。所有用户共享同一个记�
 
 ### P2 — 管理功能
 
-11. **`cron.*` 系列** — 无法管理定时任务
+11. ~~**`cron.*` 系列**~~ ✅ 已实现 — 可管理定时任务、启停、手动运行并查看历史
 12. **`skills.*` 系列** — 无法使用技能系统（且需要内置技能内容）
 13. **`usage.*` 系列** — 无法查看用量和费用
 14. **`workboard.*` / `tasks.*`** — 看板和任务管理

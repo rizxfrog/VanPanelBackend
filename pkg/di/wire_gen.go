@@ -11,6 +11,9 @@ import (
 	"github.com/google/wire"
 	service4 "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
+	manager2 "github.com/rizxfrog/VanPanelBackend/internal/cron/manager"
+	"github.com/rizxfrog/VanPanelBackend/internal/cron/server"
+	service5 "github.com/rizxfrog/VanPanelBackend/internal/cron/service"
 	api4 "github.com/rizxfrog/VanPanelBackend/internal/files/api"
 	dao2 "github.com/rizxfrog/VanPanelBackend/internal/files/dao"
 	service3 "github.com/rizxfrog/VanPanelBackend/internal/files/service"
@@ -86,11 +89,19 @@ func ProvideCmd() (*Cmd, error) {
 	insightsEngine := ProvideAgentInsightsEngine(db, logger)
 	handler2 := ProvideAgentHandler(agentService, hubService, configService, searchEngine, skillStore, insightsEngine)
 	engine := InitGinServer(v, userHandler, apiHandler, roleHandler, systemHandler, notAuthHandler, auditHandler, terminalHandler, fileHandler, fileShareHandler, shareAccessHandler, handler2)
+	cronDAO := ProvideCronDAO(db)
+	client := ProvideCronAsynqClient()
+	cronService := ProvideCronService(cronDAO, agentService, logger, client)
+	manager := ProvideCronManager(cronService, logger)
+	cronAsynqServer := ProvideCronAsynqServer(cronService, logger)
 	cmd := &Cmd{
-		Server:        engine,
-		AgentService:  agentService,
-		ConfigService: configService,
-		ToolManager:   toolManager,
+		Server:          engine,
+		AgentService:    agentService,
+		ConfigService:   configService,
+		ToolManager:     toolManager,
+		CronService:     cronService,
+		CronManager:     manager,
+		CronAsynqServer: cronAsynqServer,
 	}
 	return cmd, nil
 }
@@ -98,10 +109,13 @@ func ProvideCmd() (*Cmd, error) {
 // wire.go:
 
 type Cmd struct {
-	Server        *gin.Engine
-	AgentService  service4.AgentService
-	ConfigService *service4.ConfigService
-	ToolManager   *manager.ToolManager
+	Server          *gin.Engine
+	AgentService    service4.AgentService
+	ConfigService   *service4.ConfigService
+	ToolManager     *manager.ToolManager
+	CronService     *service5.CronService
+	CronManager     *manager2.Manager
+	CronAsynqServer *server.CronAsynqServer
 }
 
 var HandlerSet = wire.NewSet(api.NewRoleHandler, api.NewApiHandler, api.NewAuditHandler, api.NewSystemHandler, api.NewUserHandler, api2.NewNotAuthHandler, api3.NewTerminalHandler, terminal.NewTerminalHandler, api4.NewFileHandler, api4.NewFileShareHandler, api4.NewShareAccessHandler, ProvideAgentHandler)
@@ -144,4 +158,12 @@ var AgentSet = wire.NewSet(
 	ProvideAgentPipeline,
 	ProvideAgentNudgeReviewer,
 	ProvideAgentInsightsEngine,
+)
+
+var CronSet = wire.NewSet(
+	ProvideCronDAO,
+	ProvideCronService,
+	ProvideCronManager,
+	ProvideCronAsynqClient,
+	ProvideCronAsynqServer,
 )

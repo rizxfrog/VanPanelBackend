@@ -273,6 +273,76 @@ func applyRawConfig(ctx context.Context, raw string) error {
 	return nil
 }
 
+// buildJsonSchema 构造前端需要的 JSON Schema 根对象。
+func buildJsonSchema() map[string]interface{} {
+	root := map[string]interface{}{
+		"type": "object",
+		"properties": map[string]interface{}{},
+	}
+	for _, e := range knownConfigKeys {
+		parts := strings.Split(e.Key, ".")
+		attachSchemaProperty(root, parts, e)
+	}
+	return root
+}
+
+// attachSchemaProperty 把叶子 schema 按点分路径挂到嵌套 properties 中。
+func attachSchemaProperty(parent map[string]interface{}, parts []string, entry configSchemaEntry) {
+	props := parent["properties"].(map[string]interface{})
+	for i := 0; i < len(parts)-1; i++ {
+		part := parts[i]
+		node, ok := props[part].(map[string]interface{})
+		if !ok {
+			node = map[string]interface{}{
+				"type":       "object",
+				"properties": map[string]interface{}{},
+			}
+			props[part] = node
+		}
+		props = node["properties"].(map[string]interface{})
+	}
+	leaf := map[string]interface{}{
+		"type":        jsonSchemaType(entry.Type),
+		"title":       entry.Description,
+		"description": entry.Description,
+		"default":     maskSecret(entry.Key, getDefaultForKey(entry.Key)),
+	}
+	props[parts[len(parts)-1]] = leaf
+}
+
+// jsonSchemaType 把内部类型名转换为 JSON Schema 类型。
+func jsonSchemaType(t string) string {
+	switch t {
+	case "integer":
+		return "integer"
+	case "number":
+		return "number"
+	case "boolean":
+		return "boolean"
+	default:
+		return "string"
+	}
+}
+
+// buildJsonSchemaForPath 根据点分路径返回对应的子 schema；未知路径返回空 object。
+func buildJsonSchemaForPath(path string) map[string]interface{} {
+	parts := strings.Split(path, ".")
+	root := buildJsonSchema()
+	current := root
+	for _, part := range parts {
+		props, ok := current["properties"].(map[string]interface{})
+		if !ok {
+			return map[string]interface{}{}
+		}
+		next, ok := props[part].(map[string]interface{})
+		if !ok {
+			return map[string]interface{}{}
+		}
+		current = next
+	}
+	return current
+}
+
 func handleConfigGet(ctx context.Context, conn *gateway.GatewayConnection, params json.RawMessage) (interface{}, error) {
 	if configSvc == nil {
 		return nil, fmt.Errorf("ConfigService 未初始化")
@@ -427,14 +497,12 @@ func handleConfigPatch(ctx context.Context, conn *gateway.GatewayConnection, par
 }
 
 func handleConfigSchema(ctx context.Context, conn *gateway.GatewayConnection, params json.RawMessage) (interface{}, error) {
-	schema := make([]configSchemaEntry, len(knownConfigKeys))
-	for i, e := range knownConfigKeys {
-		e.Default = maskSecret(e.Key, getDefaultForKey(e.Key))
-		schema[i] = e
+	uiHints := map[string]interface{}{
+		"agent.llm.api_key": map[string]interface{}{"sensitive": true},
 	}
 	return map[string]interface{}{
-		"schema":      schema,
-		"uiHints":     map[string]interface{}{},
+		"schema":      buildJsonSchema(),
+		"uiHints":     uiHints,
 		"version":     "1",
 		"generatedAt": "",
 	}, nil
@@ -449,15 +517,12 @@ func handleConfigSchemaLookup(ctx context.Context, conn *gateway.GatewayConnecti
 		return nil, fmt.Errorf("解析 config.schema.lookup 参数失败: %w", err)
 	}
 
-	// 前端 dreaming 等使用 path 查询
+	// 前端 dreaming 等使用 path 查询，返回该路径对应的 JSON Schema
 	if req.Path != "" {
-		if e, ok := configKeyIndex[req.Path]; ok {
-			e.Default = maskSecret(e.Key, getDefaultForKey(e.Key))
-			return e, nil
-		}
-		return map[string]interface{}{}, nil
+		return buildJsonSchemaForPath(req.Path), nil
 	}
 
+	// keys 模式（向后兼容）返回平铺 schema 列表
 	if len(req.Keys) == 0 {
 		return []configSchemaEntry{}, nil
 	}

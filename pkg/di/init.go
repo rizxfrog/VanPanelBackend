@@ -37,6 +37,10 @@ func InitTables(db *gorm.DB) error {
 		&model.MCPPluginInstall{},
 		&model.RemoteMCPConfig{},
 		&model.AgentAuditEvent{},
+
+		// cron
+		&model.CronJob{},
+		&model.CronRun{},
 	)
 }
 
