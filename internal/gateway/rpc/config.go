@@ -2,6 +2,8 @@ package rpc
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"strconv"
@@ -92,6 +94,22 @@ type configValueResult struct {
 	Description  string      `json:"description"`
 }
 
+// configSnapshot 与前端 ConfigSnapshot 类型对齐。
+type configSnapshot struct {
+	Config       map[string]interface{} `json:"config"`
+	Resolved     map[string]interface{} `json:"resolved"`
+	SourceConfig map[string]interface{} `json:"sourceConfig"`
+	Raw          string                 `json:"raw"`
+	Valid        bool                   `json:"valid"`
+	Issues       []configIssue          `json:"issues"`
+	Hash         string                 `json:"hash"`
+}
+
+type configIssue struct {
+	Path    string `json:"path"`
+	Message string `json:"message"`
+}
+
 // getDefaultForKey 返回当前部署环境下的默认值（YAML/env），并在 Viper 未初始化时返回硬编码兜底值。
 func getDefaultForKey(key string) interface{} {
 	if viper.IsSet(key) {
@@ -116,6 +134,145 @@ func getDefaultForKey(key string) interface{} {
 	return nil
 }
 
+// getEffectiveValue 返回某个 key 的生效值（DB 优先，否则 Viper 默认值），并对敏感值掩码。
+func getEffectiveValue(ctx context.Context, key string) interface{} {
+	if configSvc == nil {
+		return maskSecret(key, getDefaultForKey(key))
+	}
+	raw, err := configSvc.GetConfig(ctx, key)
+	if err == nil && raw != "" {
+		var v interface{}
+		if err := json.Unmarshal([]byte(raw), &v); err == nil {
+			return maskSecret(key, v)
+		}
+	}
+	return maskSecret(key, getDefaultForKey(key))
+}
+
+// isDBOverridden 判断某个 key 是否在 DB 中有运行时覆盖。
+func isDBOverridden(ctx context.Context, key string) bool {
+	if configSvc == nil {
+		return false
+	}
+	raw, err := configSvc.GetConfig(ctx, key)
+	return err == nil && raw != ""
+}
+
+// buildConfigObject 构造完整的嵌套配置对象。
+// includeDefaults 为 true 时包含默认值，为 false 时只包含 DB 覆盖值。
+func buildConfigObject(ctx context.Context, includeDefaults bool) map[string]interface{} {
+	llm := map[string]interface{}{}
+	if includeDefaults || isDBOverridden(ctx, "agent.llm.provider") {
+		llm["provider"] = getEffectiveValue(ctx, "agent.llm.provider")
+	}
+	if includeDefaults || isDBOverridden(ctx, "agent.llm.base_url") {
+		llm["base_url"] = getEffectiveValue(ctx, "agent.llm.base_url")
+	}
+	if includeDefaults || isDBOverridden(ctx, "agent.llm.api_key") {
+		llm["api_key"] = getEffectiveValue(ctx, "agent.llm.api_key")
+	}
+	if includeDefaults || isDBOverridden(ctx, "agent.llm.model") {
+		llm["model"] = getEffectiveValue(ctx, "agent.llm.model")
+	}
+	if includeDefaults || isDBOverridden(ctx, "agent.llm.temperature") {
+		llm["temperature"] = getEffectiveValue(ctx, "agent.llm.temperature")
+	}
+	if includeDefaults || isDBOverridden(ctx, "agent.llm.max_tokens") {
+		llm["max_tokens"] = getEffectiveValue(ctx, "agent.llm.max_tokens")
+	}
+
+	agent := map[string]interface{}{"llm": llm}
+	if includeDefaults || isDBOverridden(ctx, "agent.max_history") {
+		agent["max_history"] = getEffectiveValue(ctx, "agent.max_history")
+	}
+
+	return map[string]interface{}{"agent": agent}
+}
+
+// buildSnapshot 构造前端 ConfigSnapshot。
+func buildSnapshot(ctx context.Context) (*configSnapshot, error) {
+	config := buildConfigObject(ctx, true)
+	sourceConfig := buildConfigObject(ctx, false)
+
+	rawBytes, err := json.MarshalIndent(config, "", "  ")
+	if err != nil {
+		return nil, fmt.Errorf("序列化配置失败: %w", err)
+	}
+	raw := string(rawBytes) + "\n"
+	hash := sha256.Sum256([]byte(raw))
+
+	return &configSnapshot{
+		Config:       config,
+		Resolved:     config,
+		SourceConfig: sourceConfig,
+		Raw:          raw,
+		Valid:        true,
+		Issues:       []configIssue{},
+		Hash:         hex.EncodeToString(hash[:]),
+	}, nil
+}
+
+// setPathValue 在嵌套 map 中按点分路径设置值。
+func setPathValue(target map[string]interface{}, path string, value interface{}) {
+	parts := strings.Split(path, ".")
+	current := target
+	for i := 0; i < len(parts)-1; i++ {
+		key := parts[i]
+		next, ok := current[key].(map[string]interface{})
+		if !ok {
+			next = make(map[string]interface{})
+			current[key] = next
+		}
+		current = next
+	}
+	current[parts[len(parts)-1]] = value
+}
+
+// flattenConfigObject 将嵌套配置对象展开为平铺的 key-value 映射。
+func flattenConfigObject(prefix string, obj map[string]interface{}, result map[string]interface{}) {
+	for k, v := range obj {
+		key := k
+		if prefix != "" {
+			key = prefix + "." + k
+		}
+		switch vv := v.(type) {
+		case map[string]interface{}:
+			flattenConfigObject(key, vv, result)
+		default:
+			result[key] = v
+		}
+	}
+}
+
+// applyRawConfig 解析前端提交的 raw JSON 配置并更新 DB。
+func applyRawConfig(ctx context.Context, raw string) error {
+	if configSvc == nil {
+		return fmt.Errorf("ConfigService 未初始化")
+	}
+	var obj map[string]interface{}
+	if err := json.Unmarshal([]byte(raw), &obj); err != nil {
+		return fmt.Errorf("解析 raw 配置失败: %w", err)
+	}
+
+	flat := make(map[string]interface{})
+	flattenConfigObject("", obj, flat)
+
+	for key, value := range flat {
+		if _, ok := configKeyIndex[key]; !ok {
+			// 忽略未知 key
+			continue
+		}
+		jsonVal, err := json.Marshal(value)
+		if err != nil {
+			return fmt.Errorf("序列化 %s 失败: %w", key, err)
+		}
+		if err := configSvc.UpsertConfig(ctx, key, string(jsonVal)); err != nil {
+			return fmt.Errorf("保存 %s 失败: %w", key, err)
+		}
+	}
+	return nil
+}
+
 func handleConfigGet(ctx context.Context, conn *gateway.GatewayConnection, params json.RawMessage) (interface{}, error) {
 	if configSvc == nil {
 		return nil, fmt.Errorf("ConfigService 未初始化")
@@ -126,9 +283,12 @@ func handleConfigGet(ctx context.Context, conn *gateway.GatewayConnection, param
 	if err := json.Unmarshal(params, &req); err != nil {
 		return nil, fmt.Errorf("解析 config.get 参数失败: %w", err)
 	}
+
+	// 前端默认调用 config.get({}) 获取完整 ConfigSnapshot
 	if req.Key == "" {
-		return nil, fmt.Errorf("缺少 key 参数")
+		return buildSnapshot(ctx)
 	}
+
 	entry, ok := configKeyIndex[req.Key]
 	if !ok {
 		return nil, fmt.Errorf("未知配置项: %s", req.Key)
@@ -137,22 +297,14 @@ func handleConfigGet(ctx context.Context, conn *gateway.GatewayConnection, param
 		Key:          req.Key,
 		DefaultValue: maskSecret(req.Key, getDefaultForKey(req.Key)),
 		Description:  entry.Description,
+		Value:        getEffectiveValue(ctx, req.Key),
+		Source: func() string {
+			if isDBOverridden(ctx, req.Key) {
+				return "database"
+			}
+			return "default"
+		}(),
 	}
-
-	// 优先读取 DB 运行时覆盖
-	raw, err := configSvc.GetConfig(ctx, req.Key)
-	if err == nil && raw != "" {
-		var v interface{}
-		if err := json.Unmarshal([]byte(raw), &v); err == nil {
-			result.Value = maskSecret(req.Key, v)
-			result.Source = "database"
-			return result, nil
-		}
-	}
-
-	// 回退到 YAML / 环境变量（Viper）
-	result.Value = maskSecret(req.Key, getDefaultForKey(req.Key))
-	result.Source = "default"
 	return result, nil
 }
 
@@ -161,21 +313,37 @@ func handleConfigSet(ctx context.Context, conn *gateway.GatewayConnection, param
 		return nil, fmt.Errorf("ConfigService 未初始化")
 	}
 	var req struct {
-		Key   string      `json:"key"`
-		Value interface{} `json:"value"`
-		Apply bool        `json:"apply,omitempty"`
+		Key      string      `json:"key"`
+		Value    interface{} `json:"value"`
+		Apply    bool        `json:"apply,omitempty"`
+		Raw      string      `json:"raw"`
+		BaseHash string      `json:"baseHash"`
 	}
 	if err := json.Unmarshal(params, &req); err != nil {
 		return nil, fmt.Errorf("解析 config.set 参数失败: %w", err)
 	}
+
+	// 前端高级编辑器调用 config.set({ raw: "...", baseHash: "..." })
+	if req.Raw != "" {
+		if err := applyRawConfig(ctx, req.Raw); err != nil {
+			return nil, err
+		}
+		if agentSvc != nil {
+			if err := applyRuntimeConfig(ctx); err != nil {
+				zap.L().Warn("config.set raw 触发 apply 失败", zap.Error(err))
+			}
+		}
+		return map[string]interface{}{"ok": true, "status": "ok"}, nil
+	}
+
+	// 单 key 模式（工具/测试脚本使用）
 	if req.Key == "" {
-		return nil, fmt.Errorf("缺少 key 参数")
+		return nil, fmt.Errorf("缺少 key 或 raw 参数")
 	}
 	if _, ok := configKeyIndex[req.Key]; !ok {
 		return nil, fmt.Errorf("未知配置项: %s", req.Key)
 	}
 
-	// value 为空时删除 DB 覆盖，恢复默认值
 	if req.Value == nil {
 		if err := configSvc.DeleteConfig(ctx, req.Key); err != nil {
 			return nil, fmt.Errorf("重置配置失败: %w", err)
@@ -206,10 +374,23 @@ func handleConfigApply(ctx context.Context, conn *gateway.GatewayConnection, par
 	if agentSvc == nil {
 		return nil, fmt.Errorf("AgentService 未初始化，无法应用配置")
 	}
+
+	var req struct {
+		Raw      string `json:"raw"`
+		BaseHash string `json:"baseHash"`
+	}
+	if err := json.Unmarshal(params, &req); err != nil {
+		return nil, fmt.Errorf("解析 config.apply 参数失败: %w", err)
+	}
+	if req.Raw != "" {
+		if err := applyRawConfig(ctx, req.Raw); err != nil {
+			return nil, err
+		}
+	}
 	if err := applyRuntimeConfig(ctx); err != nil {
 		return nil, fmt.Errorf("应用配置失败: %w", err)
 	}
-	return map[string]interface{}{"ok": true}, nil
+	return map[string]interface{}{"ok": true, "status": "ok"}, nil
 }
 
 func handleConfigPatch(ctx context.Context, conn *gateway.GatewayConnection, params json.RawMessage) (interface{}, error) {
@@ -262,10 +443,21 @@ func handleConfigSchema(ctx context.Context, conn *gateway.GatewayConnection, pa
 func handleConfigSchemaLookup(ctx context.Context, conn *gateway.GatewayConnection, params json.RawMessage) (interface{}, error) {
 	var req struct {
 		Keys []string `json:"keys"`
+		Path string   `json:"path"`
 	}
 	if err := json.Unmarshal(params, &req); err != nil {
 		return nil, fmt.Errorf("解析 config.schema.lookup 参数失败: %w", err)
 	}
+
+	// 前端 dreaming 等使用 path 查询
+	if req.Path != "" {
+		if e, ok := configKeyIndex[req.Path]; ok {
+			e.Default = maskSecret(e.Key, getDefaultForKey(e.Key))
+			return e, nil
+		}
+		return map[string]interface{}{}, nil
+	}
+
 	if len(req.Keys) == 0 {
 		return []configSchemaEntry{}, nil
 	}

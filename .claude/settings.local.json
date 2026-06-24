@@ -7,7 +7,29 @@
       "Bash(git add *)",
       "Bash(git commit *)",
       "Bash(git status *)",
-      "Bash(git rm *)"
+      "Bash(git rm *)",
+      "mcp__codegraph__codegraph_files",
+      "mcp__codegraph__codegraph_explore",
+      "mcp__codegraph__codegraph_search",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(go build *)",
+      "Read(//usr/local/go/**)",
+      "Read(//usr/bin/**)",
+      "Read(//usr/**)",
+      "Bash(gofmt -l /home/van/github/van/VanPanelBackend/internal/gateway/run_tracker.go /home/van/github/van/VanPanelBackend/internal/gateway/subscription_hub.go /home/van/github/van/VanPanelBackend/internal/gateway/rpc/helpers.go)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:8889/)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:80/)",
+      "Bash(curl -s http://localhost:8889/)",
+      "Bash(PGPASSWORD=postgres psql -h localhost -U postgres -d postgres -c \"\\\\d cl_agent_sessions\")",
+      "Bash(playwright-cli goto *)",
+      "Bash(playwright-cli snapshot *)",
+      "Bash(playwright-cli click *)",
+      "Bash(playwright-cli press *)",
+      "Bash(playwright-cli type *)",
+      "Bash(playwright-cli screenshot *)",
+      "Bash(playwright-cli console *)",
+      "Bash(playwright-cli run-code *)",
+      "Bash(playwright-cli close *)"
     ]
   }
 }

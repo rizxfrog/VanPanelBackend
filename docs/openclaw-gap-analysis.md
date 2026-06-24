@@ -1,10 +1,10 @@
 # VanPanelBackend vs OpenClaw 功能差距分析报告
 
-> 生成日期：2026-06-20（v6 — 2026-06-23 更新：聊天增强+会话管理+Agent管理+工具系统+配置管理已完成）
+> 生成日期：2026-06-20（v7 — 2026-06-23 更新：聊天增强+会话管理+Agent管理+工具系统+配置管理+模型管理已完成）
 
 ## 概述
 
-本项目的目标是用 Go 后端 + 内嵌 Web UI 替代 OpenClaw 的 Node.js 网关 + 前端。前端（`webui/`）是 OpenClaw Control UI 的 Lit 实现，**23 个页面全部已实现**。后端 Gateway RPC 层（`internal/gateway/rpc/`）中**约 55% 的方法仍是桩实现**（2026-06-23 已完成聊天增强、会话管理、Agent管理、工具系统、配置管理五大模块）。此外，后端 Agent 子系统内部存在多个关键缺陷（记忆系统死代码、LLM 提供商硬编码、数据库表缺失迁移等），即使 Gateway 桥接完成，这些问题仍会导致功能不可用。
+本项目的目标是用 Go 后端 + 内嵌 Web UI 替代 OpenClaw 的 Node.js 网关 + 前端。前端（`webui/`）是 OpenClaw Control UI 的 Lit 实现，**23 个页面全部已实现**。后端 Gateway RPC 层（`internal/gateway/rpc/`）中**约 55% 的方法仍是桩实现**（2026-06-23 已完成聊天增强、会话管理、Agent管理、工具系统、配置管理、模型管理六大模块）。此外，后端 Agent 子系统内部存在多个关键缺陷（记忆系统死代码、LLM 提供商硬编码、数据库表缺失迁移等），即使 Gateway 桥接完成，这些问题仍会导致功能不可用。
 
 ---
 
@@ -66,6 +66,7 @@
 | Agent 管理 | `agents.list/create/update/delete` | ✅ DB CRUD + 文件系统存储 |
 | 工具系统 | `tools.catalog/effective/invoke` | ✅ 动态工具目录 + 实际执行 |
 | 配置管理 | `config.get/set/apply/patch/schema/schema.lookup` | ✅ DB 运行时配置 + YAML 默认值回退 |
+| 模型管理 | `models.list/authStatus/authLogout` | ✅ AgentService.GetModelCatalog 桥接 + API key 授权状态 |
 
 ### 二、前端已实现但后端为 Stub 的功能
 
@@ -120,7 +121,11 @@
 
 | Gateway 方法 | 后端状态 | 影响 |
 |-------------|---------|------|
-| `models.list` / `models.authStatus` / `models.authLogout` | ❌ Stubs | 无法列出/切换 LLM 模型 |
+| `models.list` | ✅ 已实现 | 返回 `ModelCatalogEntry[]`，含 id/name/provider/alias/contextWindow/input |
+| `models.authStatus` | ✅ 已实现 | 返回当前 LLM 提供商认证状态（依据内存中 `LLM.APIKey` 是否非空） |
+| `models.authLogout` | ✅ 已实现 | 删除 `agent.llm.api_key` 的 DB 运行时覆盖并重载配置 |
+
+> 注：`models.authLogout` 仅清除 DB 中的运行时覆盖值。如果 `.env` / YAML 中仍配置了 `AGENT_LLM_API_KEY`，重启或登出后仍会回退到该默认值并保持 `authorized=true`。
 
 #### 7. Cron 定时任务
 
@@ -365,7 +370,7 @@ UserID 写死为 0，未从 context 中提取。所有用户共享同一个记�
 6. ~~**`chat.abort`**~~ ✅ 已实现 — RunTracker 取消运行上下文 + 流式适配器响应 Aborted 状态
 7. ~~**`sessions.messages.subscribe`**~~ ✅ 已实现 — SubscriptionHub + ChatStreamAdapter 广播，订阅者实时接收消息推送
 8. ~~**`config.*` 系列**~~ ✅ 已实现 — DB 运行时配置覆盖 YAML 默认值，重启自动恢复
-9. **`models.list`** — 无法选择/切换 LLM 模型
+9. ~~**`models.list/authStatus/authLogout`**~~ ✅ 已实现 — AgentService.GetModelCatalog 桥接到 Gateway，支持模型列表和授权状态管理
 10. **LLM Provider 多提供商支持** — 目前硬编码为 OpenAI
 
 ### P2 — 管理功能
@@ -418,7 +423,7 @@ UserID 写死为 0，未从 context 中提取。所有用户共享同一个记�
 
 ```
 ✅ rpc/config.go → agent/service/config_service + Viper (DB 运行时覆盖 + YAML 默认值) — 2026-06-23 已完成
-rpc/models.go → LLM provider 配置
+✅ rpc/models.go → LLM provider 配置 / AgentService.GetModelCatalog — 2026-06-23 已完成
 rpc/cron.go → internal/cron/
 rpc/skills.go → agent/skill/
 rpc/usage.go → agent/insight/

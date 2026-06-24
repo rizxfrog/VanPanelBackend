@@ -72,6 +72,9 @@ type AgentService interface {
 
 	// ReloadConfig 热重载运行时配置（DB 覆盖值）
 	ReloadConfig(ctx context.Context, cfg *Config) error
+
+	// GetConfig 返回当前内存中的服务配置（用于 Gateway 等外部组件读取 LLM 状态）。
+	GetConfig() *Config
 }
 
 // ModelCatalog 模型目录，返回可用的 LLM 模型和提供商信息
@@ -1115,6 +1118,15 @@ func (s *agentService) ReloadConfig(ctx context.Context, cfg *Config) error {
 		zap.Int("max_history", cfg.MaxHistory),
 	)
 	return nil
+}
+
+// GetConfig 返回当前内存中的服务配置副本。
+func (s *agentService) GetConfig() *Config {
+	if s.cfg == nil {
+		return nil
+	}
+	cfg := *s.cfg
+	return &cfg
 }
 
 // buildConversationText 将消息列表和回复转换为对话文本，用于记忆审查
