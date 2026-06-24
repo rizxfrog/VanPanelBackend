@@ -89,6 +89,8 @@ func ProvideCmd() (*Cmd, error) {
 	insightsEngine := ProvideAgentInsightsEngine(db, logger)
 	handler2 := ProvideAgentHandler(agentService, hubService, configService, searchEngine, skillStore, insightsEngine)
 	engine := InitGinServer(v, userHandler, apiHandler, roleHandler, systemHandler, notAuthHandler, auditHandler, terminalHandler, fileHandler, fileShareHandler, shareAccessHandler, handler2)
+	clawHubClient := ProvideClawHubClient(agentConfig)
+	skillService := ProvideSkillService(skillStore, clawHubClient, agentConfig, logger)
 	cronDAO := ProvideCronDAO(db)
 	client := ProvideCronAsynqClient()
 	cronService := ProvideCronService(cronDAO, agentService, logger, client)
@@ -98,6 +100,7 @@ func ProvideCmd() (*Cmd, error) {
 		Server:          engine,
 		AgentService:    agentService,
 		ConfigService:   configService,
+		SkillService:    skillService,
 		ToolManager:     toolManager,
 		CronService:     cronService,
 		CronManager:     manager,
@@ -112,6 +115,7 @@ type Cmd struct {
 	Server          *gin.Engine
 	AgentService    service4.AgentService
 	ConfigService   *service4.ConfigService
+	SkillService    *service4.SkillService
 	ToolManager     *manager.ToolManager
 	CronService     *service5.CronService
 	CronManager     *manager2.Manager
@@ -148,6 +152,8 @@ var AgentSet = wire.NewSet(
 	ProvideSearchEngine,
 	ProvideAgentSkillStore,
 	ProvideAgentSkillManagerTool,
+	ProvideClawHubClient,
+	ProvideSkillService,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
 	ProvideAgentAuditStore,

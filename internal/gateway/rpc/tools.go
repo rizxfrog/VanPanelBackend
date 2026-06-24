@@ -20,23 +20,23 @@ var toolGroupInfo = map[string]struct {
 	id    string
 	label string
 }{
-	"net":       {id: "network", label: "Network"},
-	"log":       {id: "log", label: "Log"},
-	"proc":      {id: "process", label: "Process"},
-	"disk":      {id: "disk", label: "Disk"},
-	"sys":       {id: "system", label: "System"},
-	"svc":       {id: "service", label: "Service"},
-	"shell":     {id: "shell", label: "Shell"},
-	"file":      {id: "file", label: "File"},
-	"container": {id: "container", label: "Container"},
+	"net":        {id: "network", label: "Network"},
+	"log":        {id: "log", label: "Log"},
+	"proc":       {id: "process", label: "Process"},
+	"disk":       {id: "disk", label: "Disk"},
+	"sys":        {id: "system", label: "System"},
+	"svc":        {id: "service", label: "Service"},
+	"shell":      {id: "shell", label: "Shell"},
+	"file":       {id: "file", label: "File"},
+	"container":  {id: "container", label: "Container"},
 	"prometheus": {id: "monitor", label: "Monitor"},
 }
 
 type toolGroup struct {
-	ID      string `json:"id"`
-	Label   string `json:"label"`
-	Source  string `json:"source,omitempty"`
-	Tools   []toolEntry `json:"tools"`
+	ID     string      `json:"id"`
+	Label  string      `json:"label"`
+	Source string      `json:"source,omitempty"`
+	Tools  []toolEntry `json:"tools"`
 }
 
 type toolEntry struct {

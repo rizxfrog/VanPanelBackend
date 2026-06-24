@@ -1,10 +1,10 @@
 # VanPanelBackend vs OpenClaw 功能差距分析报告
 
-> 生成日期：2026-06-20（v8 — 2026-06-24 更新：聊天增强+会话管理+Agent管理+工具系统+配置管理+模型管理+Cron 定时任务已完成）
+> 生成日期：2026-06-20（v9 — 2026-06-24 更新：聊天增强+会话管理+Agent管理+工具系统+配置管理+模型管理+Cron 定时任务+技能系统已完成）
 
 ## 概述
 
-本项目的目标是用 Go 后端 + 内嵌 Web UI 替代 OpenClaw 的 Node.js 网关 + 前端。前端（`webui/`）是 OpenClaw Control UI 的 Lit 实现，**23 个页面全部已实现**。后端 Gateway RPC 层（`internal/gateway/rpc/`）中**约 50% 的方法仍是桩实现**（2026-06-24 已完成聊天增强、会话管理、Agent管理、工具系统、配置管理、模型管理、Cron 定时任务七大模块）。此外，后端 Agent 子系统内部存在多个关键缺陷（记忆系统死代码、LLM 提供商硬编码、数据库表缺失迁移等），即使 Gateway 桥接完成，这些问题仍会导致功能不可用。
+本项目的目标是用 Go 后端 + 内嵌 Web UI 替代 OpenClaw 的 Node.js 网关 + 前端。前端（`webui/`）是 OpenClaw Control UI 的 Lit 实现，**23 个页面全部已实现**。后端 Gateway RPC 层（`internal/gateway/rpc/`）中**约 50% 的方法仍是桩实现**（2026-06-24 已完成聊天增强、会话管理、Agent管理、工具系统、配置管理、模型管理、Cron 定时任务、技能系统八大模块）。此外，后端 Agent 子系统内部存在多个关键缺陷（记忆系统死代码、LLM 提供商硬编码、数据库表缺失迁移等），即使 Gateway 桥接完成，这些问题仍会导致功能不可用。
 
 ---
 
@@ -68,6 +68,7 @@
 | 配置管理 | `config.get/set/apply/patch/schema/schema.lookup` | ✅ DB 运行时配置 + YAML 默认值回退 |
 | 模型管理 | `models.list/authStatus/authLogout` | ✅ AgentService.GetModelCatalog 桥接 + API key 授权状态 |
 | Cron 定时任务 | `cron.status/list/get/add/update/remove/run/runs` | ✅ 新增 internal/cron/ 子系统 + 内存调度 + Asynq 手动执行 |
+| 技能系统 | `skills.status/skillCard/securityVerdicts/update/install/search/detail` | ✅ 新增 SkillService + ClawHub HTTP 客户端；Skill Workshop 提案仍为桩 |
 
 ### 二、前端已实现但后端为 Stub 的功能
 
@@ -140,8 +141,16 @@
 
 | Gateway 方法 | 后端状态 | 影响 |
 |-------------|---------|------|
-| `skills.status/search/detail/install/update` | ❌ Stubs | 无法使用技能系统 |
-| `skills.proposals.*` (8个) | ❌ Stubs | 无法使用技能工作坊 |
+| `skills.status` | ✅ 已实现 | 返回 `SkillStatusReport`，含本地 skills、requirements/missing 检查、ClawHub link、skillCard 状态 |
+| `skills.skillCard` | ✅ 已实现 | 返回指定 skill 的 SKILL.md 完整内容 |
+| `skills.securityVerdicts` | ✅ 已实现 | 批量返回已关联 ClawHub skills 的安全裁决；未配置 API key 时逐条回退到 `GET /verify` |
+| `skills.update` | ✅ 已实现 | 支持启用/禁用 skill（archived/active）和保存 API key 到 `.secrets.json` |
+| `skills.install` | ✅ 已实现 | 支持本地安装选项执行（brew/node/go/uv/download）和从 ClawHub 下载 ZIP 安装 |
+| `skills.search` | ✅ 已实现 | 调用 ClawHub `GET /api/v1/search` 返回技能列表 |
+| `skills.detail` | ✅ 已实现 | 调用 ClawHub `GET /api/v1/skills/{slug}` 返回技能详情 |
+| `skills.proposals.*` (8个) | ⚠️ 桩实现 | 技能工作坊提案系统尚未实现，返回空列表/占位 |
+
+> 注：新增 `internal/agent/service/skill_service.go` 作为业务层，`internal/agent/skill/clawhub_client.go` 作为 ClawHub HTTP 客户端，`internal/gateway/rpc/skills.go` 已替换桩实现。本地 skill 元数据扩展了 `emoji/homepage/always/bundled/requirements/install/clawhub/skill_card` 等前端兼容字段。提案系统按本次范围保持为桩。
 
 > 注：后端有完整的 `internal/agent/skill/` 实现，但未桥接到 Gateway。
 
@@ -314,7 +323,7 @@ UserID 写死为 0，未从 context 中提取。所有用户共享同一个记�
 
 ### 缺陷 12：配置 YAML 缺少 Agent 子模块配置节 🟠
 
-`config.development.yaml` 缺少 `agent.nudge`、`agent.skill`、`agent.search` 等配置节。Go 结构体中有默认值，但这些配置对运维人员不可见，无法调优。
+`config.development.yaml` 缺少 `agent.nudge`、`agent.search` 等配置节（`agent.skill` 已补充）。Go 结构体中有默认值，但这些配置对运维人员不可见，无法调优。
 
 ---
 
@@ -377,7 +386,7 @@ UserID 写死为 0，未从 context 中提取。所有用户共享同一个记�
 ### P2 — 管理功能
 
 11. ~~**`cron.*` 系列**~~ ✅ 已实现 — 可管理定时任务、启停、手动运行并查看历史
-12. **`skills.*` 系列** — 无法使用技能系统（且需要内置技能内容）
+12. ~~**`skills.*` 系列**~~ ✅ 已实现 — 新增 SkillService + ClawHub 客户端；本地 skill 状态/SkillCard/启停/安装 + ClawHub 搜索/详情/安装/安全裁决；Skill Workshop 提案仍为桩
 13. **`usage.*` 系列** — 无法查看用量和费用
 14. **`workboard.*` / `tasks.*`** — 看板和任务管理
 15. **`logs.tail`** — 实时日志查看
@@ -425,8 +434,8 @@ UserID 写死为 0，未从 context 中提取。所有用户共享同一个记�
 ```
 ✅ rpc/config.go → agent/service/config_service + Viper (DB 运行时覆盖 + YAML 默认值) — 2026-06-23 已完成
 ✅ rpc/models.go → LLM provider 配置 / AgentService.GetModelCatalog — 2026-06-23 已完成
-rpc/cron.go → internal/cron/
-rpc/skills.go → agent/skill/
+✅ rpc/cron.go → internal/cron/ — 2026-06-24 已完成
+✅ rpc/skills.go → agent/service/skill_service + agent/skill/clawhub_client — 2026-06-24 已完成（Skill Workshop 提案仍为桩）
 rpc/usage.go → agent/insight/
 rpc/workboard.go → 新建
 ```

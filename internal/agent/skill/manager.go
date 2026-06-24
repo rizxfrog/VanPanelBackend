@@ -14,7 +14,7 @@ import (
 
 // SkillManageRequest skill_manage 工具参数
 type SkillManageRequest struct {
-	Action      string `json:"action"`       // list|view|create|edit|patch|delete|write_file|remove_file|pin|unpin
+	Action      string `json:"action"` // list|view|create|edit|patch|delete|write_file|remove_file|pin|unpin
 	Name        string `json:"name,omitempty"`
 	Category    string `json:"category,omitempty"`
 	Description string `json:"description,omitempty"`

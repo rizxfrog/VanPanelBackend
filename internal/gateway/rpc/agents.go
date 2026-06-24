@@ -259,12 +259,12 @@ func handleAgentsFilesList(ctx context.Context, conn *gateway.GatewayConnection,
 			content = string(contentBytes)
 		}
 		files = append(files, map[string]interface{}{
-			"name":       entry.Name(),
-			"path":       filePath,
-			"missing":    false,
-			"size":       info.Size(),
+			"name":        entry.Name(),
+			"path":        filePath,
+			"missing":     false,
+			"size":        info.Size(),
 			"updatedAtMs": info.ModTime().UnixMilli(),
-			"content":    content,
+			"content":     content,
 		})
 	}
 
@@ -301,12 +301,12 @@ func handleAgentsFilesGet(ctx context.Context, conn *gateway.GatewayConnection, 
 		"agentId":   agentID,
 		"workspace": dir,
 		"file": map[string]interface{}{
-			"name":       req.Name,
-			"path":       filePath,
-			"missing":    false,
-			"size":       info.Size(),
+			"name":        req.Name,
+			"path":        filePath,
+			"missing":     false,
+			"size":        info.Size(),
 			"updatedAtMs": info.ModTime().UnixMilli(),
-			"content":    content,
+			"content":     content,
 		},
 	}, nil
 }
@@ -350,12 +350,12 @@ func handleAgentsFilesSet(ctx context.Context, conn *gateway.GatewayConnection, 
 		"agentId":   agentID,
 		"workspace": dir,
 		"file": map[string]interface{}{
-			"name":       name,
-			"path":       filePath,
-			"missing":    false,
-			"size":       info.Size(),
+			"name":        name,
+			"path":        filePath,
+			"missing":     false,
+			"size":        info.Size(),
 			"updatedAtMs": info.ModTime().UnixMilli(),
-			"content":    req.Content,
+			"content":     req.Content,
 		},
 	}, nil
 }

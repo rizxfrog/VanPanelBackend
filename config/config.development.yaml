@@ -104,3 +104,8 @@ agent:
     plugin_dir: "./data/plugins"
     max_plugin_size: 52428800
     max_concurrent_plugins: 10
+  skill:
+    base_dir: "data/skills"
+    clawhub_base_url: "https://clawhub.ai"
+    clawhub_api_key: ""
+    registry: "clawhub"

@@ -302,7 +302,7 @@ func handleChatMetadata(ctx context.Context, conn *gateway.GatewayConnection, pa
 func handleChatMessageGet(ctx context.Context, conn *gateway.GatewayConnection, params json.RawMessage) (interface{}, error) {
 	if agentSvc == nil {
 		return buildOKResponse(map[string]interface{}{
-			"ok":               false,
+			"ok":                false,
 			"unavailableReason": "not_found",
 		}), nil
 	}
@@ -320,7 +320,7 @@ func handleChatMessageGet(ctx context.Context, conn *gateway.GatewayConnection, 
 	sessionID, err := ensureSession(ctx, req.SessionKey)
 	if err != nil {
 		return buildOKResponse(map[string]interface{}{
-			"ok":               false,
+			"ok":                false,
 			"unavailableReason": "not_found",
 		}), nil
 	}
@@ -329,7 +329,7 @@ func handleChatMessageGet(ctx context.Context, conn *gateway.GatewayConnection, 
 	messageID, err := strconv.ParseInt(req.MessageID, 10, 64)
 	if err != nil {
 		return buildOKResponse(map[string]interface{}{
-			"ok":               false,
+			"ok":                false,
 			"unavailableReason": "not_found",
 		}), nil
 	}
@@ -341,7 +341,7 @@ func handleChatMessageGet(ctx context.Context, conn *gateway.GatewayConnection, 
 	}
 	if msg == nil {
 		return buildOKResponse(map[string]interface{}{
-			"ok":               false,
+			"ok":                false,
 			"unavailableReason": "not_found",
 		}), nil
 	}

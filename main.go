@@ -49,6 +49,9 @@ func run() error {
 	if cmd.CronService != nil {
 		gatewayRpc.SetCronService(cmd.CronService)
 	}
+	if cmd.SkillService != nil {
+		gatewayRpc.SetSkillService(cmd.SkillService)
+	}
 	db := di.InitDB()
 
 	if db != nil && di.CheckDBHealth(db) == nil {

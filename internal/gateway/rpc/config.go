@@ -276,7 +276,7 @@ func applyRawConfig(ctx context.Context, raw string) error {
 // buildJsonSchema 构造前端需要的 JSON Schema 根对象。
 func buildJsonSchema() map[string]interface{} {
 	root := map[string]interface{}{
-		"type": "object",
+		"type":       "object",
 		"properties": map[string]interface{}{},
 	}
 	for _, e := range knownConfigKeys {

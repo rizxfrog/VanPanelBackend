@@ -29,6 +29,7 @@ type Cmd struct {
 	Server          *gin.Engine
 	AgentService    agentService.AgentService
 	ConfigService   *agentService.ConfigService
+	SkillService    *agentService.SkillService
 	ToolManager     *agentToolManager.ToolManager
 	CronService     *cronService.CronService
 	CronManager     *cronManager.Manager
@@ -98,6 +99,8 @@ var AgentSet = wire.NewSet(
 	ProvideSearchEngine,
 	ProvideAgentSkillStore,
 	ProvideAgentSkillManagerTool,
+	ProvideClawHubClient,
+	ProvideSkillService,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
 	ProvideAgentAuditStore,

@@ -260,6 +260,25 @@ func ProvideAgentSkillStore(cfg *AgentConfig, l *zap.Logger) (*agentSkill.SkillS
 	return agentSkill.NewSkillStore(baseDir, l)
 }
 
+// ProvideClawHubClient 创建 ClawHub 注册表客户端
+func ProvideClawHubClient(cfg *AgentConfig) *agentSkill.ClawHubClient {
+	return agentSkill.NewClawHubClient(agentSkill.ClawHubConfig{
+		BaseURL:  cfg.Skill.ClawHubBaseURL,
+		APIKey:   cfg.Skill.ClawHubAPIKey,
+		Registry: cfg.Skill.Registry,
+	})
+}
+
+// ProvideSkillService 创建 Gateway 可用的 SkillService
+func ProvideSkillService(store *agentSkill.SkillStore, clawHub *agentSkill.ClawHubClient, cfg *AgentConfig, l *zap.Logger) *agentService.SkillService {
+	return agentService.NewSkillService(store, clawHub, agentService.SkillsConfig{
+		BaseDir:        cfg.Skill.BaseDir,
+		ClawHubBaseURL: cfg.Skill.ClawHubBaseURL,
+		ClawHubAPIKey:  cfg.Skill.ClawHubAPIKey,
+		Registry:       cfg.Skill.Registry,
+	}, l)
+}
+
 // ==================== Skill Manager Tool ====================
 
 // ProvideAgentSkillManagerTool 创建 skill_manage Eino 工具
