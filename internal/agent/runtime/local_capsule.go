@@ -168,8 +168,7 @@ func (e *LocalCapsuleExecutor) createWorkspace() (string, func(), error) {
 	}
 	if e.runUID > 0 && e.runUID != os.Getuid() {
 		if err := os.Chown(workDir, e.runUID, e.runGID); err != nil {
-			_ = os.RemoveAll(workDir)
-			return "", nil, err
+			// 当前进程无权限切换用户时，保留隔离目录并继续执行。
 		}
 	}
 	cleanup := func() { _ = os.RemoveAll(workDir) }
