@@ -21,6 +21,7 @@ import (
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/nudge"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/pipeline"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
+	agentRuntime "github.com/rizxfrog/VanPanelBackend/internal/agent/runtime"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
 	"github.com/rizxfrog/VanPanelBackend/internal/model"
 )
@@ -106,6 +107,7 @@ type agentService struct {
 	logger        *zap.Logger
 	pipelineStage *pipeline.Stage            // optional pipeline enhancement
 	nudgeReviewer *nudge.MemoryNudgeReviewer // optional memory nudge
+	secureRuntime *agentRuntime.SecureToolRuntime
 }
 
 // NewAgentService 创建智能体服务实例
@@ -118,6 +120,7 @@ func NewAgentService(
 	logger *zap.Logger,
 	pipelineStage *pipeline.Stage,
 	nudgeReviewer *nudge.MemoryNudgeReviewer,
+	secureRuntime *agentRuntime.SecureToolRuntime,
 ) AgentService {
 	return &agentService{
 		dao:           dao,
@@ -128,6 +131,7 @@ func NewAgentService(
 		logger:        logger,
 		pipelineStage: pipelineStage,
 		nudgeReviewer: nudgeReviewer,
+		secureRuntime: secureRuntime,
 	}
 }
 
@@ -232,7 +236,7 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 	rawTools := s.toolMgr.GetAllTools(ctx)
 	safeTools := make([]tool.BaseTool, 0, len(rawTools))
 	for _, t := range rawTools {
-		wt, err := wrapTool(t, s.riskEval, func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
+		wt, err := wrapTool(t, s.riskEval, s.secureRuntime, req.SessionID, func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 			s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 		})
 		if err != nil {
@@ -388,7 +392,7 @@ func (s *agentService) QueryWithPipeline(ctx context.Context, req *model.AgentQu
 	rawTools := s.toolMgr.GetAllTools(ctx)
 	safeTools := make([]tool.BaseTool, 0, len(rawTools))
 	for _, t := range rawTools {
-		wt, err := wrapTool(t, s.riskEval, func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
+		wt, err := wrapTool(t, s.riskEval, s.secureRuntime, req.SessionID, func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 			s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 		})
 		if err != nil {
@@ -536,7 +540,7 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 	rawTools := s.toolMgr.GetAllTools(ctx)
 	safeTools := make([]tool.BaseTool, 0, len(rawTools))
 	for _, t := range rawTools {
-		wt, err := wrapToolWithCallback(t, s.riskEval,
+		wt, err := wrapToolWithCallback(t, s.riskEval, s.secureRuntime, req.SessionID,
 			func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 				s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 			},
@@ -688,7 +692,7 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 	rawTools := s.toolMgr.GetAllTools(ctx)
 	safeTools := make([]tool.BaseTool, 0, len(rawTools))
 	for _, t := range rawTools {
-		wt, err := wrapToolWithCallback(t, s.riskEval,
+		wt, err := wrapToolWithCallback(t, s.riskEval, s.secureRuntime, req.SessionID,
 			func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 				s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 			},

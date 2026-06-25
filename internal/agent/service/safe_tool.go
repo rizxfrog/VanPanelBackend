@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 
 	"github.com/cloudwego/eino/components/tool"
@@ -9,6 +10,7 @@ import (
 	"github.com/cloudwego/eino/schema"
 	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
+	agentRuntime "github.com/rizxfrog/VanPanelBackend/internal/agent/runtime"
 	"go.uber.org/zap"
 )
 
@@ -23,6 +25,8 @@ type preCallbackType func(toolCallID, toolName, args string)
 type safeTool struct {
 	inner          tool.InvokableTool
 	riskEval       *risk.Evaluator
+	secureRuntime  *agentRuntime.SecureToolRuntime
+	sessionID      string
 	auditFn        func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string)
 	info           *schema.ToolInfo
 	preCallback    preCallbackType
@@ -32,6 +36,8 @@ type safeTool struct {
 func wrapTool(
 	t tool.BaseTool,
 	riskEval *risk.Evaluator,
+	secureRuntime *agentRuntime.SecureToolRuntime,
+	sessionID string,
 	auditFn func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string),
 ) (tool.BaseTool, error) {
 	it, ok := t.(tool.InvokableTool)
@@ -42,12 +48,14 @@ func wrapTool(
 	if err != nil {
 		return t, fmt.Errorf("tool Info failed: %w", err)
 	}
-	return &safeTool{inner: it, riskEval: riskEval, auditFn: auditFn, info: info}, nil
+	return &safeTool{inner: it, riskEval: riskEval, secureRuntime: secureRuntime, sessionID: sessionID, auditFn: auditFn, info: info}, nil
 }
 
 func wrapToolWithCallback(
 	t tool.BaseTool,
 	riskEval *risk.Evaluator,
+	secureRuntime *agentRuntime.SecureToolRuntime,
+	sessionID string,
 	auditFn func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string),
 	preCallback preCallbackType,
 	resultCallback resultCallbackType,
@@ -60,7 +68,7 @@ func wrapToolWithCallback(
 	if err != nil {
 		return t, fmt.Errorf("tool Info failed: %w", err)
 	}
-	return &safeTool{inner: it, riskEval: riskEval, auditFn: auditFn, info: info, preCallback: preCallback, resultCallback: resultCallback}, nil
+	return &safeTool{inner: it, riskEval: riskEval, secureRuntime: secureRuntime, sessionID: sessionID, auditFn: auditFn, info: info, preCallback: preCallback, resultCallback: resultCallback}, nil
 }
 
 func (st *safeTool) Info(ctx context.Context) (*schema.ToolInfo, error) {
@@ -96,13 +104,65 @@ func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ..
 				evalResult.Reason, st.info.Name)
 			if st.auditFn != nil {
 				st.auditFn(ctx, "tool.blocked", st.info.Name, evalResult.Reason,
-					agentmodel.RiskLevel(evalResult.Level), false, argsInJSON, blockedMsg)
+					agentmodel.RiskHigh, false, argsInJSON, blockedMsg)
 			}
 			if st.resultCallback != nil {
 				st.resultCallback(toolCallID, st.info.Name, blockedMsg, "error")
 			}
 			return blockedMsg, nil
 		}
+	}
+
+	if st.secureRuntime != nil && st.info.Name == "shell.exec" {
+		args, err := parseToolArgs(argsInJSON)
+		if err != nil {
+			return st.inner.InvokableRun(ctx, argsInJSON, opts...)
+		}
+		safeResult, err := st.secureRuntime.Execute(ctx, st.sessionID, agentRuntime.ToolCall{
+			Name: st.info.Name,
+			Args: args,
+		})
+		if err != nil {
+			zap.L().Warn("[ToolCall] 安全运行时执行失败，回退到原始工具",
+				zap.String("tool", st.info.Name),
+				zap.String("callID", toolCallID),
+				zap.String("args", argsInJSON),
+				zap.Error(err),
+			)
+			return st.inner.InvokableRun(ctx, argsInJSON, opts...)
+		}
+		if safeResult.Blocked {
+			blockedMsg := fmt.Sprintf("[安全运行时拦截] 操作被安全策略阻止\n原因: %s\n工具: %s\n建议: 请尝试更安全的替代方案",
+				safeResult.Reason, st.info.Name)
+			if st.auditFn != nil {
+				st.auditFn(ctx, "tool.blocked", st.info.Name, safeResult.Reason,
+					agentmodel.RiskHigh, false, argsInJSON, blockedMsg)
+			}
+			if st.resultCallback != nil {
+				st.resultCallback(toolCallID, st.info.Name, blockedMsg, "error")
+			}
+			return blockedMsg, nil
+		}
+		if safeResult.Pending {
+			pendingMsg := fmt.Sprintf("[安全运行时等待审批] 操作需要用户确认\n原因: %s\n审批 ID: %s",
+				safeResult.Reason, safeResult.ApprovalID)
+			if st.auditFn != nil {
+				st.auditFn(ctx, "tool.pending", st.info.Name, safeResult.Reason,
+					agentmodel.RiskLow, true, argsInJSON, pendingMsg)
+			}
+			if st.resultCallback != nil {
+				st.resultCallback(toolCallID, st.info.Name, pendingMsg, "pending")
+			}
+			return pendingMsg, nil
+		}
+		if st.auditFn != nil {
+			st.auditFn(ctx, "tool.execute", st.info.Name, "",
+				agentmodel.RiskSafe, true, argsInJSON, truncateString(safeResult.Output, 2000))
+		}
+		if st.resultCallback != nil {
+			st.resultCallback(toolCallID, st.info.Name, safeResult.Output, "success")
+		}
+		return safeResult.Output, nil
 	}
 
 	result, err := st.inner.InvokableRun(ctx, argsInJSON, opts...)
@@ -148,6 +208,20 @@ func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ..
 	)
 
 	return result, nil
+}
+
+func parseToolArgs(argsInJSON string) (map[string]any, error) {
+	if argsInJSON == "" {
+		return map[string]any{}, nil
+	}
+	var args map[string]any
+	if err := json.Unmarshal([]byte(argsInJSON), &args); err != nil {
+		return nil, err
+	}
+	if args == nil {
+		return map[string]any{}, nil
+	}
+	return args, nil
 }
 
 // truncateString 截断字符串到指定长度，超出部分用 "..." 替代
