@@ -31,27 +31,40 @@ type ShellConfig struct {
 // EvaluatorConfig holds the risk evaluator configuration.
 // This mirrors di.AgentRiskConfig but is defined locally to avoid import cycles.
 type EvaluatorConfig struct {
-	HighRiskPatterns []string
-	ProtectedPaths   []string
-	Shell            ShellConfig
+	HighRiskPatterns  []string
+	ProtectedPaths    []string
+	Shell             ShellConfig
+	DangerousCommands []string
+	ProtectedServices []string
+	ApprovalTools     []string
 }
 
 // Evaluator evaluates tool calls for risk based on configurable patterns and rules.
 type Evaluator struct {
-	highRiskPatterns []*regexp.Regexp
-	protectedPaths   []string
-	shellBlacklist   []*regexp.Regexp
-	shellWhitelist   []*regexp.Regexp
+	highRiskPatterns  []*regexp.Regexp
+	protectedPaths    []string
+	shellBlacklist    []*regexp.Regexp
+	shellWhitelist    []*regexp.Regexp
+	dangerousCommands []*regexp.Regexp
+	protectedServices []string
+	approvalTools     []string
 }
 
 // NewEvaluator creates an Evaluator from the given configuration.
 func NewEvaluator(cfg *EvaluatorConfig) *Evaluator {
 	e := &Evaluator{
-		protectedPaths: cfg.ProtectedPaths,
+		protectedPaths:    cfg.ProtectedPaths,
+		protectedServices: cfg.ProtectedServices,
+		approvalTools:     cfg.ApprovalTools,
 	}
 	for _, p := range cfg.HighRiskPatterns {
 		if re, err := regexp.Compile(p); err == nil {
 			e.highRiskPatterns = append(e.highRiskPatterns, re)
+		}
+	}
+	for _, p := range cfg.DangerousCommands {
+		if re, err := regexp.Compile(p); err == nil {
+			e.dangerousCommands = append(e.dangerousCommands, re)
 		}
 	}
 	for _, p := range cfg.Shell.Blacklist {
@@ -76,14 +89,35 @@ func (e *Evaluator) Evaluate(toolName string, args string) EvalResult {
 
 func (e *Evaluator) evaluateNamedTool(name string, args string) EvalResult {
 	switch {
+	case name == "terminal.suggest":
+		for _, re := range e.dangerousCommands {
+			if re.MatchString(args) {
+				return EvalResult{Level: RiskLevelHigh, Reason: "危险命令被拦截", Blocked: true}
+			}
+		}
+	case name == "file.delete", name == "file.move_to_trash":
+		for _, p := range e.protectedPaths {
+			if strings.Contains(args, p) {
+				return EvalResult{Level: RiskLevelHigh, Reason: "受保护路径: " + p, Blocked: true}
+			}
+		}
+	case name == "service.restart":
+		for _, svc := range e.protectedServices {
+			if strings.Contains(args, svc) {
+				return EvalResult{Level: RiskLevelHigh, Reason: "受保护服务: " + svc, Blocked: true}
+			}
+		}
 	case strings.HasPrefix(name, "svc."):
 		if strings.Contains(args, "restart") || strings.Contains(args, "stop") || strings.Contains(args, "start") {
 			return EvalResult{Level: RiskLevelLow, Reason: "服务管理操作需要审批"}
 		}
-		return EvalResult{Level: RiskLevelSafe}
-	default:
-		return EvalResult{Level: RiskLevelSafe}
 	}
+	for _, tool := range e.approvalTools {
+		if name == tool {
+			return EvalResult{Level: RiskLevelLow, Reason: "需要用户审批"}
+		}
+	}
+	return EvalResult{Level: RiskLevelSafe}
 }
 
 func (e *Evaluator) evaluateShell(args string) EvalResult {
