@@ -1,5 +1,5 @@
 // Control UI view renders mcp screen content.
-import { redactSensitiveUrlLikeString } from "@openclaw/net-policy/redact-sensitive-url";
+import { redactSensitiveUrlLikeString } from "@agentops/net-policy/redact-sensitive-url";
 import { html, nothing, type TemplateResult } from "lit";
 
 type McpServerRow = {
@@ -66,8 +66,8 @@ function quoteShellArg(value: string): string {
 
 function renderServerRow(props: McpViewProps, server: McpServerRow) {
   const quotedName = quoteShellArg(server.name);
-  const probeCommand = `openclaw mcp probe ${quotedName}`;
-  const loginCommand = `openclaw mcp login ${quotedName}`;
+  const probeCommand = `agentops mcp probe ${quotedName}`;
+  const loginCommand = `agentops mcp login ${quotedName}`;
   return html`
     <article class="mcp-server-row">
       <div class="mcp-server-row__main">
@@ -138,10 +138,10 @@ export function renderMcp(props: McpViewProps) {
           <div class="card-sub">Status, diagnostics, auth, probing, and runtime reload.</div>
         </div>
         <div class="mcp-command-card__grid">
-          <code>openclaw mcp status --verbose</code>
-          <code>openclaw mcp doctor --probe</code>
-          <code>openclaw mcp login &lt;name&gt;</code>
-          <code>openclaw mcp reload</code>
+          <code>agentops mcp status --verbose</code>
+          <code>agentops mcp doctor --probe</code>
+          <code>agentops mcp login &lt;name&gt;</code>
+          <code>agentops mcp reload</code>
         </div>
       </section>
 

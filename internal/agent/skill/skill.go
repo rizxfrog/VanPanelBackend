@@ -142,7 +142,7 @@ func (s *SkillStore) GetSkill(ctx context.Context, name string) (*Skill, error) 
 	}
 
 	// 解析 YAML frontmatter
-	meta, content, err := parseFullSkillMD(data)
+	meta, content, err := ParseFullSkillMD(data)
 	if err != nil {
 		return nil, fmt.Errorf("解析 SKILL.md 失败: %w", err)
 	}
@@ -260,7 +260,7 @@ func (s *SkillStore) CreateSkill(ctx context.Context, meta SkillMeta, content st
 
 	// 写入 SKILL.md
 	skillMD := filepath.Join(skillDir, "SKILL.md")
-	if err := writeSkillMD(skillMD, meta, content); err != nil {
+	if err := WriteSkillMD(skillMD, meta, content); err != nil {
 		return nil, fmt.Errorf("写入 SKILL.md 失败: %w", err)
 	}
 
@@ -526,8 +526,8 @@ func parseFrontmatter(filePath string) (*SkillMeta, error) {
 	return &meta, nil
 }
 
-// parseFullSkillMD 完整解析 SKILL.md（frontmatter + 正文）
-func parseFullSkillMD(data []byte) (*SkillMeta, string, error) {
+// ParseFullSkillMD 完整解析 SKILL.md（frontmatter + 正文）
+func ParseFullSkillMD(data []byte) (*SkillMeta, string, error) {
 	content := string(data)
 	parts := strings.SplitN(content, "---\n", 3)
 	if len(parts) < 3 {
@@ -545,8 +545,8 @@ func parseFullSkillMD(data []byte) (*SkillMeta, string, error) {
 	return &meta, body, nil
 }
 
-// writeSkillMD 写入 SKILL.md 文件（frontmatter + 正文）
-func writeSkillMD(filePath string, meta SkillMeta, content string) error {
+// WriteSkillMD 写入 SKILL.md 文件（frontmatter + 正文）
+func WriteSkillMD(filePath string, meta SkillMeta, content string) error {
 	metaYAML, err := yaml.Marshal(meta)
 	if err != nil {
 		return fmt.Errorf("序列化 frontmatter 失败: %w", err)

@@ -41,7 +41,7 @@
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/ui/app-render.ts",
-      "text": "OpenClaw"
+      "text": "AgentOps"
     },
     {
       "count": 1,
@@ -447,7 +447,7 @@
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/ui/components/dashboard-header.ts",
-      "text": "OpenClaw"
+      "text": "AgentOps"
     },
     {
       "count": 1,
@@ -2645,7 +2645,7 @@
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/ui/views/config-quick.ts",
-      "text": "Choose how much workspace context OpenClaw injects into each run. These profiles do not change your model, tools, channels, or theme."
+      "text": "Choose how much workspace context AgentOps injects into each run. These profiles do not change your model, tools, channels, or theme."
     },
     {
       "count": 1,
@@ -3737,7 +3737,7 @@
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/ui/views/debug.ts",
-      "text": "openclaw security audit --deep"
+      "text": "agentops security audit --deep"
     },
     {
       "count": 1,
@@ -4038,7 +4038,7 @@
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/ui/views/login-gate.ts",
-      "text": "OpenClaw"
+      "text": "AgentOps"
     },
     {
       "count": 1,
@@ -4185,28 +4185,28 @@
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/ui/views/mcp.ts",
-      "text": "openclaw mcp doctor --probe"
+      "text": "agentops mcp doctor --probe"
     },
     {
       "count": 1,
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/ui/views/mcp.ts",
-      "text": "openclaw mcp login &lt;name&gt;"
+      "text": "agentops mcp login &lt;name&gt;"
     },
     {
       "count": 1,
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/ui/views/mcp.ts",
-      "text": "openclaw mcp reload"
+      "text": "agentops mcp reload"
     },
     {
       "count": 1,
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/ui/views/mcp.ts",
-      "text": "openclaw mcp status --verbose"
+      "text": "agentops mcp status --verbose"
     },
     {
       "count": 1,
@@ -4619,7 +4619,7 @@
       "kind": "html-attribute",
       "name": "placeholder",
       "path": "ui/src/ui/views/overview.ts",
-      "text": "OPENCLAW_GATEWAY_TOKEN"
+      "text": "AGENTOPS_GATEWAY_TOKEN"
     },
     {
       "count": 1,
@@ -4682,21 +4682,21 @@
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/ui/views/overview.ts",
-      "text": "openclaw dashboard --no-open"
+      "text": "agentops dashboard --no-open"
     },
     {
       "count": 1,
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/ui/views/overview.ts",
-      "text": "openclaw devices list"
+      "text": "agentops devices list"
     },
     {
       "count": 2,
       "kind": "html-text",
       "name": "text",
       "path": "ui/src/ui/views/overview.ts",
-      "text": "openclaw doctor --generate-gateway-token"
+      "text": "agentops doctor --generate-gateway-token"
     },
     {
       "count": 1,

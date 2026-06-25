@@ -7,6 +7,10 @@ import (
 	"github.com/google/wire"
 	_ "github.com/google/wire"
 	agentService "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
+	agentToolManager "github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
+	cronManager "github.com/rizxfrog/VanPanelBackend/internal/cron/manager"
+	cronServer "github.com/rizxfrog/VanPanelBackend/internal/cron/server"
+	cronService "github.com/rizxfrog/VanPanelBackend/internal/cron/service"
 	filesHandler "github.com/rizxfrog/VanPanelBackend/internal/files/api"
 	filesDao "github.com/rizxfrog/VanPanelBackend/internal/files/dao"
 	filesService "github.com/rizxfrog/VanPanelBackend/internal/files/service"
@@ -22,8 +26,14 @@ import (
 )
 
 type Cmd struct {
-	Server       *gin.Engine
-	AgentService agentService.AgentService
+	Server          *gin.Engine
+	AgentService    agentService.AgentService
+	ConfigService   *agentService.ConfigService
+	SkillService    *agentService.SkillService
+	ToolManager     *agentToolManager.ToolManager
+	CronService     *cronService.CronService
+	CronManager     *cronManager.Manager
+	CronAsynqServer *cronServer.CronAsynqServer
 }
 
 var HandlerSet = wire.NewSet(
@@ -89,6 +99,8 @@ var AgentSet = wire.NewSet(
 	ProvideSearchEngine,
 	ProvideAgentSkillStore,
 	ProvideAgentSkillManagerTool,
+	ProvideClawHubClient,
+	ProvideSkillService,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
 	ProvideAgentAuditStore,
@@ -101,6 +113,14 @@ var AgentSet = wire.NewSet(
 	ProvideAgentInsightsEngine,
 )
 
+var CronSet = wire.NewSet(
+	ProvideCronDAO,
+	ProvideCronService,
+	ProvideCronManager,
+	ProvideCronAsynqClient,
+	ProvideCronAsynqServer,
+)
+
 func ProvideCmd() (*Cmd, error) {
 	wire.Build(
 		Injector,
@@ -109,6 +129,7 @@ func ProvideCmd() (*Cmd, error) {
 		DaoSet,
 		UtilSet,
 		AgentSet,
+		CronSet,
 	)
 	return &Cmd{}, nil
 }

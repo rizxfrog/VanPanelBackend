@@ -233,7 +233,7 @@ function groupMessages(items: ChatItem[]): Array<ChatItem | MessageGroup> {
 }
 
 function collapseDuplicateDisplaySignature(message: unknown): string | null {
-  const marker = asRecord(message)?.["__openclaw"];
+  const marker = asRecord(message)?.["__agentops"];
   if (asRecord(marker)?.kind === "pending-send") {
     return null;
   }
@@ -322,7 +322,7 @@ function queuedSendThreadMessage(item: ChatQueueItem): Record<string, unknown> |
     role: "user",
     content,
     timestamp: item.createdAt,
-    __openclaw: {
+    __agentops: {
       kind: "pending-send",
       id: item.id,
       state: item.sendState,
@@ -560,7 +560,7 @@ export function buildChatItems(props: BuildChatItemsProps): Array<ChatItem | Mes
       continue;
     }
     const raw = asRecord(msg) ?? {};
-    const marker = raw["__openclaw"] as Record<string, unknown> | undefined;
+    const marker = raw["__agentops"] as Record<string, unknown> | undefined;
     if (marker && marker.kind === "compaction") {
       items.push({
         kind: "divider",

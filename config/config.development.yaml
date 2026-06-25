@@ -1,7 +1,7 @@
 server:
   port: "8889"
 log:
-  dir: "a:/map/VanPanel/logs"
+  dir: "/mnt/ramdisk/map/VanPanel/logs"
   level: "debug"
 jwt:
   key1: "ebe3vxIP7sblVvUHXb7ZaiMPuz4oXo0l"
@@ -68,6 +68,11 @@ file_manager:
   allowed_archive_types:
     - zip
     - tar.gz
+mcp:
+  serve: false
+  transport: "stdio"
+  port: 8890
+
 agent:
   llm:
     provider: "openai"
@@ -99,3 +104,8 @@ agent:
     plugin_dir: "./data/plugins"
     max_plugin_size: 52428800
     max_concurrent_plugins: 10
+  skill:
+    base_dir: "data/skills"
+    clawhub_base_url: "https://clawhub.ai"
+    clawhub_api_key: ""
+    registry: "clawhub"

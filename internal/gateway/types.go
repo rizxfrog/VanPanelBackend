@@ -1,6 +1,9 @@
 package gateway
 
-import "time"
+import (
+	"encoding/json"
+	"time"
+)
 
 // --- Wire Protocol Types ---
 
@@ -273,9 +276,37 @@ type ChatMessage struct {
 }
 
 // ContentBlock is a content part within a chat message.
+// Supports text, tool_use, and tool_result content types.
 type ContentBlock struct {
-	Type string `json:"type"` // "text", "tool_use", "tool_result"
-	Text string `json:"text,omitempty"`
+	Type  string          `json:"type"`            // "text", "tool_use", "tool_result"
+	Text  string          `json:"text,omitempty"`  // text content or tool result text
+	ID    string          `json:"id,omitempty"`    // tool call ID (for tool_use / tool_result)
+	Name  string          `json:"name,omitempty"`  // tool name (for tool_use / tool_result)
+	Input json.RawMessage `json:"input,omitempty"` // tool arguments (for tool_use), raw JSON object
+}
+
+// --- Agent Event Types ---
+
+// ToolStreamData is the data payload for agent tool events.
+type ToolStreamData struct {
+	ToolCallID    string      `json:"toolCallId"`
+	Name          string      `json:"name"`
+	Phase         string      `json:"phase"`                   // "start", "update", "result"
+	Args          interface{} `json:"args,omitempty"`          // tool arguments (for start)
+	Result        string      `json:"result,omitempty"`        // tool result text (for result)
+	PartialResult string      `json:"partialResult,omitempty"` // partial result (for update)
+	IsError       bool        `json:"isError,omitempty"`       // error flag
+}
+
+// AgentToolPayload is the full payload for "agent" events with stream "tool".
+type AgentToolPayload struct {
+	RunID      string         `json:"runId"`
+	Seq        int            `json:"seq"`
+	Stream     string         `json:"stream"` // "tool"
+	TS         int64          `json:"ts"`
+	SessionKey string         `json:"sessionKey,omitempty"`
+	AgentID    string         `json:"agentId,omitempty"`
+	Data       ToolStreamData `json:"data"`
 }
 
 // --- Tick / Shutdown ---

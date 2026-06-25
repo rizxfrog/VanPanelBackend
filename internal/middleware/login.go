@@ -49,7 +49,14 @@ func NewJWTMiddleware(hdl ijwt.Handler) *JWTMiddleware {
 func (m *JWTMiddleware) CheckLogin() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		path := ctx.Request.URL.Path
-		// 跳过token验证的路径
+
+		// 非 API 路径（SPA 页面路由、静态资源等）跳过 JWT 校验
+		if !strings.HasPrefix(path, "/api/") || path == "/" {
+			ctx.Next()
+			return
+		}
+
+		// 跳过token验证的 API 路径
 		if path == "/api/user/login" ||
 			path == "/api/user/logout" ||
 			path == "/api/user/refresh_token" ||
@@ -57,14 +64,17 @@ func (m *JWTMiddleware) CheckLogin() gin.HandlerFunc {
 			path == "/api/not_auth/getBindIps" || path == "/api/not_auth/getTreeNodeBindIps" ||
 			strings.HasPrefix(path, "/api/monitor/prometheus_configs/") ||
 			strings.HasPrefix(path, "/api/share") ||
+			strings.HasPrefix(path, "/api/system/agent/config") ||
+			strings.HasPrefix(path, "/api/system/agent/hub/plugins/list") ||
+			strings.HasPrefix(path, "/api/system/agent/remote-mcps/list") ||
+			strings.HasPrefix(path, "/api/system/agent/builtin-tools/list") ||
 			strings.HasPrefix(path, "/ui") ||
 			strings.HasPrefix(path, "/assets") ||
 			strings.HasPrefix(path, "/control-ui") ||
 			path == "/login" ||
 			path == "/favicon.ico" ||
 			path == "/favicon.svg" ||
-			path == "/sw.js" ||
-			path == "/" {
+			path == "/sw.js" {
 			ctx.Next()
 			return
 		}

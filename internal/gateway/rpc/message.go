@@ -26,7 +26,27 @@ func handleAgent(ctx context.Context, conn *gateway.GatewayConnection, params js
 	return map[string]bool{"ok": true}, nil
 }
 func handleAgentIdentityGet(ctx context.Context, conn *gateway.GatewayConnection, params json.RawMessage) (interface{}, error) {
-	return map[string]interface{}{"name": "VanPanel", "avatar": ""}, nil
+	var req struct {
+		AgentID string `json:"agentId"`
+	}
+	json.Unmarshal(params, &req)
+	agentID := req.AgentID
+	if agentID == "" {
+		agentID = "main"
+	}
+
+	name := agentID
+	if agentSvc != nil {
+		agent, err := agentSvc.GetAgent(ctx, agentID)
+		if err == nil && agent != nil {
+			name = agent.Name
+		}
+	}
+
+	return map[string]interface{}{
+		"agentId": agentID,
+		"name":    name,
+	}, nil
 }
 func handleAgentWait(ctx context.Context, conn *gateway.GatewayConnection, params json.RawMessage) (interface{}, error) {
 	return map[string]interface{}{}, nil

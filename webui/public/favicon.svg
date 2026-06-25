@@ -1,22 +1,19 @@
 <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg">
   <defs>
-    <linearGradient id="lobster-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ff4d4d"/>
-      <stop offset="100%" stop-color="#991b1b"/>
+    <linearGradient id="agentops-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2563eb"/>
+      <stop offset="100%" stop-color="#06b6d4"/>
     </linearGradient>
   </defs>
-  <!-- Body -->
-  <path d="M60 10 C30 10 15 35 15 55 C15 75 30 95 45 100 L45 110 L55 110 L55 100 C55 100 60 102 65 100 L65 110 L75 110 L75 100 C90 95 105 75 105 55 C105 35 90 10 60 10Z" fill="url(#lobster-gradient)"/>
-  <!-- Left Claw -->
-  <path d="M20 45 C5 40 0 50 5 60 C10 70 20 65 25 55 C28 48 25 45 20 45Z" fill="url(#lobster-gradient)"/>
-  <!-- Right Claw -->
-  <path d="M100 45 C115 40 120 50 115 60 C110 70 100 65 95 55 C92 48 95 45 100 45Z" fill="url(#lobster-gradient)"/>
-  <!-- Antenna -->
-  <path d="M45 15 Q35 5 30 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round"/>
-  <path d="M75 15 Q85 5 90 8" stroke="#ff4d4d" stroke-width="3" stroke-linecap="round"/>
-  <!-- Eyes -->
-  <circle cx="45" cy="35" r="6" fill="#050810"/>
-  <circle cx="75" cy="35" r="6" fill="#050810"/>
-  <circle cx="46" cy="34" r="2.5" fill="#00e5cc"/>
-  <circle cx="76" cy="34" r="2.5" fill="#00e5cc"/>
+  <!-- Hexagon background -->
+  <path d="M60 6 L108 34 L108 86 L60 114 L12 86 L12 34 Z" fill="url(#agentops-gradient)" rx="4"/>
+  <!-- Inner hex ring -->
+  <path d="M60 20 L95 40 L95 80 L60 100 L25 80 L25 40 Z" fill="none" stroke="rgba(255,255,255,0.3)" stroke-width="2"/>
+  <!-- Stylized A mark -->
+  <path d="M38 78 L60 30 L82 78" fill="none" stroke="white" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <line x1="48" y1="62" x2="72" y2="62" stroke="white" stroke-width="4" stroke-linecap="round"/>
+  <!-- Node dots -->
+  <circle cx="60" cy="18" r="3" fill="rgba(255,255,255,0.6)"/>
+  <circle cx="97" cy="40" r="2" fill="rgba(255,255,255,0.4)"/>
+  <circle cx="23" cy="40" r="2" fill="rgba(255,255,255,0.4)"/>
 </svg>

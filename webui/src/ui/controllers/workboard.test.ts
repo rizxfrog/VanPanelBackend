@@ -814,7 +814,7 @@ describe("workboard controller", () => {
       expect.objectContaining({
         sessionKey: sampleTaskSessionKey,
         label: "Build board (card-1)",
-        message: expect.stringContaining("Work on this OpenClaw Workboard card: Build board"),
+        message: expect.stringContaining("Work on this AgentOps Workboard card: Build board"),
         idempotencyKey: "workboard:default:card-1:1",
       }),
     );
@@ -1292,7 +1292,7 @@ describe("workboard controller", () => {
       expect.objectContaining({
         sessionKey: sampleTaskSessionKey,
         model: "openai/gpt-5.5",
-        message: expect.stringContaining("Work on this OpenClaw Workboard card: Build board"),
+        message: expect.stringContaining("Work on this AgentOps Workboard card: Build board"),
       }),
     );
     expect(client.request).toHaveBeenNthCalledWith(3, "tasks.list", { limit: 500 });

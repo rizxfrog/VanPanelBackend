@@ -127,7 +127,7 @@ describe("loadSkills", () => {
       }
       if (method === "skills.securityVerdicts") {
         return {
-          schema: "openclaw.skills.security-verdicts.v1",
+          schema: "agentops.skills.security-verdicts.v1",
           items: [
             {
               registry: "https://clawhub.ai",
@@ -204,7 +204,7 @@ describe("loadSkills", () => {
     expect(state.skillsLoading).toBe(false);
     expect(state.clawhubVerdictsLoading).toBe(true);
 
-    resolveVerdicts({ schema: "openclaw.skills.security-verdicts.v1", items: [] });
+    resolveVerdicts({ schema: "agentops.skills.security-verdicts.v1", items: [] });
     await Promise.resolve();
     await Promise.resolve();
 
@@ -254,7 +254,7 @@ describe("loadSkillCard", () => {
   it("loads local Skill Card content on demand", async () => {
     const { state, request } = createState();
     request.mockResolvedValueOnce({
-      schema: "openclaw.skills.skill-card.v1",
+      schema: "agentops.skills.skill-card.v1",
       skillKey: "agentreceipt",
       path: "/tmp/workspace/skills/agentreceipt/skill-card.md",
       sizeBytes: 34,
@@ -364,7 +364,7 @@ describe("loadSkillCard", () => {
       ],
     };
     resolveCard({
-      schema: "openclaw.skills.skill-card.v1",
+      schema: "agentops.skills.skill-card.v1",
       skillKey: "agentreceipt",
       path: "/tmp/workspace/skills/agentreceipt/skill-card.md",
       sizeBytes: 34,
@@ -504,7 +504,7 @@ describe("skill mutations", () => {
         await saveSkillApiKey(state, "github");
       },
       expectedRequest: ["skills.update", { skillKey: "github", apiKey: "sk-test" }],
-      expectedMessage: "API key saved — stored in openclaw.json (skills.entries.github)",
+      expectedMessage: "API key saved — stored in agentops.json (skills.entries.github)",
     },
     {
       name: "installs skills and uses server success messages",

@@ -89,7 +89,7 @@ func (t *baseCommandTool) runCommand(ctx context.Context, args string) (string, 
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("命令执行失败: %s: %w", stderr.String(), err)
+		return "", fmt.Errorf("命令执行失败 [%s]: %s: %w", cmdLine, stderr.String(), err)
 	}
 
 	output := stdout.String()
@@ -116,7 +116,7 @@ func (t *baseCommandTool) runWindowsCommand(ctx context.Context, shell string, a
 	cmd.Stderr = &stderr
 
 	if err := cmd.Run(); err != nil {
-		return "", fmt.Errorf("命令执行失败: %s: %w", stderr.String(), err)
+		return "", fmt.Errorf("命令执行失败 [%s]: %s: %w", cmdLine, stderr.String(), err)
 	}
 
 	output := stdout.String()

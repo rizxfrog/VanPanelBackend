@@ -21,11 +21,13 @@ VanPanelBackend (AI-CloudOps) is the Go backend for a cloud-native intelligent o
 | `make fmt-imports` | goimports (auto-installs if missing) |
 | `make lint` | `go vet ./...` |
 | `go test ./...` | Run all tests |
-| `go test -run TestFunctionName ./...` | Run single test |
+| `go test -run TestFunctionName ./path/to/package` | Run single test |
 | `go build -o ai-cloudops main.go` | Build binary |
 | `make docker-start-env` | Start MySQL + Redis via Docker |
 | `make docker-start-server` | Start full-stack via docker-compose |
 | `make stop` | Stop all Docker services and remove network |
+
+**Order after touching Wire**: `make generate` → `make fmt` → `make lint` → `go test ./...`
 
 ---
 
@@ -72,7 +74,7 @@ type Cmd struct {
 ### Layered Architecture (4-tier per domain)
 
 ```
-Router --> Middleware --> API Handler --> Service --> Repository --> Model (GORM) --> SQLite/Postgres
+Router → Middleware → API Handler → Service → Repository → Model (GORM) → Database
 ```
 
 Each domain follows strict layering:
@@ -94,6 +96,8 @@ Cross-layer calls are prohibited. HTTP entry only in `api`, business in `service
 | `system` | `internal/system/` | Users, roles, RBAC (Casbin), audit logs, system config |
 | `cron` | `internal/cron/` | Unified cron manager backed by Asynq (Redis queue) |
 | `files` | `internal/files/` | File manager (upload/download/browse) |
+| `agent` | `internal/agent/` | AI agent subsystem (18 sub-packages: mcp, risk, guard, pipeline, skill, tool, hub, memory, audit, search, insight, nudge, etc.) |
+| `gateway` | `internal/gateway/` | WebSocket/JSON-RPC gateway server (separate from Gin HTTP router) |
 
 ### Middleware Chain (applied in order)
 

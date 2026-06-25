@@ -4,7 +4,7 @@ import { DEFAULT_AGENT_ID, normalizeAgentId, parseAgentSessionKey } from "../ses
 import type { ChatAttachment, ChatQueueItem, ChatQueueSkillWorkshopRevision } from "../ui-types.ts";
 import { getChatAttachmentDataUrl } from "./attachment-payload-store.ts";
 
-const STORAGE_KEY_PREFIX = "openclaw.control.chatComposer.v1:";
+const STORAGE_KEY_PREFIX = "agentops.control.chatComposer.v1:";
 const MAX_STORED_SESSIONS = 20;
 const MAX_STORED_QUEUE_ITEMS = 50;
 export const INTERRUPTED_MODEL_WAIT_ERROR =

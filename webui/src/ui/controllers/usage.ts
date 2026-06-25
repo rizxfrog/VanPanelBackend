@@ -33,10 +33,10 @@ export type UsageState = {
   settings?: { gatewayUrl?: string };
 };
 
-const LEGACY_USAGE_DATE_PARAMS_STORAGE_KEY = "openclaw.control.usage.date-params.v1";
-const LEGACY_USAGE_SCOPE_PARAMS_STORAGE_KEY = "openclaw.control.usage.scope-params.v1";
-const LEGACY_USAGE_AGENT_PARAMS_STORAGE_KEY = "openclaw.control.usage.agent-params.v1";
-const LEGACY_USAGE_AGENT_SCOPE_STORAGE_KEY = "openclaw.control.usage.agent-scope.v1";
+const LEGACY_USAGE_DATE_PARAMS_STORAGE_KEY = "agentops.control.usage.date-params.v1";
+const LEGACY_USAGE_SCOPE_PARAMS_STORAGE_KEY = "agentops.control.usage.scope-params.v1";
+const LEGACY_USAGE_AGENT_PARAMS_STORAGE_KEY = "agentops.control.usage.agent-params.v1";
+const LEGACY_USAGE_AGENT_SCOPE_STORAGE_KEY = "agentops.control.usage.agent-scope.v1";
 const LEGACY_USAGE_DATE_PARAMS_MODE_RE = /unexpected property ['"]mode['"]/i;
 const LEGACY_USAGE_DATE_PARAMS_OFFSET_RE = /unexpected property ['"]utcoffset['"]/i;
 const LEGACY_USAGE_SCOPE_PARAMS_GROUP_BY_RE = /unexpected property ['"]groupby['"]/i;

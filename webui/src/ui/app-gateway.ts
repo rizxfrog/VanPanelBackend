@@ -298,7 +298,7 @@ function resolvePendingUpdateHandoffTimeoutBanner(): {
 } {
   return {
     tone: "danger",
-    text: "Update handoff started, but completion was not reported after reconnect. Run `openclaw update status` for the final result.",
+    text: "Update handoff started, but completion was not reported after reconnect. Run `agentops update status` for the final result.",
   };
 }
 
@@ -796,7 +796,7 @@ export function connectGateway(host: GatewayHost, options?: ConnectGatewayOption
     url: host.settings.gatewayUrl,
     token: host.settings.token.trim() ? host.settings.token : undefined,
     password: host.password.trim() ? host.password : undefined,
-    clientName: "openclaw-control-ui",
+    clientName: "agentops-control-ui",
     clientVersion,
     mode: "webchat",
     instanceId: host.clientInstanceId,
@@ -838,7 +838,7 @@ export function connectGateway(host: GatewayHost, options?: ConnectGatewayOption
           .catch((err: unknown) => {
             // Log to console for diagnostics; user sees no feedback for a stale abort
             // since the run likely completed during the disconnect window anyway.
-            console.warn("[openclaw] pending abort failed:", err);
+            console.warn("[agentops] pending abort failed:", err);
           });
       }
       // Reset orphaned chat run state from before disconnect.

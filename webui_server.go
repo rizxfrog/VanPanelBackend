@@ -13,7 +13,7 @@ import (
 	"github.com/rizxfrog/VanPanelBackend/internal/gateway"
 )
 
-//go:embed webui/dist/*
+//go:embed all:webui/dist
 var webuiEmbedFS embed.FS
 
 var webuiSubFS fs.FS

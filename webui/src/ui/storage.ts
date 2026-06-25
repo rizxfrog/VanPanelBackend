@@ -1,10 +1,10 @@
 // Control UI module implements storage behavior.
-const SETTINGS_KEY_PREFIX = "openclaw.control.settings.v1:";
-const LEGACY_SETTINGS_KEY = "openclaw.control.settings.v1";
-const LOCAL_USER_IDENTITY_KEY = "openclaw.control.user.v1";
-const LOCAL_ASSISTANT_IDENTITY_KEY = "openclaw.control.assistant.v1";
-const LEGACY_TOKEN_SESSION_KEY = "openclaw.control.token.v1";
-const TOKEN_SESSION_KEY_PREFIX = "openclaw.control.token.v1:";
+const SETTINGS_KEY_PREFIX = "agentops.control.settings.v1:";
+const LEGACY_SETTINGS_KEY = "agentops.control.settings.v1";
+const LOCAL_USER_IDENTITY_KEY = "agentops.control.user.v1";
+const LOCAL_ASSISTANT_IDENTITY_KEY = "agentops.control.assistant.v1";
+const LEGACY_TOKEN_SESSION_KEY = "agentops.control.token.v1";
+const TOKEN_SESSION_KEY_PREFIX = "agentops.control.token.v1:";
 const MAX_SCOPED_SESSION_ENTRIES = 10;
 
 function settingsKeyForGateway(gatewayUrl: string): string {
@@ -118,7 +118,7 @@ function deriveDefaultGatewayUrl(): { pageUrl: string; effectiveUrl: string } {
   const proto = location.protocol === "https:" ? "wss" : "ws";
   const configured =
     typeof window !== "undefined" &&
-    normalizeOptionalString(window["__OPENCLAW_CONTROL_UI_BASE_PATH__"]);
+    normalizeOptionalString(window["__AGENTOPS_CONTROL_UI_BASE_PATH__"]);
   const basePath = configured
     ? normalizeBasePath(configured)
     : inferBasePathFromPathname(location.pathname);
@@ -389,7 +389,7 @@ function persistSettings(next: UiSettings) {
     const raw =
       storage?.getItem(scopedKey) ??
       storage?.getItem(SETTINGS_KEY_PREFIX + "default") ??
-      storage?.getItem("openclaw.control.settings.v1");
+      storage?.getItem("agentops.control.settings.v1");
     if (raw) {
       const parsed = JSON.parse(raw) as PersistedUiSettings;
       if (parsed.sessionsByGateway && typeof parsed.sessionsByGateway === "object") {

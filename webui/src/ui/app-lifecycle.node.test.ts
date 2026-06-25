@@ -12,7 +12,7 @@ function createHost() {
     connectGeneration: 0,
     connected: true,
     tab: "chat",
-    assistantName: "OpenClaw",
+    assistantName: "AgentOps",
     assistantAvatar: null,
     assistantAgentId: null,
     localMediaPreviewRoots: [],

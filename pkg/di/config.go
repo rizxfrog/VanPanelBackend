@@ -100,7 +100,10 @@ type AgentNudgeConfig struct {
 }
 
 type AgentSkillConfig struct {
-	BaseDir string `mapstructure:"base_dir" default:"data/skills" env:"AGENT_SKILL_BASE_DIR"`
+	BaseDir        string `mapstructure:"base_dir" default:"data/skills" env:"AGENT_SKILL_BASE_DIR"`
+	ClawHubBaseURL string `mapstructure:"clawhub_base_url" default:"https://clawhub.ai" env:"AGENT_SKILL_CLAWHUB_BASE_URL"`
+	ClawHubAPIKey  string `mapstructure:"clawhub_api_key" default:"" env:"AGENT_SKILL_CLAWHUB_API_KEY"`
+	Registry       string `mapstructure:"registry" default:"clawhub" env:"AGENT_SKILL_REGISTRY"`
 }
 
 type AgentConfig struct {

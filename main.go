@@ -13,6 +13,7 @@ import (
 	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	mcpserver "github.com/rizxfrog/VanPanelBackend/internal/agent/mcp/server"
 	"github.com/rizxfrog/VanPanelBackend/internal/gateway"
 	gatewayRpc "github.com/rizxfrog/VanPanelBackend/internal/gateway/rpc"
 	"github.com/rizxfrog/VanPanelBackend/mock"
@@ -42,10 +43,23 @@ func run() error {
 	if cmd.AgentService != nil {
 		gatewayRpc.SetAgentService(cmd.AgentService)
 	}
+	if cmd.ConfigService != nil {
+		gatewayRpc.SetConfigService(cmd.ConfigService)
+	}
+	if cmd.CronService != nil {
+		gatewayRpc.SetCronService(cmd.CronService)
+	}
+	if cmd.SkillService != nil {
+		gatewayRpc.SetSkillService(cmd.SkillService)
+	}
 	db := di.InitDB()
 
 	if db != nil && di.CheckDBHealth(db) == nil {
 		log.Printf("database health check passed")
+		// 重启后应用 DB 中的运行时配置覆盖（DB > YAML/env）
+		if err := gatewayRpc.LoadRuntimeConfig(context.Background()); err != nil {
+			log.Printf("load runtime config failed: %v", err)
+		}
 	} else {
 		log.Printf("database unavailable, running in degraded mode")
 	}
@@ -58,6 +72,34 @@ func run() error {
 
 	// Register embedded OpenClaw Web UI + WebSocket gateway upgrade
 	registerWebUI(cmd.Server, gatewaySrv)
+
+	// MCP server mode: activated via config mcp.serve=true or --mcp-serve env
+	if viper.GetBool("mcp.serve") {
+		if cmd.ToolManager == nil {
+			log.Fatalf("MCP server requires ToolManager, but it was not provided by DI")
+		}
+
+		transport := viper.GetString("mcp.transport")
+		if transport == "" {
+			transport = "stdio"
+		}
+		port := viper.GetInt("mcp.port")
+		if port == 0 {
+			port = 8890
+		}
+
+		mcpLogger, _ := zap.NewDevelopment()
+		if err := mcpserver.Serve(
+			context.Background(),
+			mcpserver.ServeOptions{Transport: transport, Port: port},
+			cmd.ToolManager,
+			nil, // riskEval to be wired separately
+			mcpLogger,
+		); err != nil {
+			log.Fatalf("MCP server failed: %v", err)
+		}
+		return nil
+	}
 
 	cmd.Server.POST("/api/v1/debug/test", func(c *gin.Context) {
 		log.Printf("DEBUG test request method=%s path=%s", c.Request.Method, c.Request.URL.Path)
@@ -75,6 +117,20 @@ func run() error {
 		}
 	} else if viper.GetBool("mock.enabled") {
 		log.Printf("database unavailable, skipping mock initialization")
+	}
+
+	// 启动 Cron 调度管理器和 Asynq 任务消费端
+	if cmd.CronManager != nil && db != nil && di.CheckDBHealth(db) == nil {
+		cmd.CronManager.Start(context.Background())
+		log.Printf("cron manager started")
+	}
+	if cmd.CronAsynqServer != nil {
+		go func() {
+			if err := cmd.CronAsynqServer.Server.Run(cmd.CronAsynqServer.Mux); err != nil {
+				log.Printf("cron asynq server error: %v", err)
+			}
+		}()
+		log.Printf("cron asynq server started")
 	}
 
 	log.Printf("system startup completed")
@@ -98,6 +154,15 @@ func run() error {
 
 	<-ctx.Done()
 	log.Println("shutting down server")
+
+	if cmd.CronManager != nil {
+		cmd.CronManager.Stop()
+		log.Println("cron manager stopped")
+	}
+	if cmd.CronAsynqServer != nil {
+		cmd.CronAsynqServer.Server.Stop()
+		log.Println("cron asynq server stopped")
+	}
 
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer shutdownCancel()
@@ -158,6 +223,15 @@ func setupGateway(logger *zap.Logger) *gateway.GatewayServer {
 	// Auth handler with "none" mode for local development
 	authHandler := gateway.NewAuthHandler(logger, nil, "none", "", "")
 
+	// Create RunTracker and SubscriptionHub for RPC handlers
+	runTracker := gateway.NewRunTracker()
+	subHub := gateway.NewSubscriptionHub()
+
+	// Pass infrastructure to RPC package
+	gatewayRpc.SetRunTracker(runTracker)
+	gatewayRpc.SetSubscriptionHub(subHub)
+	gatewayRpc.SetBroadcastManager(broadcastMgr)
+
 	config.Methods = gateway.GetRegisteredMethods()
 	config.Events = gateway.GetRegisteredEvents()
 
@@ -168,6 +242,8 @@ func setupGateway(logger *zap.Logger) *gateway.GatewayServer {
 		healthState,
 		authHandler,
 		config,
+		runTracker,
+		subHub,
 	)
 
 	gatewayServerInstance = gwServer

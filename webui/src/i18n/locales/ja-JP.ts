@@ -442,7 +442,7 @@ export const ja_JP: TranslationMap = {
     skillWorkshop: "提案がライブスキルになる前に、確認、調整、適用します。",
     nodes: "ペアリング済みデバイスとコマンド。",
     chat: "すばやく介入するための Gateway チャット。",
-    config: "openclaw.json を編集。",
+    config: "agentops.json を編集。",
     communications: "チャンネル、メッセージ、音声設定。",
     appearance: "テーマ、UI、セットアップウィザードの設定。",
     automation: "コマンド、フック、cron、プラグイン。",
@@ -731,7 +731,7 @@ export const ja_JP: TranslationMap = {
       metadataUpgradeSummary:
         "このデバイスはすでにペアリングされていますが、メタデータの変更は承認待ちです。",
       mobileHint:
-        "モバイルを使用していますか？ デスクトップで openclaw dashboard --no-open から完全な URL（#token=... を含む）をコピーしてください。",
+        "モバイルを使用していますか？ デスクトップで agentops dashboard --no-open から完全な URL（#token=... を含む）をコピーしてください。",
       docsTitle: "デバイスのペアリングに関するドキュメント（新しいタブで開きます）",
       docsLink: "ドキュメント: デバイスのペアリング",
     },
@@ -769,7 +769,7 @@ export const ja_JP: TranslationMap = {
       modelAuthExpiresIn: "{when} に期限切れ",
       modelAuthAttentionExpiredTitle: "モデル認証の有効期限が切れています",
       modelAuthAttentionExpiringTitle: "モデル認証の有効期限がまもなく切れます",
-      modelAuthAttentionExpiredDesc: "{providers} — openclaw models auth で再認証してください",
+      modelAuthAttentionExpiredDesc: "{providers} — agentops models auth で再認証してください",
       modelAuthAttentionExpiringEntry: "{provider} ({when})",
     },
     attention: {
@@ -1194,9 +1194,9 @@ export const ja_JP: TranslationMap = {
         summary:
           "Gateway には到達できますが、このブラウザーが接続する前に一致するトークンまたはパスワードが必要です。",
         stepPaste:
-          "openclaw dashboard --no-open のトークンを貼り付けるか、構成済みのパスワードを入力します。",
+          "agentops dashboard --no-open のトークンを貼り付けるか、構成済みのパスワードを入力します。",
         stepGenerate:
-          "トークンが構成されていない場合は、Gateway ホストで openclaw doctor --generate-gateway-token を実行します。",
+          "トークンが構成されていない場合は、Gateway ホストで agentops doctor --generate-gateway-token を実行します。",
         stepConnect: "認証情報を更新したら、もう一度 Connect をクリックします。",
       },
       authFailed: {
@@ -1204,7 +1204,7 @@ export const ja_JP: TranslationMap = {
         summary:
           "指定された認証情報は拒否されました。最も一般的な原因は、古いトークン、または別の Gateway URL からコピーしたトークンです。",
         stepDashboard:
-          "openclaw dashboard --no-open を実行し、新しい URL を開くか、そのトークンを貼り付けます。",
+          "agentops dashboard --no-open を実行し、新しい URL を開くか、そのトークンを貼り付けます。",
         stepReplace:
           "古いトークン/パスワード値を置き換えてください。別の Gateway URL のトークンは再利用しないでください。",
         stepMode:
@@ -1227,8 +1227,8 @@ export const ja_JP: TranslationMap = {
           "このブラウザーで Control UI を使用するには、Gateway ホストからの一度限りの承認が必要です。",
         upgradeSummary:
           "このブラウザーは既に認識されていますが、要求されたアクセスが変わったため、新しい承認が必要です。",
-        stepList: "Gateway ホストで openclaw devices list を実行します。",
-        stepApproveId: "このリクエストを承認します: openclaw devices approve {requestId}.",
+        stepList: "Gateway ホストで agentops devices list を実行します。",
+        stepApproveId: "このリクエストを承認します: agentops devices approve {requestId}.",
         stepApprove: "その一覧から保留中のブラウザー/デバイスリクエストを承認します。",
         stepReconnect: "承認が完了したら再接続します。",
       },
@@ -1257,21 +1257,21 @@ export const ja_JP: TranslationMap = {
         summary:
           "提供された Control UI と実行中の Gateway で、サポートされる接続プロトコルが一致していません。",
         stepDashboard:
-          "openclaw dashboard で提供元の dashboard を開き直し、UI と Gateway が同じインストールから来るようにします。",
+          "agentops dashboard で提供元の dashboard を開き直し、UI と Gateway が同じインストールから来るようにします。",
         stepDevUi:
           "pnpm ui:dev を使用している場合は、現在の checkout に対して開発 UI を再ビルドまたは再起動します。",
-        stepRestart: "OpenClaw 更新後に Gateway を再起動し、現在のプロトコルを提供させます。",
+        stepRestart: "AgentOps 更新後に Gateway を再起動し、現在のプロトコルを提供させます。",
       },
       network: {
         title: "接続できません",
         summary:
           "ブラウザーは Gateway 接続を完了できませんでした。認証情報を再試行する前に、ターゲットとトランスポートを確認してください。",
         stepGateway:
-          "openclaw status または openclaw gateway run で Gateway が実行中であることを確認します。",
+          "agentops status または agentops gateway run で Gateway が実行中であることを確認します。",
         stepUrl:
           "WebSocket URL を確認し、Gateway が HTTPS/Tailscale Serve の背後にある場合は wss:// を使用します。",
         stepDashboard:
-          "openclaw dashboard --no-open で dashboard を開き直し、現在の URL と認証詳細を再コピーします。",
+          "agentops dashboard --no-open で dashboard を開き直し、現在の URL と認証詳細を再コピーします。",
       },
     },
   },

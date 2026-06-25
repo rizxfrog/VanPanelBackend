@@ -52,9 +52,48 @@ type AgentService interface {
 	CreateSession(ctx context.Context, req *model.CreateAgentSessionReq, userID int) (*model.AgentSession, error)
 	ListSessions(ctx context.Context, req *model.ListAgentSessionsReq, userID int) (model.ListResp[*model.AgentSession], error)
 	GetSession(ctx context.Context, id int) (*model.AgentSession, error)
+	GetSessionByKey(ctx context.Context, key string) (*model.AgentSession, error)
 	DeleteSession(ctx context.Context, id int) error
+	UpdateSession(ctx context.Context, session *model.AgentSession) error
 	ListMessages(ctx context.Context, req *model.ListAgentMessagesReq) (model.ListResp[*model.AgentMessage], error)
+	GetMessage(ctx context.Context, sessionID string, messageID int64) (*model.AgentMessage, error)
+	ResetSession(ctx context.Context, sessionKey string, userID int) (*model.AgentSession, error)
+	CompactSession(ctx context.Context, sessionKey string, maxMessages int, userID int) error
+	GetModelCatalog(ctx context.Context) (*ModelCatalog, error)
 	ListTools(ctx context.Context) ([]map[string]interface{}, error)
+	InvokeTool(ctx context.Context, toolName, argsJSON string) (string, error)
+
+	// Agent管理
+	ListAgents(ctx context.Context) ([]*model.GatewayAgent, error)
+	GetAgent(ctx context.Context, agentID string) (*model.GatewayAgent, error)
+	CreateAgent(ctx context.Context, agent *model.GatewayAgent) error
+	UpdateAgent(ctx context.Context, agent *model.GatewayAgent) error
+	DeleteAgent(ctx context.Context, agentID string) error
+
+	// ReloadConfig 热重载运行时配置（DB 覆盖值）
+	ReloadConfig(ctx context.Context, cfg *Config) error
+
+	// GetConfig 返回当前内存中的服务配置（用于 Gateway 等外部组件读取 LLM 状态）。
+	GetConfig() *Config
+}
+
+// ModelCatalog 模型目录，返回可用的 LLM 模型和提供商信息
+type ModelCatalog struct {
+	Providers    []ModelProvider `json:"providers"`
+	DefaultModel string          `json:"defaultModel"`
+}
+
+// ModelProvider LLM 提供商
+type ModelProvider struct {
+	ID     string       `json:"id"`
+	Name   string       `json:"name"`
+	Models []ModelEntry `json:"models"`
+}
+
+// ModelEntry 单个模型条目
+type ModelEntry struct {
+	ID   string `json:"id"`
+	Name string `json:"name"`
 }
 
 // agentService 智能体服务实现，集成 Eino ReAct Agent
@@ -65,8 +104,8 @@ type agentService struct {
 	auditStore    agentaudit.Store
 	cfg           *Config
 	logger        *zap.Logger
-	pipelineStage *pipeline.Stage             // optional pipeline enhancement
-	nudgeReviewer *nudge.MemoryNudgeReviewer  // optional memory nudge
+	pipelineStage *pipeline.Stage            // optional pipeline enhancement
+	nudgeReviewer *nudge.MemoryNudgeReviewer // optional memory nudge
 }
 
 // NewAgentService 创建智能体服务实例
@@ -501,6 +540,13 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 			func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 				s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 			},
+			func(toolCallID, toolName, args string) {
+				_ = s.writeSSEEvent(writer, "tool_call", map[string]interface{}{
+					"id":        toolCallID,
+					"name":      toolName,
+					"arguments": args,
+				})
+			},
 			func(toolCallID, toolName, result, status string) {
 				_ = s.writeSSEEvent(writer, "tool_result", map[string]interface{}{
 					"id":     toolCallID,
@@ -524,6 +570,7 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 		req.SessionID, personaPrompt,
 	)
 	if err != nil {
+		s.logger.Error("Agent Stream 执行失败", zap.Error(err))
 		return fmt.Errorf("Agent Stream 失败: %w", err)
 	}
 
@@ -645,6 +692,13 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 			func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 				s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 			},
+			func(toolCallID, toolName, args string) {
+				_ = s.writeSSEEvent(writer, "tool_call", map[string]interface{}{
+					"id":        toolCallID,
+					"name":      toolName,
+					"arguments": args,
+				})
+			},
 			func(toolCallID, toolName, result, status string) {
 				_ = s.writeSSEEvent(writer, "tool_result", map[string]interface{}{
 					"id":     toolCallID,
@@ -668,6 +722,7 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 		req.SessionID, enrichedPrompt,
 	)
 	if err != nil {
+		s.logger.Error("Agent Stream 执行失败", zap.Error(err))
 		return fmt.Errorf("Agent Stream 失败: %w", err)
 	}
 
@@ -706,10 +761,26 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 func (s *agentService) writeSSEEvent(writer io.Writer, event string, data interface{}) error {
 	jsonData, err := json.Marshal(data)
 	if err != nil {
+		s.logger.Warn("[SSE] JSON 序列化失败", zap.String("event", event), zap.Error(err))
 		return err
 	}
+	s.logger.Info("[SSE] 推送事件到前端",
+		zap.String("event", event),
+		zap.String("data", truncateStringForLog(string(jsonData), 500)),
+	)
 	_, err = fmt.Fprintf(writer, "event: %s\ndata: %s\n\n", event, string(jsonData))
+	if err != nil {
+		s.logger.Warn("[SSE] 写入失败", zap.String("event", event), zap.Error(err))
+	}
 	return err
+}
+
+// truncateStringForLog 截断字符串用于日志输出，避免日志过大
+func truncateStringForLog(s string, maxLen int) string {
+	if len(s) <= maxLen {
+		return s
+	}
+	return s[:maxLen] + "...(truncated)"
 }
 
 // loadHistory 从数据库加载最近的历史消息并转换为 Eino 格式
@@ -782,11 +853,12 @@ func (s *agentService) CreateSession(ctx context.Context, req *model.CreateAgent
 	tools := s.toolMgr.GetAllTools(ctx)
 
 	session := &model.AgentSession{
-		UserID:    userID,
-		Title:     title,
-		ModelName: modelName,
-		ToolCount: len(tools),
-		Status:    model.AgentSessionStatusActive,
+		UserID:     userID,
+		SessionKey: req.SessionKey,
+		Title:      title,
+		ModelName:  modelName,
+		ToolCount:  len(tools),
+		Status:     model.AgentSessionStatusActive,
 	}
 
 	if err := s.dao.CreateSession(ctx, session); err != nil {
@@ -818,10 +890,26 @@ func (s *agentService) GetSession(ctx context.Context, id int) (*model.AgentSess
 	return session, nil
 }
 
+func (s *agentService) GetSessionByKey(ctx context.Context, key string) (*model.AgentSession, error) {
+	session, err := s.dao.GetSessionByKey(ctx, key)
+	if err != nil {
+		return nil, fmt.Errorf("获取会话失败: %w", err)
+	}
+	return session, nil
+}
+
 // DeleteSession 删除会话
 func (s *agentService) DeleteSession(ctx context.Context, id int) error {
 	if err := s.dao.DeleteSession(ctx, id); err != nil {
 		return fmt.Errorf("删除会话失败: %w", err)
+	}
+	return nil
+}
+
+// UpdateSession 更新会话
+func (s *agentService) UpdateSession(ctx context.Context, session *model.AgentSession) error {
+	if err := s.dao.UpdateSession(ctx, session); err != nil {
+		return fmt.Errorf("更新会话失败: %w", err)
 	}
 	return nil
 }
@@ -858,6 +946,187 @@ func (s *agentService) ListTools(ctx context.Context) ([]map[string]interface{},
 		}
 	}
 	return result, nil
+}
+
+// InvokeTool executes a single tool by name with the given JSON arguments.
+func (s *agentService) InvokeTool(ctx context.Context, toolName, argsJSON string) (string, error) {
+	if s.toolMgr == nil {
+		return "", fmt.Errorf("ToolManager 未初始化")
+	}
+
+	tools := s.toolMgr.GetAllTools(ctx)
+	for _, t := range tools {
+		it, ok := t.(tool.InvokableTool)
+		if !ok {
+			continue
+		}
+		info, err := it.Info(ctx)
+		if err != nil {
+			continue
+		}
+		if info.Name != toolName {
+			continue
+		}
+		return it.InvokableRun(ctx, argsJSON)
+	}
+	return "", fmt.Errorf("工具 %s 不存在", toolName)
+}
+
+// Agent CRUD
+
+func (s *agentService) ListAgents(ctx context.Context) ([]*model.GatewayAgent, error) {
+	return s.dao.ListAgents(ctx)
+}
+
+func (s *agentService) GetAgent(ctx context.Context, agentID string) (*model.GatewayAgent, error) {
+	return s.dao.GetAgent(ctx, agentID)
+}
+
+func (s *agentService) CreateAgent(ctx context.Context, agent *model.GatewayAgent) error {
+	return s.dao.CreateAgent(ctx, agent)
+}
+
+func (s *agentService) UpdateAgent(ctx context.Context, agent *model.GatewayAgent) error {
+	return s.dao.UpdateAgent(ctx, agent)
+}
+
+func (s *agentService) DeleteAgent(ctx context.Context, agentID string) error {
+	return s.dao.DeleteAgent(ctx, agentID)
+}
+
+// GetMessage 获取单条消息
+func (s *agentService) GetMessage(ctx context.Context, sessionID string, messageID int64) (*model.AgentMessage, error) {
+	msg, err := s.dao.GetMessage(ctx, sessionID, messageID)
+	if err != nil {
+		return nil, fmt.Errorf("获取消息失败: %w", err)
+	}
+	return msg, nil
+}
+
+// ResetSession 重置会话：清除所有消息，重置消息计数
+func (s *agentService) ResetSession(ctx context.Context, sessionKey string, userID int) (*model.AgentSession, error) {
+	// 解析 sessionKey 获取 session ID
+	session, err := s.resolveSession(ctx, sessionKey)
+	if err != nil {
+		return nil, fmt.Errorf("解析会话失败: %w", err)
+	}
+
+	// 删除所有消息
+	if err := s.dao.DeleteMessagesBySession(ctx, strconv.Itoa(session.ID)); err != nil {
+		return nil, fmt.Errorf("清除消息失败: %w", err)
+	}
+
+	// 重置消息计数
+	session.MessageCount = 0
+	if err := s.dao.UpdateSession(ctx, session); err != nil {
+		return nil, fmt.Errorf("更新会话失败: %w", err)
+	}
+
+	return session, nil
+}
+
+// CompactSession 压缩会话：只保留最近 N 条消息
+func (s *agentService) CompactSession(ctx context.Context, sessionKey string, maxMessages int, userID int) error {
+	session, err := s.resolveSession(ctx, sessionKey)
+	if err != nil {
+		return fmt.Errorf("解析会话失败: %w", err)
+	}
+
+	if maxMessages <= 0 {
+		maxMessages = 50
+	}
+
+	if err := s.dao.DeleteMessagesExcludingRecent(ctx, strconv.Itoa(session.ID), maxMessages); err != nil {
+		return fmt.Errorf("压缩消息失败: %w", err)
+	}
+
+	// 更新消息计数
+	session.MessageCount = maxMessages
+	if err := s.dao.UpdateSession(ctx, session); err != nil {
+		s.logger.Warn("更新会话消息计数失败", zap.Error(err))
+	}
+
+	return nil
+}
+
+// GetModelCatalog 获取可用模型目录
+func (s *agentService) GetModelCatalog(ctx context.Context) (*ModelCatalog, error) {
+	providerID := s.cfg.LLM.Provider
+	if providerID == "" {
+		providerID = "openai"
+	}
+
+	providerName := providerID
+	switch providerID {
+	case "openai":
+		providerName = "OpenAI"
+	case "anthropic":
+		providerName = "Anthropic"
+	case "ollama":
+		providerName = "Ollama"
+	}
+
+	modelID := s.cfg.LLM.Model
+	if modelID == "" {
+		modelID = "gpt-4o"
+	}
+
+	return &ModelCatalog{
+		DefaultModel: modelID,
+		Providers: []ModelProvider{
+			{
+				ID:   providerID,
+				Name: providerName,
+				Models: []ModelEntry{
+					{ID: modelID, Name: modelID},
+				},
+			},
+		},
+	}, nil
+}
+
+// resolveSession 从 sessionKey 解析并获取会话
+func (s *agentService) resolveSession(ctx context.Context, sessionKey string) (*model.AgentSession, error) {
+	// 尝试数字 ID
+	if id, err := strconv.Atoi(sessionKey); err == nil && id > 0 {
+		return s.dao.GetSession(ctx, id)
+	}
+	// 尝试 SessionKey 格式 "agent:main:<id>"
+	parts := strings.Split(sessionKey, ":")
+	if len(parts) >= 3 {
+		if id, err := strconv.Atoi(parts[2]); err == nil && id > 0 {
+			return s.dao.GetSession(ctx, id)
+		}
+	}
+	// 尝试完整 key 查找
+	return s.dao.GetSessionByKey(ctx, sessionKey)
+}
+
+// ReloadConfig 用热重载配置覆盖当前内存中的服务配置。
+// 主要用于 DB 运行时配置覆盖 YAML 默认值后，立即让已有服务实例生效。
+func (s *agentService) ReloadConfig(ctx context.Context, cfg *Config) error {
+	if cfg == nil {
+		return fmt.Errorf("重载配置不能为空")
+	}
+	s.cfg = cfg
+	s.logger.Info("AgentService 配置已热重载",
+		zap.String("provider", cfg.LLM.Provider),
+		zap.String("model", cfg.LLM.Model),
+		zap.String("base_url", cfg.LLM.BaseURL),
+		zap.Float64("temperature", cfg.LLM.Temperature),
+		zap.Int("max_tokens", cfg.LLM.MaxTokens),
+		zap.Int("max_history", cfg.MaxHistory),
+	)
+	return nil
+}
+
+// GetConfig 返回当前内存中的服务配置副本。
+func (s *agentService) GetConfig() *Config {
+	if s.cfg == nil {
+		return nil
+	}
+	cfg := *s.cfg
+	return &cfg
 }
 
 // buildConversationText 将消息列表和回复转换为对话文本，用于记忆审查

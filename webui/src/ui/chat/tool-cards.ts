@@ -25,7 +25,7 @@ function resolveTranscriptMessageId(message: Record<string, unknown>): string | 
   if (typeof message.messageId === "string" && message.messageId.trim()) {
     return message.messageId;
   }
-  const openClawMeta = message["__openclaw"];
+  const openClawMeta = message["__agentops"];
   const transcriptMeta =
     openClawMeta && typeof openClawMeta === "object" && !Array.isArray(openClawMeta)
       ? (openClawMeta as Record<string, unknown>)

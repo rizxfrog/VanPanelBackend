@@ -69,7 +69,6 @@ import {
   updateConfigRawValue,
   updateConfigFormValue,
   removeConfigFormValue,
-  updateMcpServerEnabled,
 } from "./controllers/config.ts";
 import {
   loadCronJobsPage,
@@ -206,7 +205,7 @@ import { renderDreaming } from "./views/dreaming.ts";
 import { renderExecApprovalPrompt } from "./views/exec-approval.ts";
 import { renderGatewayUrlConfirmation } from "./views/gateway-url-confirmation.ts";
 import { renderLoginGate } from "./views/login-gate.ts";
-import { renderMcp } from "./views/mcp.ts";
+import { renderMcpManager, setMcpManagerUpdateTrigger } from "./views/mcp-manager.ts";
 import { renderOverview } from "./views/overview.ts";
 
 let pendingUpdate: (() => void) | undefined;
@@ -221,9 +220,9 @@ function runUiTask<Args extends unknown[]>(
   };
 }
 
-const SKILL_WORKSHOP_MODE_KEY = "openclaw:control-ui:skill-workshop-mode:v1";
+const SKILL_WORKSHOP_MODE_KEY = "agentops:control-ui:skill-workshop-mode:v1";
 const SKILL_WORKSHOP_CURRENT_CHAT_REVISIONS_KEY =
-  "openclaw:control-ui:skill-workshop-current-chat-revisions:v1";
+  "agentops:control-ui:skill-workshop-current-chat-revisions:v1";
 
 export function loadSkillWorkshopMode(): "board" | "today" {
   try {
@@ -742,7 +741,7 @@ function resolveDreamingNextCycle(
 
 let clawhubSearchTimer: ReturnType<typeof setTimeout> | null = null;
 
-const UPDATE_BANNER_DISMISS_KEY = "openclaw:control-ui:update-banner-dismissed:v1";
+const UPDATE_BANNER_DISMISS_KEY = "agentops:control-ui:update-banner-dismissed:v1";
 const CRON_THINKING_SUGGESTIONS = ["off", "minimal", "low", "medium", "high"];
 const CRON_TIMEZONE_SUGGESTIONS = [
   "UTC",
@@ -1981,37 +1980,10 @@ export function renderApp(state: AppViewState) {
           navRootLabel: "Automation",
           includeSections: [...AUTOMATION_SECTION_KEYS],
         });
-      case "mcp":
-        return renderMcp({
-          configObject:
-            state.configForm ??
-            ((state.configSnapshot?.config as Record<string, unknown> | null) || {}),
-          configDirty: state.configFormDirty,
-          configSaving: state.configSaving,
-          configApplying: state.configApplying,
-          connected: state.connected,
-          onSaveConfig: () => void saveConfig(state),
-          onApplyConfig: () => void applyConfig(state),
-          onServerEnabledChange: (name, enabled) => {
-            updateMcpServerEnabled(state, name, enabled);
-            requestHostUpdate?.();
-          },
-          editor: renderConfigTab({
-            formMode: "form",
-            searchQuery: "",
-            activeSection: "mcp",
-            activeSubsection: null,
-            onFormModeChange: () => undefined,
-            onSearchChange: () => undefined,
-            onSectionChange: () => {
-              state.infrastructureActiveSection = "mcp";
-              state.infrastructureActiveSubsection = null;
-            },
-            onSubsectionChange: (section) => (state.infrastructureActiveSubsection = section),
-            navRootLabel: "MCP",
-            includeSections: ["mcp"],
-          }),
-        });
+      case "mcp": {
+        setMcpManagerUpdateTrigger(requestHostUpdate);
+        return renderMcpManager();
+      }
       case "infrastructure":
         return renderConfigTab({
           formMode: state.infrastructureFormMode,
@@ -2303,11 +2275,11 @@ export function renderApp(state: AppViewState) {
                       <img
                         class="sidebar-brand__logo"
                         src="${agentLogoUrl(basePath)}"
-                        alt="OpenClaw"
+                        alt="AgentOps"
                       />
                       <span class="sidebar-brand__copy">
                         <span class="sidebar-brand__eyebrow">${t("nav.control")}</span>
-                        <span class="sidebar-brand__title">OpenClaw</span>
+                        <span class="sidebar-brand__title">AgentOps</span>
                       </span>
                     `}
               </div>
@@ -2376,7 +2348,7 @@ export function renderApp(state: AppViewState) {
               <div class="sidebar-utility-group">
                 <a
                   class="nav-item nav-item--external sidebar-utility-link"
-                  href="https://docs.openclaw.ai"
+                  href="https://docs.agentops.ai"
                   target=${EXTERNAL_LINK_TARGET}
                   rel=${buildExternalLinkRel()}
                   title=${t("chat.docsOpensInNewTab", { label: t("common.docs") })}
