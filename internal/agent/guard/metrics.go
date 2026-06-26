@@ -1,6 +1,8 @@
 package guard
 
 import (
+	"sync"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -16,8 +18,18 @@ type FirewallMetrics struct {
 	ToolCallRisk   *prometheus.CounterVec
 }
 
-// DefaultFirewallMetrics 全局安全指标实例
-var DefaultFirewallMetrics = NewFirewallMetrics()
+var (
+	defaultMetricsOnce sync.Once
+	defaultMetrics     *FirewallMetrics
+)
+
+// DefaultFirewallMetrics 获取全局安全指标实例（懒初始化，线程安全）
+func DefaultFirewallMetrics() *FirewallMetrics {
+	defaultMetricsOnce.Do(func() {
+		defaultMetrics = NewFirewallMetrics()
+	})
+	return defaultMetrics
+}
 
 // NewFirewallMetrics 创建安全指标
 func NewFirewallMetrics() *FirewallMetrics {

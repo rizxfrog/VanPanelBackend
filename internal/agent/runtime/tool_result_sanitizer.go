@@ -79,8 +79,9 @@ func (s *ToolResultSanitizer) Sanitize(ctx context.Context, output string) *Sani
 	// 2. 脱敏敏感信息
 	for _, rule := range s.sensitiveRules {
 		if rule.Pattern.MatchString(result.SafeContent) {
+			count := len(rule.Pattern.FindAllString(result.SafeContent, -1))
 			result.SafeContent = rule.Pattern.ReplaceAllString(result.SafeContent, "***")
-			result.MaskedCount++
+			result.MaskedCount += count
 		}
 	}
 

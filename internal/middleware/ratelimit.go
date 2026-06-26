@@ -15,6 +15,7 @@ import (
 type RateLimit struct {
 	Window   time.Duration
 	MaxCalls int
+	FailOpen bool // Redis 错误时是否放行，默认 false（失败关闭）
 }
 
 // RateLimiter 速率限制器
@@ -53,8 +54,16 @@ func (rl *RateLimiter) Middleware() gin.HandlerFunc {
 		key := fmt.Sprintf("ratelimit:%s:%s", c.Request.URL.Path, c.ClientIP())
 		allowed, err := rl.checkLimit(c.Request.Context(), key, limit)
 		if err != nil {
-			rl.logger.Warn("速率限制检查失败，放行", zap.Error(err))
-			c.Next()
+			if limit.FailOpen {
+				rl.logger.Warn("速率限制检查失败，放行（FailOpen）", zap.Error(err))
+				c.Next()
+			} else {
+				rl.logger.Warn("速率限制检查失败，拒绝（FailClosed）", zap.Error(err))
+				c.AbortWithStatusJSON(http.StatusServiceUnavailable, gin.H{
+					"code":    503,
+					"message": "服务暂时不可用，请稍后再试",
+				})
+			}
 			return
 		}
 

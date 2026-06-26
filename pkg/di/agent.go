@@ -128,7 +128,7 @@ func ProvideAgentAuditStore(dao agentDao.AgentDAO, l *zap.Logger) agentAudit.Sto
 
 // ProvideFirewallMetrics 创建模型防火墙指标
 func ProvideFirewallMetrics() *agentGuard.FirewallMetrics {
-	return agentGuard.DefaultFirewallMetrics
+	return agentGuard.DefaultFirewallMetrics()
 }
 
 // ProvideModelFirewall 创建模型防火墙
