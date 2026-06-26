@@ -57,8 +57,8 @@ func newTestRuntime(t *testing.T) *SecureToolRuntime {
 	if err != nil {
 		t.Fatalf("failed to create executor: %v", err)
 	}
-	return NewSecureToolRuntime(
-		nil, // guardChain
+	runtime, err := NewSecureToolRuntime(
+		func(context.Context, string, map[string]any) *PolicyDecision { return &PolicyDecision{Allowed: true} },
 		NewPolicyEngine(nil),
 		NewApprovalManager(true),
 		exec,
@@ -66,4 +66,8 @@ func newTestRuntime(t *testing.T) *SecureToolRuntime {
 		NewMemoryWriteGuard(nil),
 		nil,
 	)
+	if err != nil {
+		t.Fatalf("failed to create secure runtime: %v", err)
+	}
+	return runtime
 }

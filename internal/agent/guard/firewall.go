@@ -3,6 +3,7 @@ package guard
 import (
 	"context"
 	"regexp"
+	"time"
 
 	"go.uber.org/zap"
 )
@@ -52,13 +53,15 @@ type ModelFirewall struct {
 	jailbreakRules []*regexp.Regexp
 	sensitiveRules []SensitivePattern
 	logger         *zap.Logger
+	metrics        *FirewallMetrics
 }
 
 // NewModelFirewall 创建模型防火墙
-func NewModelFirewall(cfg FirewallConfig) *ModelFirewall {
+func NewModelFirewall(cfg FirewallConfig, metrics *FirewallMetrics) *ModelFirewall {
 	fw := &ModelFirewall{
-		cfg:    cfg,
-		logger: zap.NewNop(),
+		cfg:     cfg,
+		logger:  zap.NewNop(),
+		metrics: metrics,
 	}
 
 	// 越狱检测规则
@@ -84,23 +87,34 @@ func NewModelFirewall(cfg FirewallConfig) *ModelFirewall {
 
 // CheckInput 检查用户输入
 func (fw *ModelFirewall) CheckInput(ctx context.Context, input string) *FirewallDecision {
+	start := time.Now()
+	defer func() {
+		if fw.metrics != nil && fw.metrics.InputLatency != nil {
+			fw.metrics.InputLatency.WithLabelValues("input").Observe(time.Since(start).Seconds())
+		}
+	}()
+
 	if !fw.cfg.InputFilter.Enabled {
+		fw.recordInput("disabled", "input_filter_disabled")
 		return &FirewallDecision{Allowed: true}
 	}
 
 	// 1. 越狱检测
 	for _, re := range fw.jailbreakRules {
 		if re.MatchString(input) {
-			return &FirewallDecision{
+			decision := &FirewallDecision{
 				Allowed: false,
 				Action:  "block",
 				Reason:  "检测到越狱攻击: " + re.String(),
 			}
+			fw.recordInput("blocked", "jailbreak")
+			return decision
 		}
 	}
 
 	// 2. Base64 编码检测
 	if hasBase64Content(input) {
+		fw.recordInput("blocked", "base64")
 		return &FirewallDecision{
 			Allowed: false,
 			Action:  "block",
@@ -108,25 +122,49 @@ func (fw *ModelFirewall) CheckInput(ctx context.Context, input string) *Firewall
 		}
 	}
 
+	fw.recordInput("allowed", "none")
 	return &FirewallDecision{Allowed: true}
+}
+
+func (fw *ModelFirewall) recordInput(result, reason string) {
+	if fw.metrics != nil && fw.metrics.InputChecks != nil {
+		fw.metrics.InputChecks.WithLabelValues(result, reason).Inc()
+	}
+}
+
+func (fw *ModelFirewall) recordOutput(result, action string) {
+	if fw.metrics != nil && fw.metrics.OutputChecks != nil {
+		fw.metrics.OutputChecks.WithLabelValues(result, action).Inc()
+	}
 }
 
 // CheckOutput 检查 LLM 输出
 func (fw *ModelFirewall) CheckOutput(ctx context.Context, output string) *FirewallDecision {
+	start := time.Now()
+	defer func() {
+		if fw.metrics != nil && fw.metrics.OutputLatency != nil {
+			fw.metrics.OutputLatency.WithLabelValues("output").Observe(time.Since(start).Seconds())
+		}
+	}()
+
 	if !fw.cfg.OutputFilter.Enabled {
+		fw.recordOutput("disabled", "output_filter_disabled")
 		return &FirewallDecision{Allowed: true}
 	}
 
 	for _, rule := range fw.sensitiveRules {
 		if rule.Pattern.MatchString(output) {
-			return &FirewallDecision{
+			decision := &FirewallDecision{
 				Allowed: false,
 				Action:  rule.Action,
 				Reason:  "检测到敏感信息: " + rule.Name,
 			}
+			fw.recordOutput("blocked", rule.Action)
+			return decision
 		}
 	}
 
+	fw.recordOutput("allowed", "none")
 	return &FirewallDecision{Allowed: true}
 }
 
