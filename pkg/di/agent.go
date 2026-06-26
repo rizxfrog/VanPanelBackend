@@ -3,6 +3,7 @@ package di
 import (
 	"context"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/cloudwego/eino/components/tool"
@@ -125,6 +126,23 @@ func ProvideAgentAuditStore(dao agentDao.AgentDAO, l *zap.Logger) agentAudit.Sto
 	return agentAudit.NewMemoryStore(dao, l)
 }
 
+// ProvideFirewallMetrics 创建模型防火墙指标
+func ProvideFirewallMetrics() *agentGuard.FirewallMetrics {
+	return agentGuard.DefaultFirewallMetrics
+}
+
+// ProvideModelFirewall 创建模型防火墙
+func ProvideModelFirewall(cfg *AgentConfig, metrics *agentGuard.FirewallMetrics) *agentGuard.ModelFirewall {
+	return agentGuard.NewModelFirewall(agentGuard.FirewallConfig{
+		InputFilter: agentGuard.InputFilterConfig{
+			Enabled: cfg.Firewall.InputEnabled,
+		},
+		OutputFilter: agentGuard.OutputFilterConfig{
+			Enabled: cfg.Firewall.OutputEnabled,
+		},
+	}, metrics)
+}
+
 // ==================== 安全运行时 ====================
 
 // ProvidePolicyEngine 创建工具调用策略引擎
@@ -152,13 +170,17 @@ func ProvideLocalCapsuleExecutor() (agentRuntime.CapsuleExecutor, error) {
 	})
 }
 
+func isAgentSecurityAutoApproveEnabled() bool {
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("AGENT_SECURITY_AUTO_APPROVE")), "true")
+}
+
 // ProvideSecureToolRuntime 创建安全工具执行运行时
 // 调用链: GuardChain → PolicyEngine → ApprovalManager → CapsuleExecutor → ToolResultSanitizer → MemoryWriteGuard
 func ProvideSecureToolRuntime(
 	guardChain *agentGuard.Chain,
 	riskEval *agentRisk.Evaluator,
 	l *zap.Logger,
-) *agentRuntime.SecureToolRuntime {
+) (*agentRuntime.SecureToolRuntime, error) {
 	// 适配 GuardChain.Evaluate 到 PolicyDecision 函数签名
 	guardChainEvaluate := func(ctx context.Context, toolName string, toolArgs map[string]any) *agentRuntime.PolicyDecision {
 		if guardChain == nil {
@@ -174,13 +196,13 @@ func ProvideSecureToolRuntime(
 
 	executor, err := ProvideLocalCapsuleExecutor()
 	if err != nil {
-		l.Warn("LocalCapsuleExecutor 创建失败，安全运行时将降级", zap.Error(err))
+		return nil, err
 	}
 
 	return agentRuntime.NewSecureToolRuntime(
 		guardChainEvaluate,
 		ProvidePolicyEngine(l),
-		agentRuntime.NewApprovalManager(true), // 开发模式自动审批
+		agentRuntime.NewApprovalManager(isAgentSecurityAutoApproveEnabled()),
 		executor,
 		ProvideToolResultSanitizer(l),
 		ProvideMemoryWriteGuard(l),
@@ -201,6 +223,7 @@ func ProvideAgentService(
 	pipelineStage *agentPipeline.Stage,
 	nudgeReviewer *agentNudge.MemoryNudgeReviewer,
 	secureRuntime *agentRuntime.SecureToolRuntime,
+	modelFirewall *agentGuard.ModelFirewall,
 ) agentService.AgentService {
 	svcCfg := &agentService.Config{
 		LLM: agentService.LLMConfig{
@@ -213,7 +236,7 @@ func ProvideAgentService(
 		},
 		MaxHistory: cfg.MaxHistory,
 	}
-	return agentService.NewAgentService(dao, toolMgr, riskEval, auditStore, svcCfg, l, pipelineStage, nudgeReviewer, secureRuntime)
+	return agentService.NewAgentService(dao, toolMgr, riskEval, auditStore, svcCfg, l, pipelineStage, nudgeReviewer, secureRuntime, modelFirewall)
 }
 
 // ProvideHubService 创建 Hub 服务

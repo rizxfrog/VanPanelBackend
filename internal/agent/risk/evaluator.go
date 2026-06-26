@@ -52,6 +52,15 @@ type Evaluator struct {
 
 // NewEvaluator creates an Evaluator from the given configuration.
 func NewEvaluator(cfg *EvaluatorConfig) *Evaluator {
+	if cfg == nil {
+		return &Evaluator{}
+	}
+	if cfg.Shell.Blacklist == nil {
+		cfg.Shell.Blacklist = []string{}
+	}
+	if cfg.Shell.Whitelist == nil {
+		cfg.Shell.Whitelist = []string{}
+	}
 	e := &Evaluator{
 		protectedPaths:    cfg.ProtectedPaths,
 		protectedServices: cfg.ProtectedServices,

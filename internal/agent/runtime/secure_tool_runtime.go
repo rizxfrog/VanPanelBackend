@@ -41,7 +41,25 @@ func NewSecureToolRuntime(
 	sanitizer *ToolResultSanitizer,
 	memGuard *MemoryWriteGuard,
 	logger *zap.Logger,
-) *SecureToolRuntime {
+) (*SecureToolRuntime, error) {
+	if guardChainEvaluate == nil {
+		return nil, fmt.Errorf("guardChainEvaluate is required")
+	}
+	if policy == nil {
+		return nil, fmt.Errorf("policy is required")
+	}
+	if approver == nil {
+		return nil, fmt.Errorf("approver is required")
+	}
+	if executor == nil {
+		return nil, fmt.Errorf("executor is required")
+	}
+	if sanitizer == nil {
+		return nil, fmt.Errorf("sanitizer is required")
+	}
+	if memGuard == nil {
+		return nil, fmt.Errorf("memGuard is required")
+	}
 	if logger == nil {
 		logger = zap.NewNop()
 	}
@@ -53,7 +71,7 @@ func NewSecureToolRuntime(
 		sanitizer:  sanitizer,
 		memGuard:   memGuard,
 		logger:     logger,
-	}
+	}, nil
 }
 
 // Execute 执行安全的工具调用管道

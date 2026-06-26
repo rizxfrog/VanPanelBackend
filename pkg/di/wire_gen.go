@@ -83,7 +83,14 @@ func ProvideCmd() (*Cmd, error) {
 	llmAuditor := ProvideAgentLLMAuditor(logger)
 	stage := ProvideAgentPipeline(agentDAO, configService, llmAuditor, logger)
 	memoryNudgeReviewer := ProvideAgentNudgeReviewer(agentConfig, logger)
-	agentService := ProvideAgentService(agentDAO, toolManager, evaluator, store, agentConfig, logger, stage, memoryNudgeReviewer)
+	chain := ProvideAgentGuardChain(evaluator, logger)
+	secureToolRuntime, err := ProvideSecureToolRuntime(chain, evaluator, logger)
+	if err != nil {
+		return nil, err
+	}
+	firewallMetrics := ProvideFirewallMetrics()
+	modelFirewall := ProvideModelFirewall(agentConfig, firewallMetrics)
+	agentService := ProvideAgentService(agentDAO, toolManager, evaluator, store, agentConfig, logger, stage, memoryNudgeReviewer, secureToolRuntime, modelFirewall)
 	agentHubConfig := ProvideAgentHubConfig()
 	hubService := ProvideHubService(agentDAO, toolManager, agentHubConfig, logger)
 	insightsEngine := ProvideAgentInsightsEngine(db, logger)
@@ -154,6 +161,9 @@ var AgentSet = wire.NewSet(
 	ProvideAgentSkillManagerTool,
 	ProvideClawHubClient,
 	ProvideSkillService,
+	ProvideSecureToolRuntime,
+	ProvideFirewallMetrics,
+	ProvideModelFirewall,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
 	ProvideAgentAuditStore,

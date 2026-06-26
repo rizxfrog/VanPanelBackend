@@ -81,7 +81,7 @@ local count = redis.call('ZCARD', key)
 if count >= max_calls then
     return 0
 end
-redis.call('ZADD', key, now, now .. ':' .. math.random(1000000))
+redis.call('ZADD', key, now, ARGV[4])
 redis.call('EXPIRE', key, window / 1000)
 return 1
 `
@@ -89,7 +89,8 @@ return 1
 func (rl *RateLimiter) checkLimit(ctx context.Context, key string, limit RateLimit) (bool, error) {
 	now := time.Now().UnixMilli()
 	windowMs := limit.Window.Milliseconds()
-	result, err := rl.redis.Eval(ctx, slidingWindowScript, []string{key}, now, windowMs, limit.MaxCalls).Int()
+	memberID := fmt.Sprintf("%d:%d", now, time.Now().UnixNano())
+	result, err := rl.redis.Eval(ctx, slidingWindowScript, []string{key}, now, windowMs, limit.MaxCalls, memberID).Int()
 	if err != nil {
 		return true, err
 	}

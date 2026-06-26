@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 
 	"github.com/cloudwego/eino/components/tool"
@@ -116,20 +117,42 @@ func (st *safeTool) InvokableRun(ctx context.Context, argsInJSON string, opts ..
 	if st.secureRuntime != nil && st.info.Name == "shell.exec" {
 		args, err := parseToolArgs(argsInJSON)
 		if err != nil {
-			return st.inner.InvokableRun(ctx, argsInJSON, opts...)
+			blockedMsg := "secure execution unavailable, shell command blocked"
+			zap.L().Warn("[ToolCall] 安全运行时参数解析失败，shell.exec 禁止回退",
+				zap.String("tool", st.info.Name),
+				zap.String("callID", toolCallID),
+				zap.String("args", argsInJSON),
+				zap.Error(err),
+			)
+			if st.auditFn != nil {
+				st.auditFn(ctx, "tool.blocked", st.info.Name, blockedMsg,
+					agentmodel.RiskHigh, false, argsInJSON, blockedMsg)
+			}
+			if st.resultCallback != nil {
+				st.resultCallback(toolCallID, st.info.Name, blockedMsg, "error")
+			}
+			return "", errors.New(blockedMsg)
 		}
 		safeResult, err := st.secureRuntime.Execute(ctx, st.sessionID, agentRuntime.ToolCall{
 			Name: st.info.Name,
 			Args: args,
 		})
 		if err != nil {
-			zap.L().Warn("[ToolCall] 安全运行时执行失败，回退到原始工具",
+			blockedMsg := "secure execution unavailable, shell command blocked"
+			zap.L().Warn("[ToolCall] 安全运行时执行失败，shell.exec 禁止回退",
 				zap.String("tool", st.info.Name),
 				zap.String("callID", toolCallID),
 				zap.String("args", argsInJSON),
 				zap.Error(err),
 			)
-			return st.inner.InvokableRun(ctx, argsInJSON, opts...)
+			if st.auditFn != nil {
+				st.auditFn(ctx, "tool.blocked", st.info.Name, blockedMsg,
+					agentmodel.RiskHigh, false, argsInJSON, blockedMsg)
+			}
+			if st.resultCallback != nil {
+				st.resultCallback(toolCallID, st.info.Name, blockedMsg, "error")
+			}
+			return "", errors.New(blockedMsg)
 		}
 		if safeResult.Blocked {
 			blockedMsg := fmt.Sprintf("[安全运行时拦截] 操作被安全策略阻止\n原因: %s\n工具: %s\n建议: 请尝试更安全的替代方案",

@@ -27,8 +27,9 @@ type PolicyRule interface {
 
 // PolicyEngine 策略引擎
 type PolicyEngine struct {
-	rules  []PolicyRule
-	logger *zap.Logger
+	rules            []PolicyRule
+	logger           *zap.Logger
+	dangerousCommand *regexp.Regexp
 }
 
 // NewPolicyEngine 创建策略引擎
@@ -36,10 +37,13 @@ func NewPolicyEngine(logger *zap.Logger) *PolicyEngine {
 	if logger == nil {
 		logger = zap.NewNop()
 	}
-	pe := &PolicyEngine{logger: logger}
+	pe := &PolicyEngine{
+		logger:           logger,
+		dangerousCommand: regexp.MustCompile(`(?i)(\brm\s+-rf\s+/|\bdd\s+if=|\bmkfs\.|\bshutdown\b|\breboot\b|:\(\)\{\:\|\:&\};:)`),
+	}
 	// 注册内置规则
 	pe.rules = []PolicyRule{
-		&dangerousCommandRule{},
+		&dangerousCommandRule{dangerousCommand: pe.dangerousCommand},
 		&protectedPathRule{},
 		&approvalToolRule{},
 	}
@@ -62,7 +66,9 @@ func (pe *PolicyEngine) Evaluate(ctx context.Context, call ToolCall) *PolicyDeci
 }
 
 // dangerousCommandRule 危险命令规则
-type dangerousCommandRule struct{}
+type dangerousCommandRule struct {
+	dangerousCommand *regexp.Regexp
+}
 
 func (r *dangerousCommandRule) Name() string { return "dangerous_command" }
 func (r *dangerousCommandRule) Priority() int {
@@ -76,14 +82,17 @@ func (r *dangerousCommandRule) Evaluate(ctx context.Context, call ToolCall) (*Po
 	if strings.TrimSpace(cmd) == "" {
 		return &PolicyDecision{Allowed: true}, nil
 	}
-	dangerous := regexp.MustCompile(`(?i)(\brm\s+-rf\s+/|\bdd\s+if=|\bmkfs\.|\bshutdown\b|\breboot\b|:\(\)\{\:\|\:&\};:)`)
-	if dangerous.MatchString(cmd) {
+	if r.dangerousCommand.MatchString(cmd) {
 		return &PolicyDecision{
 			Allowed: false,
 			Reason:  "危险命令被拦截",
 		}, nil
 	}
-	return &PolicyDecision{Allowed: true}, nil
+	return &PolicyDecision{
+		Allowed:          true,
+		RequiresApproval: true,
+		Reason:           "Shell 命令需要用户审批",
+	}, nil
 }
 
 // protectedPathRule 受保护路径规则

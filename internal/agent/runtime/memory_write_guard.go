@@ -29,11 +29,16 @@ func NewMemoryWriteGuard(logger *zap.Logger) *MemoryWriteGuard {
 // Review 审查工具结果的记忆写入请求
 func (g *MemoryWriteGuard) Review(call ToolCall, result *SanitizedResult) *MemoryCandidate {
 	candidate := &MemoryCandidate{
-		Content:    result.SafeContent,
+		Approved:   false,
 		Source:     "tool_result",
 		MemoryType: "short_term",
 		TTL:        30 * time.Minute,
 	}
+	if result == nil {
+		candidate.RejectReason = "工具结果为空，禁止写入记忆"
+		return candidate
+	}
+	candidate.Content = result.SafeContent
 
 	// 1. 检测到注入 — 直接拒绝
 	if result.InjectDetected {
