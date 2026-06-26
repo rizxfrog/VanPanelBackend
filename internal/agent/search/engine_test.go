@@ -60,7 +60,6 @@ func TestBrowseResultStruct(t *testing.T) {
 	}
 }
 
-
 // TestParameterDefaults 验证参数默认值逻辑（limit <= 0 时默认为 20）
 func TestParameterDefaults(t *testing.T) {
 	tests := []struct {

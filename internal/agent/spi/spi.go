@@ -17,9 +17,9 @@ type IntentAnalyzer interface {
 
 // MemoryEntry 记忆条目
 type MemoryEntry struct {
-	Source   string         // "short_term" / "long_term" / "rag"
+	Source   string // "short_term" / "long_term" / "rag"
 	Content  string
-	Score    float64        // 相关性评分
+	Score    float64 // 相关性评分
 	Metadata map[string]any
 }
 

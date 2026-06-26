@@ -61,7 +61,7 @@ type SessionMetadata struct {
 	StartedAt  time.Time `json:"startedAt"`
 	EndedAt    time.Time `json:"endedAt,omitempty"`
 	ExitReason string    `json:"exitReason,omitempty"`
-	Error       string    `json:"error,omitempty"`
+	Error      string    `json:"error,omitempty"`
 }
 
 func (m Message) ValidateFirst() error {
