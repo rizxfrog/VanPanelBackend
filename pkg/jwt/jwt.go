@@ -26,6 +26,8 @@
 package jwt
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"errors"
 	"fmt"
 	"strings"
@@ -52,6 +54,7 @@ type Handler interface {
 	SetJWTToken(ctx *gin.Context, uid int, username string, ssid string, accountType int8) (string, error)
 	ExtractToken(ctx *gin.Context) string
 	CheckSession(ctx *gin.Context, ssid string) error
+	CheckToken(ctx *gin.Context, authToken string) error
 	ClearToken(ctx *gin.Context) error
 	setRefreshToken(ctx *gin.Context, uid int, username string, ssid string, accountType int8) (string, error)
 }
@@ -179,6 +182,18 @@ func (h *handler) CheckSession(ctx *gin.Context, ssid string) error {
 	return nil
 }
 
+// CheckToken 检查当前访问令牌是否已注销失效
+func (h *handler) CheckToken(ctx *gin.Context, authToken string) error {
+	c, err := h.client.Exists(ctx, tokenBlacklistKey(authToken)).Result()
+	if err != nil {
+		return err
+	}
+	if c != 0 {
+		return errors.New("token失效")
+	}
+	return nil
+}
+
 // ClearToken 清空 token，让 Authorization 中的用于验证的 token 失效
 func (h *handler) ClearToken(ctx *gin.Context) error {
 	// 获取 Authorization 头部中的 token
@@ -231,13 +246,18 @@ func (h *handler) addToBlacklist(ctx *gin.Context, authToken string, expiresAt t
 		remainingTime = time.Second
 	}
 
-	blacklistKey := fmt.Sprintf(tokenBlacklistKeyPattern, authToken)
+	blacklistKey := tokenBlacklistKey(authToken)
 
 	// 将 token 存入 Redis，并设置过期时间
 	if err := h.client.Set(ctx, blacklistKey, "invalid", remainingTime).Err(); err != nil {
 		return err
 	}
 	return nil
+}
+
+func tokenBlacklistKey(authToken string) string {
+	sum := sha256.Sum256([]byte(authToken))
+	return fmt.Sprintf(tokenBlacklistKeyPattern, hex.EncodeToString(sum[:]))
 }
 
 func (h *handler) signClaims(claims jwt.Claims, key []byte) (string, error) {

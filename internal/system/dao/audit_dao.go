@@ -241,11 +241,13 @@ func (d *auditDAO) GetAuditStatistics(ctx context.Context) (*model.AuditStatisti
 		errChan <- err
 	}()
 
+	recentTimeExpr, hourSelectExpr, hourGroupExpr := auditStatsTimeExpressions(d.db)
+
 	// 最近活动
 	go func() {
 		var recentActivity []model.RecentActivityItem
 		err := d.db.WithContext(ctx).Model(&model.AuditLog{}).
-			Select("CAST(UNIX_TIMESTAMP(created_at) AS SIGNED) as time, operation_type, user_id, target_type, status_code, duration").
+			Select(recentTimeExpr + ", operation_type, user_id, target_type, status_code, duration").
 			Order("created_at DESC").
 			Limit(20).
 			Find(&recentActivity).Error
@@ -257,9 +259,9 @@ func (d *auditDAO) GetAuditStatistics(ctx context.Context) (*model.AuditStatisti
 	go func() {
 		var hourlyTrend []model.HourlyTrendItem
 		err := d.db.WithContext(ctx).Model(&model.AuditLog{}).
-			Select("HOUR(created_at) as hour, COUNT(*) as count").
+			Select(hourSelectExpr + ", COUNT(*) as count").
 			Where("created_at >= ?", time.Now().Add(-24*time.Hour)).
-			Group("HOUR(created_at)").
+			Group(hourGroupExpr).
 			Order("hour").
 			Find(&hourlyTrend).Error
 		stats.HourlyTrend = hourlyTrend
@@ -274,6 +276,13 @@ func (d *auditDAO) GetAuditStatistics(ctx context.Context) (*model.AuditStatisti
 	}
 
 	return stats, nil
+}
+
+func auditStatsTimeExpressions(db *gorm.DB) (recentTimeExpr, hourSelectExpr, hourGroupExpr string) {
+	if db != nil && db.Dialector.Name() == "mysql" {
+		return "CAST(UNIX_TIMESTAMP(created_at) AS SIGNED) as time", "HOUR(created_at) as hour", "HOUR(created_at)"
+	}
+	return "CAST(EXTRACT(EPOCH FROM created_at) AS BIGINT) as time", "CAST(EXTRACT(HOUR FROM created_at) AS INTEGER) as hour", "CAST(EXTRACT(HOUR FROM created_at) AS INTEGER)"
 }
 
 // DeleteAuditLog 删除单条审计日志

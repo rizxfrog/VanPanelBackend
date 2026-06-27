@@ -108,7 +108,10 @@ func (m *JWTMiddleware) CheckLogin() gin.HandlerFunc {
 			ctx.AbortWithStatus(401)
 			return
 		}
-
+		if err = m.CheckToken(ctx, tokenStr); err != nil {
+			ctx.AbortWithStatus(401)
+			return
+		}
 		// 检查UserAgent
 		if uc.UserAgent == "" {
 			ctx.AbortWithStatus(401)
