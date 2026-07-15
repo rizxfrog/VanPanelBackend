@@ -84,7 +84,7 @@ func ProvideCmd() (*Cmd, error) {
 	stage := ProvideAgentPipeline(agentDAO, configService, llmAuditor, logger)
 	memoryNudgeReviewer := ProvideAgentNudgeReviewer(agentConfig, logger)
 	chain := ProvideAgentGuardChain(evaluator, logger)
-	secureToolRuntime, err := ProvideSecureToolRuntime(chain, evaluator, logger)
+	secureToolRuntime, err := ProvideSecureToolRuntime(chain, evaluator, agentConfig, logger)
 	if err != nil {
 		return nil, err
 	}

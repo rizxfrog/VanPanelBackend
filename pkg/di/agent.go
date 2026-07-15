@@ -161,10 +161,10 @@ func ProvideMemoryWriteGuard(l *zap.Logger) *agentRuntime.MemoryWriteGuard {
 }
 
 // ProvideLocalCapsuleExecutor 创建本地隔离执行器
-func ProvideLocalCapsuleExecutor() (agentRuntime.CapsuleExecutor, error) {
+func ProvideLocalCapsuleExecutor(agentCfg *AgentConfig) (agentRuntime.CapsuleExecutor, error) {
 	return agentRuntime.NewLocalCapsuleExecutor(agentRuntime.LocalCapsuleConfig{
 		RunUser:          "nobody",
-		WorkspaceRoot:    "/var/lib/agent/workspace",
+		WorkspaceRoot:    agentCfg.WorkspaceRoot,
 		MaxExecutionTime: 30 * time.Second,
 		MaxOutputBytes:   1024 * 1024,
 	})
@@ -179,6 +179,7 @@ func isAgentSecurityAutoApproveEnabled() bool {
 func ProvideSecureToolRuntime(
 	guardChain *agentGuard.Chain,
 	riskEval *agentRisk.Evaluator,
+	agentCfg *AgentConfig,
 	l *zap.Logger,
 ) (*agentRuntime.SecureToolRuntime, error) {
 	// 适配 GuardChain.Evaluate 到 PolicyDecision 函数签名
@@ -194,7 +195,7 @@ func ProvideSecureToolRuntime(
 		}
 	}
 
-	executor, err := ProvideLocalCapsuleExecutor()
+	executor, err := ProvideLocalCapsuleExecutor(agentCfg)
 	if err != nil {
 		return nil, err
 	}

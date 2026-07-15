@@ -29,7 +29,11 @@
       "Bash(playwright-cli screenshot *)",
       "Bash(playwright-cli console *)",
       "Bash(playwright-cli run-code *)",
-      "Bash(playwright-cli close *)"
+      "Bash(playwright-cli close *)",
+      "Bash(git fetch *)",
+      "Bash(git merge *)",
+      "Bash(git stash *)",
+      "Bash(make generate *)"
     ]
   }
 }
