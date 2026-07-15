@@ -381,14 +381,14 @@ func (d *roleDAO) CheckPermission(ctx context.Context, userID int, method, path 
 		 FROM cl_system_apis a
 		 JOIN cl_system_role_apis ra ON a.id = ra.api_id
 		 JOIN cl_system_user_roles ur ON ra.role_id = ur.role_id
-		 JOIN cl_system_roles r ON ur.role_id = d.id
-		 WHERE cl_system_user_roles.user_id = ? 
-		 AND d.status = 1 
+		 JOIN cl_system_roles r ON ur.role_id = r.id
+		 WHERE ur.user_id = ?
+		 AND r.status = 1
 		 AND a.method = ? 
 		 AND a.path = ?
 	 `
 
-	if err := d.db.WithContext(ctx).Raw(query, userID, method, path).Count(&count).Error; err != nil {
+	if err := d.db.WithContext(ctx).Raw(query, userID, method, path).Scan(&count).Error; err != nil {
 		return false, err
 	}
 
@@ -404,8 +404,8 @@ func (d *roleDAO) GetPermissions(ctx context.Context, userID int) ([]*model.Api,
 		 FROM cl_system_apis a
 		 JOIN cl_system_role_apis ra ON a.id = ra.api_id
 		 JOIN cl_system_user_roles ur ON ra.role_id = ur.role_id
-		 JOIN cl_system_roles r ON ur.role_id = d.id
-		 WHERE ur.user_id = ? AND d.status = 1
+		 JOIN cl_system_roles r ON ur.role_id = r.id
+		 WHERE ur.user_id = ? AND r.status = 1
 		 ORDER BY a.created_at DESC
 	 `
 
