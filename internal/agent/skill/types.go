@@ -9,6 +9,7 @@ const (
 	SkillSourceBundled SkillSource = "bundled"
 	SkillSourceUser    SkillSource = "user"
 	SkillSourceAgent   SkillSource = "agent"
+	SkillSourceUploaded SkillSource = "uploaded"
 )
 
 // SkillState 生命周期状态
