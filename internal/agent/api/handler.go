@@ -1,8 +1,12 @@
 package api
 
 import (
+	"bytes"
 	"fmt"
+	"io"
+	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/hub"
@@ -22,6 +26,7 @@ type Handler struct {
 	configService *service.ConfigService
 	searchEngine  *search.SearchEngine
 	skillStore    *skill.SkillStore
+	skillService  *service.SkillService
 	insights      *insight.InsightsEngine
 }
 
@@ -33,6 +38,7 @@ func NewHandler(
 	searchEngine *search.SearchEngine,
 	skillStore *skill.SkillStore,
 	insights *insight.InsightsEngine,
+	skillService *service.SkillService,
 ) *Handler {
 	return &Handler{
 		agentService:  agentService,
@@ -40,6 +46,7 @@ func NewHandler(
 		configService: configService,
 		searchEngine:  searchEngine,
 		skillStore:    skillStore,
+		skillService:  skillService,
 		insights:      insights,
 	}
 }
@@ -94,6 +101,7 @@ func (h *Handler) RegisterRouters(server *gin.Engine) {
 		agentGroup.GET("/skills/:name", h.GetSkill)
 		agentGroup.POST("/skills/:name/pin", h.PinSkill)
 		agentGroup.POST("/skills/:name/unpin", h.UnpinSkill)
+		agentGroup.POST("/skills/upload", h.UploadSkill)
 	}
 }
 
@@ -498,4 +506,49 @@ func (h *Handler) UnpinSkill(c *gin.Context) {
 		return
 	}
 	base.Success(c)
+}
+
+const maxSkillUploadSize = 10 << 20 // 10MB
+
+// UploadSkill 通过 zip 压缩包安装/更新 skill
+func (h *Handler) UploadSkill(c *gin.Context) {
+	var req struct {
+		Name    string `form:"name"`
+		Version string `form:"version"`
+	}
+	_ = c.ShouldBind(&req)
+
+	file, header, err := c.Request.FormFile("file")
+	if err != nil {
+		base.BadRequestError(c, "缺少 skill 压缩包")
+		return
+	}
+	defer file.Close()
+
+	if header.Size > maxSkillUploadSize {
+		c.JSON(http.StatusRequestEntityTooLarge, gin.H{"code": http.StatusRequestEntityTooLarge, "message": "文件过大，最大 10MB"})
+		return
+	}
+
+	buf, err := io.ReadAll(file)
+	if err != nil {
+		base.BadRequestError(c, "读取文件失败")
+		return
+	}
+
+	msg, err := h.skillService.InstallFromArchive(c.Request.Context(), req.Name, req.Version, bytes.NewReader(buf), int64(len(buf)))
+	if err != nil {
+		errMsg := err.Error()
+		switch {
+		case strings.Contains(errMsg, "名称格式"), strings.Contains(errMsg, "推断"):
+			base.BadRequestError(c, errMsg)
+		case strings.Contains(errMsg, "缺少 SKILL.md"), strings.Contains(errMsg, "frontmatter"):
+			base.BadRequestError(c, errMsg)
+		default:
+			base.ErrorWithMessage(c, "安装失败: "+errMsg)
+		}
+		return
+	}
+
+	base.SuccessWithData(c, gin.H{"ok": true, "message": msg})
 }
