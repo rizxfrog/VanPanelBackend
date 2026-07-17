@@ -543,13 +543,18 @@ func (s *SkillService) installFromClawHub(ctx context.Context, slug, version str
 	}
 	defer result.Body.Close()
 
+	buf, err := io.ReadAll(result.Body)
+	if err != nil {
+		return "", fmt.Errorf("read download body failed: %w", err)
+	}
+
 	category := "clawhub"
 	targetDir := filepath.Join(s.cfg.BaseDir, category, slug)
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return "", fmt.Errorf("create target dir failed: %w", err)
 	}
 
-	if err := unzipToDir(result.Body, targetDir); err != nil {
+	if err := UnzipToDir(bytes.NewReader(buf), int64(len(buf)), targetDir); err != nil {
 		return "", fmt.Errorf("extract skill archive failed: %w", err)
 	}
 
@@ -561,12 +566,9 @@ func (s *SkillService) installFromClawHub(ctx context.Context, slug, version str
 	return fmt.Sprintf("Installed %s (%s) from ClawHub", slug, version), nil
 }
 
-func unzipToDir(r io.ReadCloser, targetDir string) error {
-	buf, err := io.ReadAll(r)
-	if err != nil {
-		return err
-	}
-	zr, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
+// UnzipToDir extracts a zip archive into the target directory with path traversal protection.
+func UnzipToDir(r io.ReaderAt, size int64, targetDir string) error {
+	zr, err := zip.NewReader(r, size)
 	if err != nil {
 		return err
 	}
