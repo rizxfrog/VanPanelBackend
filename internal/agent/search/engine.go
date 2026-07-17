@@ -13,9 +13,9 @@ type SearchResult struct {
 	SessionID    string    `json:"session_id"`
 	MessageID    int64     `json:"message_id"`
 	Role         string    `json:"role"`
-	Headline     string    `json:"headline"`     // ts_headline 生成的高亮片段
-	Content      string    `json:"content"`      // 消息内容前500字符
-	Rank         float64   `json:"rank"`         // ts_rank 评分
+	Headline     string    `json:"headline"` // ts_headline 生成的高亮片段
+	Content      string    `json:"content"`  // 消息内容前500字符
+	Rank         float64   `json:"rank"`     // ts_rank 评分
 	CreatedAt    time.Time `json:"created_at"`
 	SessionTitle string    `json:"session_title,omitempty"`
 }
@@ -24,7 +24,7 @@ type SearchResult struct {
 type BrowseResult struct {
 	SessionID    string    `json:"session_id"`
 	Title        string    `json:"title"`
-	Preview      string    `json:"preview"`       // 首条用户消息前100字符
+	Preview      string    `json:"preview"` // 首条用户消息前100字符
 	MessageCount int       `json:"message_count"`
 	LastActiveAt time.Time `json:"last_active_at"`
 }

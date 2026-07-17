@@ -1,25 +1,34 @@
 package risk
 
 import (
-	"fmt"
-	"path/filepath"
-	"regexp"
+	"encoding/json"
 	"strings"
 
 	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 )
 
 type Guard struct {
-	dangerousCommand *regexp.Regexp
-	protectedPaths   []string
-	protectedService map[string]struct{}
-	approvalTools    map[string]struct{}
+	evaluator *Evaluator
 }
 
-func NewGuard() *Guard {
-	return &Guard{
-		dangerousCommand: regexp.MustCompile(`(?i)(\brm\s+-rf\s+/|\bdd\s+if=|\bmkfs\.|\bshutdown\b|\breboot\b|:\(\)\{:\|:&\};:)`),
-		protectedPaths: []string{
+func NewGuard(evaluator *Evaluator) *Guard {
+	return &Guard{evaluator: evaluator}
+}
+
+func (g *Guard) Evaluate(call agentmodel.ToolCall) agentmodel.RiskDecision {
+	if g == nil || g.evaluator == nil {
+		g = NewGuard(defaultGuardEvaluator())
+	}
+
+	argsStr := toolArgsToString(call.Args)
+	result := g.evaluator.Evaluate(call.Name, argsStr)
+	return guardDecisionFromEvalResult(result)
+}
+
+func defaultGuardEvaluator() *Evaluator {
+	return NewEvaluator(&EvaluatorConfig{
+		DangerousCommands: []string{`(?i)(\brm\s+-rf\s+/|\bdd\s+if=|\bmkfs\.|\bshutdown\b|\breboot\b|:\(\)\{:\|:&\};:)`},
+		ProtectedPaths: []string{
 			"/boot",
 			"/etc",
 			"/root",
@@ -28,81 +37,59 @@ func NewGuard() *Guard {
 			"C:\\Windows",
 			"C:\\Program Files",
 		},
-		protectedService: map[string]struct{}{
-			"firewalld": {},
-			"sshd":      {},
-			"ssh":       {},
-			"docker":    {},
-			"kubelet":   {},
+		ProtectedServices: []string{"firewalld", "sshd", "ssh", "docker", "kubelet"},
+		ApprovalTools: []string{
+			"container.restart",
+			"container.stop",
+			"service.restart",
+			"file.delete",
+			"file.move_to_trash",
 		},
-		approvalTools: map[string]struct{}{
-			"container.restart":  {},
-			"container.stop":     {},
-			"service.restart":    {},
-			"file.delete":        {},
-			"file.move_to_trash": {},
-		},
-	}
+	})
 }
 
-func (g *Guard) Evaluate(call agentmodel.ToolCall) agentmodel.RiskDecision {
-	if g == nil {
-		g = NewGuard()
-	}
-
-	if reason := g.blockReason(call); reason != "" {
-		return agentmodel.RiskDecision{
-			Level:   agentmodel.RiskHigh,
-			Allowed: false,
-			Reason:  reason,
+func toolArgsToString(args map[string]any) string {
+	if cmd, ok := args["command"]; ok {
+		if cmdStr, ok := cmd.(string); ok {
+			return cmdStr
 		}
+		return ""
 	}
+	b, err := json.Marshal(args)
+	if err != nil {
+		return ""
+	}
+	return string(b)
+}
 
-	if _, ok := g.approvalTools[call.Name]; ok {
-		return agentmodel.RiskDecision{
-			Level:            agentmodel.RiskLow,
-			Allowed:          true,
-			RequiresApproval: true,
-			Reason:           "operation requires explicit user approval",
-		}
+func guardDecisionFromEvalResult(result EvalResult) agentmodel.RiskDecision {
+	allowed := !result.Blocked
+	if result.Level == RiskLevelLow && !result.Blocked {
+		allowed = true
 	}
 
 	return agentmodel.RiskDecision{
-		Level:   agentmodel.RiskSafe,
-		Allowed: true,
-		Reason:  "read-only or suggestion operation",
+		Level:            agentmodel.RiskLevel(result.Level),
+		Allowed:          allowed,
+		RequiresApproval: result.Level == RiskLevelLow && !result.Blocked,
+		Reason:           guardReason(result),
 	}
 }
 
-func (g *Guard) blockReason(call agentmodel.ToolCall) string {
-	switch call.Name {
-	case "terminal.suggest":
-		command := strings.TrimSpace(fmt.Sprint(call.Args["command"]))
-		if command != "" && g.dangerousCommand.MatchString(command) {
-			return "dangerous terminal command is blocked"
-		}
-	case "file.delete", "file.move_to_trash":
-		path := strings.TrimSpace(fmt.Sprint(call.Args["path"]))
-		if path != "" && g.isProtectedPath(path) {
-			return "protected system path is blocked"
-		}
-	case "service.restart":
-		service := strings.ToLower(strings.TrimSpace(fmt.Sprint(call.Args["service"])))
-		if _, ok := g.protectedService[service]; ok {
-			return "protected service operation is blocked"
-		}
+func guardReason(result EvalResult) string {
+	switch result.Reason {
+	case "危险命令被拦截":
+		return "dangerous terminal command is blocked"
+	case "需要用户审批":
+		return "operation requires explicit user approval"
+	case "":
+		return "read-only or suggestion operation"
 	}
-	return ""
-}
-
-func (g *Guard) isProtectedPath(path string) bool {
-	clean := filepath.Clean(path)
-	lower := strings.ToLower(clean)
-	for _, protected := range g.protectedPaths {
-		p := strings.ToLower(filepath.Clean(protected))
-		if lower == p || strings.HasPrefix(lower, p+string(filepath.Separator)) || strings.HasPrefix(lower, p+"/") {
-			return true
-		}
+	if strings.HasPrefix(result.Reason, "受保护路径:") {
+		return "protected system path is blocked"
 	}
-	return false
+	if strings.HasPrefix(result.Reason, "受保护服务:") {
+		return "protected service operation is blocked"
+	}
+	return result.Reason
 }

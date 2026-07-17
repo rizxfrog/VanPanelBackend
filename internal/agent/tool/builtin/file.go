@@ -33,11 +33,11 @@ type FileScanTool struct {
 // 否则回退到 find/ls 等 shell 命令。
 func NewFileScanTool() *FileScanTool {
 	return &FileScanTool{baseCommandTool{
-		name:           "file.scan",
-		description:    "Scan files and directories（列表、搜索、内容读取）",
-		command:        "", // 回退到 shell 命令时动态构建
-		timeout:        30 * time.Second,
-		maxOutput:      65536,
+		name:        "file.scan",
+		description: "Scan files and directories（列表、搜索、内容读取）",
+		command:     "", // 回退到 shell 命令时动态构建
+		timeout:     30 * time.Second,
+		maxOutput:   65536,
 	}}
 }
 

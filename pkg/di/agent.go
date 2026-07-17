@@ -3,24 +3,27 @@ package di
 import (
 	"context"
 	"os"
+	"strings"
+	"time"
 
+	"github.com/cloudwego/eino/components/tool"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/api"
 	agentAudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
 	agentDao "github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
-	agentInsight "github.com/rizxfrog/VanPanelBackend/internal/agent/insight"
-	agentNudge "github.com/rizxfrog/VanPanelBackend/internal/agent/nudge"
-	agentSearch "github.com/rizxfrog/VanPanelBackend/internal/agent/search"
 	agentGuard "github.com/rizxfrog/VanPanelBackend/internal/agent/guard"
 	agentHub "github.com/rizxfrog/VanPanelBackend/internal/agent/hub"
+	agentInsight "github.com/rizxfrog/VanPanelBackend/internal/agent/insight"
 	agentMemory "github.com/rizxfrog/VanPanelBackend/internal/agent/memory"
+	agentNudge "github.com/rizxfrog/VanPanelBackend/internal/agent/nudge"
 	agentPipeline "github.com/rizxfrog/VanPanelBackend/internal/agent/pipeline"
 	agentRisk "github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
+	agentRuntime "github.com/rizxfrog/VanPanelBackend/internal/agent/runtime"
+	agentSearch "github.com/rizxfrog/VanPanelBackend/internal/agent/search"
 	agentService "github.com/rizxfrog/VanPanelBackend/internal/agent/service"
 	agentSkill "github.com/rizxfrog/VanPanelBackend/internal/agent/skill"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/spi"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/builtin"
 	agentToolManager "github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
-	"github.com/cloudwego/eino/components/tool"
 	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
@@ -123,6 +126,91 @@ func ProvideAgentAuditStore(dao agentDao.AgentDAO, l *zap.Logger) agentAudit.Sto
 	return agentAudit.NewMemoryStore(dao, l)
 }
 
+// ProvideFirewallMetrics 创建模型防火墙指标
+func ProvideFirewallMetrics() *agentGuard.FirewallMetrics {
+	return agentGuard.DefaultFirewallMetrics()
+}
+
+// ProvideModelFirewall 创建模型防火墙
+func ProvideModelFirewall(cfg *AgentConfig, metrics *agentGuard.FirewallMetrics) *agentGuard.ModelFirewall {
+	return agentGuard.NewModelFirewall(agentGuard.FirewallConfig{
+		InputFilter: agentGuard.InputFilterConfig{
+			Enabled: cfg.Firewall.InputEnabled,
+		},
+		OutputFilter: agentGuard.OutputFilterConfig{
+			Enabled: cfg.Firewall.OutputEnabled,
+		},
+	}, metrics)
+}
+
+// ==================== 安全运行时 ====================
+
+// ProvidePolicyEngine 创建工具调用策略引擎
+func ProvidePolicyEngine(l *zap.Logger) *agentRuntime.PolicyEngine {
+	return agentRuntime.NewPolicyEngine(l)
+}
+
+// ProvideToolResultSanitizer 创建工具结果脱敏器
+func ProvideToolResultSanitizer(l *zap.Logger) *agentRuntime.ToolResultSanitizer {
+	return agentRuntime.NewToolResultSanitizer(l)
+}
+
+// ProvideMemoryWriteGuard 创建记忆写入守卫
+func ProvideMemoryWriteGuard(l *zap.Logger) *agentRuntime.MemoryWriteGuard {
+	return agentRuntime.NewMemoryWriteGuard(l)
+}
+
+// ProvideLocalCapsuleExecutor 创建本地隔离执行器
+func ProvideLocalCapsuleExecutor(agentCfg *AgentConfig) (agentRuntime.CapsuleExecutor, error) {
+	return agentRuntime.NewLocalCapsuleExecutor(agentRuntime.LocalCapsuleConfig{
+		RunUser:          "nobody",
+		WorkspaceRoot:    agentCfg.WorkspaceRoot,
+		MaxExecutionTime: 30 * time.Second,
+		MaxOutputBytes:   1024 * 1024,
+	})
+}
+
+func isAgentSecurityAutoApproveEnabled() bool {
+	return strings.EqualFold(strings.TrimSpace(os.Getenv("AGENT_SECURITY_AUTO_APPROVE")), "true")
+}
+
+// ProvideSecureToolRuntime 创建安全工具执行运行时
+// 调用链: GuardChain → PolicyEngine → ApprovalManager → CapsuleExecutor → ToolResultSanitizer → MemoryWriteGuard
+func ProvideSecureToolRuntime(
+	guardChain *agentGuard.Chain,
+	riskEval *agentRisk.Evaluator,
+	agentCfg *AgentConfig,
+	l *zap.Logger,
+) (*agentRuntime.SecureToolRuntime, error) {
+	// 适配 GuardChain.Evaluate 到 PolicyDecision 函数签名
+	guardChainEvaluate := func(ctx context.Context, toolName string, toolArgs map[string]any) *agentRuntime.PolicyDecision {
+		if guardChain == nil {
+			return &agentRuntime.PolicyDecision{Allowed: true}
+		}
+		decision := guardChain.Evaluate(ctx, toolName, toolArgs)
+		return &agentRuntime.PolicyDecision{
+			Allowed:          decision.Allowed,
+			RequiresApproval: decision.RequiresApproval,
+			Reason:           decision.Reason,
+		}
+	}
+
+	executor, err := ProvideLocalCapsuleExecutor(agentCfg)
+	if err != nil {
+		return nil, err
+	}
+
+	return agentRuntime.NewSecureToolRuntime(
+		guardChainEvaluate,
+		ProvidePolicyEngine(l),
+		agentRuntime.NewApprovalManager(isAgentSecurityAutoApproveEnabled()),
+		executor,
+		ProvideToolResultSanitizer(l),
+		ProvideMemoryWriteGuard(l),
+		l,
+	)
+}
+
 // ==================== 服务 ====================
 
 // ProvideAgentService 将 di 配置转换为 service 本地配置并创建智能体服务
@@ -135,6 +223,8 @@ func ProvideAgentService(
 	l *zap.Logger,
 	pipelineStage *agentPipeline.Stage,
 	nudgeReviewer *agentNudge.MemoryNudgeReviewer,
+	secureRuntime *agentRuntime.SecureToolRuntime,
+	modelFirewall *agentGuard.ModelFirewall,
 ) agentService.AgentService {
 	svcCfg := &agentService.Config{
 		LLM: agentService.LLMConfig{
@@ -147,7 +237,7 @@ func ProvideAgentService(
 		},
 		MaxHistory: cfg.MaxHistory,
 	}
-	return agentService.NewAgentService(dao, toolMgr, riskEval, auditStore, svcCfg, l, pipelineStage, nudgeReviewer)
+	return agentService.NewAgentService(dao, toolMgr, riskEval, auditStore, svcCfg, l, pipelineStage, nudgeReviewer, secureRuntime, modelFirewall)
 }
 
 // ProvideHubService 创建 Hub 服务
@@ -175,8 +265,9 @@ func ProvideAgentHandler(
 	searchEngine *agentSearch.SearchEngine,
 	skillStore *agentSkill.SkillStore,
 	insights *agentInsight.InsightsEngine,
+	skillSvc *agentService.SkillService,
 ) *api.Handler {
-	return api.NewHandler(agentSvc, hubSvc, cfgSvc, searchEngine, skillStore, insights)
+	return api.NewHandler(agentSvc, hubSvc, cfgSvc, searchEngine, skillStore, insights, skillSvc)
 }
 
 // ==================== Guard / Memory / Pipeline ====================

@@ -83,14 +83,21 @@ func ProvideCmd() (*Cmd, error) {
 	llmAuditor := ProvideAgentLLMAuditor(logger)
 	stage := ProvideAgentPipeline(agentDAO, configService, llmAuditor, logger)
 	memoryNudgeReviewer := ProvideAgentNudgeReviewer(agentConfig, logger)
-	agentService := ProvideAgentService(agentDAO, toolManager, evaluator, store, agentConfig, logger, stage, memoryNudgeReviewer)
+	chain := ProvideAgentGuardChain(evaluator, logger)
+	secureToolRuntime, err := ProvideSecureToolRuntime(chain, evaluator, agentConfig, logger)
+	if err != nil {
+		return nil, err
+	}
+	firewallMetrics := ProvideFirewallMetrics()
+	modelFirewall := ProvideModelFirewall(agentConfig, firewallMetrics)
+	agentService := ProvideAgentService(agentDAO, toolManager, evaluator, store, agentConfig, logger, stage, memoryNudgeReviewer, secureToolRuntime, modelFirewall)
 	agentHubConfig := ProvideAgentHubConfig()
 	hubService := ProvideHubService(agentDAO, toolManager, agentHubConfig, logger)
 	insightsEngine := ProvideAgentInsightsEngine(db, logger)
-	handler2 := ProvideAgentHandler(agentService, hubService, configService, searchEngine, skillStore, insightsEngine)
-	engine := InitGinServer(v, userHandler, apiHandler, roleHandler, systemHandler, notAuthHandler, auditHandler, terminalHandler, fileHandler, fileShareHandler, shareAccessHandler, handler2)
 	clawHubClient := ProvideClawHubClient(agentConfig)
 	skillService := ProvideSkillService(skillStore, clawHubClient, agentConfig, logger)
+	handler2 := ProvideAgentHandler(agentService, hubService, configService, searchEngine, skillStore, insightsEngine, skillService)
+	engine := InitGinServer(v, userHandler, apiHandler, roleHandler, systemHandler, notAuthHandler, auditHandler, terminalHandler, fileHandler, fileShareHandler, shareAccessHandler, handler2)
 	cronDAO := ProvideCronDAO(db)
 	client := ProvideCronAsynqClient()
 	cronService := ProvideCronService(cronDAO, agentService, logger, client)
@@ -154,6 +161,9 @@ var AgentSet = wire.NewSet(
 	ProvideAgentSkillManagerTool,
 	ProvideClawHubClient,
 	ProvideSkillService,
+	ProvideSecureToolRuntime,
+	ProvideFirewallMetrics,
+	ProvideModelFirewall,
 	ProvideAgentToolManager,
 	ProvideAgentRiskEvaluator,
 	ProvideAgentAuditStore,

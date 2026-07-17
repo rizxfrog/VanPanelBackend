@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 VanPanelBackend (AI-CloudOps) is the Go backend for a cloud-native intelligent operations platform. It serves as the central API gateway, owns all persistent state, manages Kubernetes clusters, Prometheus monitoring, ITIL ticketing, CMDB service trees, and delegates AI-heavy tasks to a Python service.
 
-- **Go 1.24.6** · Gin · GORM · Wire DI · MySQL or PostgreSQL · Redis
+- **Go 1.25.5** · Gin · GORM · Wire DI · MySQL or PostgreSQL · Redis
 - **Port**: 8889 (configurable via `server.port`)
 - **Module path**: `github.com/rizxfrog/VanPanelBackend`
 
@@ -50,6 +50,8 @@ VanPanelBackend (AI-CloudOps) is the Go backend for a cloud-native intelligent o
 10. Graceful shutdown: CronManager (30s timeout) → AsynqServer → Scheduler → HTTP server
 
 **Degraded mode**: If DB is unavailable, the server still starts but with no K8s clients, no cron, no mock, no Asynq.
+
+**MCP server mode**: Activated via `mcp.serve: true` in config or `--mcp-serve` env. Runs as separate stdio/TCP process on port 8890.
 
 ### Dependency Injection (Google Wire)
 
@@ -96,7 +98,7 @@ Cross-layer calls are prohibited. HTTP entry only in `api`, business in `service
 | `system` | `internal/system/` | Users, roles, RBAC (Casbin), audit logs, system config |
 | `cron` | `internal/cron/` | Unified cron manager backed by Asynq (Redis queue) |
 | `files` | `internal/files/` | File manager (upload/download/browse) |
-| `agent` | `internal/agent/` | AI agent subsystem (18 sub-packages: mcp, risk, guard, pipeline, skill, tool, hub, memory, audit, search, insight, nudge, etc.) |
+| `agent` | `internal/agent/` | AI agent subsystem (18 sub-packages: mcp, risk, guard, pipeline, skill, tool, hub, memory, audit, search, insight, nudge, etc.). Has two ReAct paths: sync (`Query`) and streaming (`QueryStream`) — both use `einoopenai.ChatModel` with native OpenAI function calling. Max 10 tool-calling steps per request. |
 | `gateway` | `internal/gateway/` | WebSocket/JSON-RPC gateway server (separate from Gin HTTP router) |
 
 ### Middleware Chain (applied in order)
@@ -143,9 +145,11 @@ Tests use standard `testing.T` with `t.Fatal`/`t.Fatalf` (no testify). Subtests 
 
 9 services: cloudops-backend (:8889), cloudops-web, cloudops-aiops (:8080), cloudops-mcp, mysql (:3306), postgres (:5432), nginx (:80), prometheus (:9090), redis (:36379). Network: `cloudops_net` (172.30.0.0/16).
 
-### CI/CD (GitLab CI)
+### CI/CD
 
-4 stages: `build-frontend` (node:18) → `build-backend` (golang:1.24.6) → `build-image` (Kaniko, tags only) → `deploy` (manual, tags only). Go build cache: `~/.cache/go-build`.
+**GitHub Actions** (`.github/workflows/go.yml`): `test-and-build` → `auto-release` (auto-tags on main push, creates GitHub releases).
+
+**GitLab CI** (`.gitlab-ci.yml`): 4 stages: `build-frontend` (node:18) → `build-backend` (golang:1.24.6) → `build-image` (Kaniko, tags only) → `deploy` (manual, tags only). Go build cache: `~/.cache/go-build`.
 
 ---
 
@@ -166,3 +170,5 @@ Tests use standard `testing.T` with `t.Fatal`/`t.Fatalf` (no testify). Subtests 
 - Config via Viper + YAML + env vars; no hardcoded secrets
 - Swagger annotations (`@Tags`, `@Summary`, `@Router`, `@Security`) on all API handlers
 - `@x-panel-log` annotations for audit trail on mutation endpoints
+- **Makefile `fmt-imports`** has a hardcoded `github.com/yourusername` — this is a known bug, not something to replicate
+- **Go version discrepancy**: `go.mod` says 1.25.5, CI uses 1.24.6, Dockerfile uses 1.26.1. Match the version to the context you're working in.

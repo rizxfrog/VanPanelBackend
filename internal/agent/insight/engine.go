@@ -46,10 +46,10 @@ type ToolUsageStat struct {
 
 // DailyActivity 每日活动统计
 type DailyActivity struct {
-	Date     string `json:"date"`
-	Sessions int    `json:"sessions"`
-	Messages int    `json:"messages"`
-	TokensIn int64  `json:"tokens_in"`
+	Date      string `json:"date"`
+	Sessions  int    `json:"sessions"`
+	Messages  int    `json:"messages"`
+	TokensIn  int64  `json:"tokens_in"`
 	TokensOut int64  `json:"tokens_out"`
 }
 

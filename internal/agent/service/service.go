@@ -17,10 +17,12 @@ import (
 
 	agentaudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
+	agentGuard "github.com/rizxfrog/VanPanelBackend/internal/agent/guard"
 	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/nudge"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/pipeline"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/risk"
+	agentRuntime "github.com/rizxfrog/VanPanelBackend/internal/agent/runtime"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/tool/mcp/manager"
 	"github.com/rizxfrog/VanPanelBackend/internal/model"
 )
@@ -106,6 +108,8 @@ type agentService struct {
 	logger        *zap.Logger
 	pipelineStage *pipeline.Stage            // optional pipeline enhancement
 	nudgeReviewer *nudge.MemoryNudgeReviewer // optional memory nudge
+	secureRuntime *agentRuntime.SecureToolRuntime
+	modelFirewall *agentGuard.ModelFirewall
 }
 
 // NewAgentService 创建智能体服务实例
@@ -118,6 +122,8 @@ func NewAgentService(
 	logger *zap.Logger,
 	pipelineStage *pipeline.Stage,
 	nudgeReviewer *nudge.MemoryNudgeReviewer,
+	secureRuntime *agentRuntime.SecureToolRuntime,
+	modelFirewall *agentGuard.ModelFirewall,
 ) AgentService {
 	return &agentService{
 		dao:           dao,
@@ -128,6 +134,8 @@ func NewAgentService(
 		logger:        logger,
 		pipelineStage: pipelineStage,
 		nudgeReviewer: nudgeReviewer,
+		secureRuntime: secureRuntime,
+		modelFirewall: modelFirewall,
 	}
 }
 
@@ -156,6 +164,30 @@ func (s *agentService) auditEvent(ctx context.Context, action, toolName, reason 
 	if _, err := s.auditStore.Append(ctx, event); err != nil {
 		s.logger.Warn("audit append failed", zap.Error(err))
 	}
+}
+
+func (s *agentService) checkModelInput(ctx context.Context, input, sessionID string, userID int) (*agentGuard.FirewallDecision, bool) {
+	if s.modelFirewall == nil {
+		return nil, false
+	}
+	decision := s.modelFirewall.CheckInput(ctx, input)
+	if !decision.Allowed {
+		s.auditEvent(ctx, agentaudit.ActionReceive, "", decision.Reason, agentmodel.RiskHigh, false, "", input, sessionID, userID, "")
+		return decision, true
+	}
+	return decision, false
+}
+
+func (s *agentService) checkModelOutput(ctx context.Context, output, sessionID string, userID int) (*agentGuard.FirewallDecision, bool) {
+	if s.modelFirewall == nil {
+		return nil, false
+	}
+	decision := s.modelFirewall.CheckOutput(ctx, output)
+	if !decision.Allowed {
+		s.auditEvent(ctx, agentaudit.ActionComplete, "", decision.Reason, agentmodel.RiskHigh, false, "", output, sessionID, userID, "")
+		return decision, true
+	}
+	return decision, false
 }
 
 // createChatModel 根据配置创建 OpenAI 兼容的 ChatModel
@@ -208,6 +240,13 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 	// 审计: 接收用户消息
 	s.auditEvent(ctx, agentaudit.ActionReceive, "", "", "", true, "", req.Question, req.SessionID, userID, "")
 
+	if decision, blocked := s.checkModelInput(ctx, req.Question, req.SessionID, userID); blocked {
+		return &model.AgentQueryResponse{
+			SessionID: req.SessionID,
+			Answer:    "⚠️ 模型防火墙拦截输入，请求已拦截。原因: " + decision.Reason,
+		}, nil
+	}
+
 	// === 注入检测（在 Agent 推理之前） ===
 	if s.pipelineStage != nil {
 		pc := &pipeline.PipelineContext{
@@ -232,7 +271,7 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 	rawTools := s.toolMgr.GetAllTools(ctx)
 	safeTools := make([]tool.BaseTool, 0, len(rawTools))
 	for _, t := range rawTools {
-		wt, err := wrapTool(t, s.riskEval, func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
+		wt, err := wrapTool(t, s.riskEval, s.secureRuntime, req.SessionID, func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 			s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 		})
 		if err != nil {
@@ -276,6 +315,9 @@ func (s *agentService) Query(ctx context.Context, req *model.AgentQueryReq, user
 	if answer == "" && len(result.ToolCalls) > 0 {
 		tcJSON, _ := json.Marshal(result.ToolCalls)
 		answer = string(tcJSON)
+	}
+	if decision, blocked := s.checkModelOutput(ctx, answer, req.SessionID, userID); blocked {
+		answer = "⚠️ 模型防火墙拦截输出，响应已拦截。原因: " + decision.Reason
 	}
 
 	// Nudge: record turn and check for memory review
@@ -347,6 +389,12 @@ func (s *agentService) QueryWithPipeline(ctx context.Context, req *model.AgentQu
 
 	// 审计: 接收用户消息
 	s.auditEvent(ctx, agentaudit.ActionReceive, "", "", "", true, "", req.Question, req.SessionID, userID, "")
+	if decision, blocked := s.checkModelInput(ctx, req.Question, req.SessionID, userID); blocked {
+		return &model.AgentQueryResponse{
+			SessionID: req.SessionID,
+			Answer:    "⚠️ 模型防火墙拦截输入，请求已拦截。原因: " + decision.Reason,
+		}, nil
+	}
 
 	// === ① 意图分析 ===
 	pc := &pipeline.PipelineContext{
@@ -388,7 +436,7 @@ func (s *agentService) QueryWithPipeline(ctx context.Context, req *model.AgentQu
 	rawTools := s.toolMgr.GetAllTools(ctx)
 	safeTools := make([]tool.BaseTool, 0, len(rawTools))
 	for _, t := range rawTools {
-		wt, err := wrapTool(t, s.riskEval, func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
+		wt, err := wrapTool(t, s.riskEval, s.secureRuntime, req.SessionID, func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 			s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 		})
 		if err != nil {
@@ -432,6 +480,9 @@ func (s *agentService) QueryWithPipeline(ctx context.Context, req *model.AgentQu
 	if answer == "" && len(result.ToolCalls) > 0 {
 		tcJSON, _ := json.Marshal(result.ToolCalls)
 		answer = string(tcJSON)
+	}
+	if decision, blocked := s.checkModelOutput(ctx, answer, req.SessionID, userID); blocked {
+		answer = "⚠️ 模型防火墙拦截输出，响应已拦截。原因: " + decision.Reason
 	}
 
 	// Nudge: record turn and check for memory review
@@ -500,6 +551,12 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 
 	// 审计: 接收用户消息
 	s.auditEvent(ctx, agentaudit.ActionReceive, "", "", "", true, "", req.Question, req.SessionID, userID, "")
+	if decision, blocked := s.checkModelInput(ctx, req.Question, req.SessionID, userID); blocked {
+		_ = s.writeSSEEvent(writer, "error", map[string]string{
+			"error": "⚠️ 模型防火墙拦截输入，请求已拦截。原因: " + decision.Reason,
+		})
+		return fmt.Errorf("model firewall input blocked: %s", decision.Reason)
+	}
 
 	// === 注入检测 ===
 	if s.pipelineStage != nil {
@@ -536,7 +593,7 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 	rawTools := s.toolMgr.GetAllTools(ctx)
 	safeTools := make([]tool.BaseTool, 0, len(rawTools))
 	for _, t := range rawTools {
-		wt, err := wrapToolWithCallback(t, s.riskEval,
+		wt, err := wrapToolWithCallback(t, s.riskEval, s.secureRuntime, req.SessionID,
 			func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 				s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 			},
@@ -572,6 +629,12 @@ func (s *agentService) QueryStream(ctx context.Context, req *model.AgentQueryReq
 	if err != nil {
 		s.logger.Error("Agent Stream 执行失败", zap.Error(err))
 		return fmt.Errorf("Agent Stream 失败: %w", err)
+	}
+	if decision, blocked := s.checkModelOutput(ctx, finalContent, req.SessionID, userID); blocked {
+		_ = s.writeSSEEvent(writer, "error", map[string]string{
+			"error": "⚠️ 模型防火墙拦截输出，响应已拦截。原因: " + decision.Reason,
+		})
+		return fmt.Errorf("model firewall output blocked: %s", decision.Reason)
 	}
 
 	// Nudge: record turn and check for memory review (streaming path)
@@ -637,6 +700,10 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 
 	// 审计: 接收用户消息
 	s.auditEvent(ctx, agentaudit.ActionReceive, "", "", "", true, "", req.Question, req.SessionID, userID, "")
+	if decision, blocked := s.checkModelInput(ctx, req.Question, req.SessionID, userID); blocked {
+		s.writeSSEEvent(writer, "error", map[string]string{"error": "⚠️ 模型防火墙拦截输入，请求已拦截。原因: " + decision.Reason})
+		return fmt.Errorf("model firewall input blocked: %s", decision.Reason)
+	}
 
 	// === ① 意图分析 ===
 	pc := &pipeline.PipelineContext{
@@ -688,7 +755,7 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 	rawTools := s.toolMgr.GetAllTools(ctx)
 	safeTools := make([]tool.BaseTool, 0, len(rawTools))
 	for _, t := range rawTools {
-		wt, err := wrapToolWithCallback(t, s.riskEval,
+		wt, err := wrapToolWithCallback(t, s.riskEval, s.secureRuntime, req.SessionID,
 			func(ctx context.Context, action, toolName, reason string, riskLevel agentmodel.RiskLevel, allowed bool, args string, result string) {
 				s.auditEvent(ctx, action, toolName, reason, riskLevel, allowed, args, result, req.SessionID, userID, "")
 			},
@@ -724,6 +791,12 @@ func (s *agentService) QueryStreamWithPipeline(ctx context.Context, req *model.A
 	if err != nil {
 		s.logger.Error("Agent Stream 执行失败", zap.Error(err))
 		return fmt.Errorf("Agent Stream 失败: %w", err)
+	}
+	if decision, blocked := s.checkModelOutput(ctx, finalContent, req.SessionID, userID); blocked {
+		_ = s.writeSSEEvent(writer, "error", map[string]string{
+			"error": "⚠️ 模型防火墙拦截输出，响应已拦截。原因: " + decision.Reason,
+		})
+		return fmt.Errorf("model firewall output blocked: %s", decision.Reason)
 	}
 
 	// Nudge: record turn and check for memory review (streaming path)

@@ -107,13 +107,20 @@ type AgentSkillConfig struct {
 }
 
 type AgentConfig struct {
-	LLM        AgentLLMConfig    `mapstructure:"llm"`
-	Risk       AgentRiskConfig   `mapstructure:"risk"`
-	Hub        AgentHubConfig    `mapstructure:"hub"`
-	MaxHistory int               `mapstructure:"max_history" .env:"AGENT_MAX_HISTORY" default:"20"`
-	Search     AgentSearchConfig `mapstructure:"search"`
-	Nudge      AgentNudgeConfig  `mapstructure:"nudge"`
-	Skill      AgentSkillConfig  `mapstructure:"skill"`
+	LLM           AgentLLMConfig      `mapstructure:"llm"`
+	Risk          AgentRiskConfig     `mapstructure:"risk"`
+	Hub           AgentHubConfig      `mapstructure:"hub"`
+	Firewall      AgentFirewallConfig `mapstructure:"firewall"`
+	MaxHistory    int                 `mapstructure:"max_history" .env:"AGENT_MAX_HISTORY" default:"20"`
+	Search        AgentSearchConfig   `mapstructure:"search"`
+	Nudge         AgentNudgeConfig    `mapstructure:"nudge"`
+	Skill         AgentSkillConfig    `mapstructure:"skill"`
+	WorkspaceRoot string              `mapstructure:"workspace_root" .env:"AGENT_WORKSPACE_ROOT" default:"/var/lib/agent/workspace"`
+}
+
+type AgentFirewallConfig struct {
+	InputEnabled  bool `mapstructure:"input_enabled" .env:"AGENT_MODEL_FIREWALL_INPUT_ENABLED" default:"false"`
+	OutputEnabled bool `mapstructure:"output_enabled" .env:"AGENT_MODEL_FIREWALL_OUTPUT_ENABLED" default:"false"`
 }
 
 type AgentLLMConfig struct {

@@ -1,9 +1,12 @@
 package service
 
 import (
+	"archive/zip"
+	"bytes"
 	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"go.uber.org/zap"
@@ -181,5 +184,202 @@ func TestSkillServiceSecurityVerdictsEmpty(t *testing.T) {
 	// No linked clawhub skills, so items should be empty.
 	if len(verdicts.Items) != 0 {
 		t.Errorf("expected 0 verdicts, got %d", len(verdicts.Items))
+	}
+}
+
+// makeSkillZip creates an in-memory zip with the given SKILL.md content and optional extra files.
+func makeSkillZip(t *testing.T, frontmatter, body string, extraFiles map[string]string) ([]byte, int64) {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+
+	md := "---\n" + frontmatter + "---\n\n" + body + "\n"
+	f, err := zw.Create("SKILL.md")
+	if err != nil {
+		t.Fatalf("create SKILL.md entry: %v", err)
+	}
+	if _, err := f.Write([]byte(md)); err != nil {
+		t.Fatalf("write SKILL.md: %v", err)
+	}
+
+	for name, content := range extraFiles {
+		f, err := zw.Create(name)
+		if err != nil {
+			t.Fatalf("create %s entry: %v", name, err)
+		}
+		if _, err := f.Write([]byte(content)); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("close zip: %v", err)
+	}
+	return buf.Bytes(), int64(buf.Len())
+}
+
+func makeSkillZipNoSkillMD(t *testing.T, extraFiles map[string]string) ([]byte, int64) {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for name, content := range extraFiles {
+		f, err := zw.Create(name)
+		if err != nil {
+			t.Fatalf("create %s entry: %v", name, err)
+		}
+		if _, err := f.Write([]byte(content)); err != nil {
+			t.Fatalf("write %s: %v", name, err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("close zip: %v", err)
+	}
+	return buf.Bytes(), int64(buf.Len())
+}
+
+func TestInstallFromArchive_Success(t *testing.T) {
+	svc, _, tmpDir := testSkillService(t)
+	zipBytes, size := makeSkillZip(t,
+		"name: hello-world\nversion: 1.0.0\ndescription: A sample skill",
+		"# hello-world\n\nThis is a sample skill.",
+		nil,
+	)
+
+	msg, err := svc.InstallFromArchive(context.Background(), "", "1.0.0", bytes.NewReader(zipBytes), size)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(msg, "hello-world") {
+		t.Errorf("expected message to contain name, got %q", msg)
+	}
+	if !strings.Contains(msg, "1.0.0") {
+		t.Errorf("expected message to contain version, got %q", msg)
+	}
+
+	target := filepath.Join(tmpDir, "uploaded", "hello-world", "SKILL.md")
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("target SKILL.md missing: %v", err)
+	}
+	if !strings.Contains(string(data), "source: uploaded") {
+		t.Errorf("expected source=uploaded in SKILL.md, got:\n%s", string(data))
+	}
+}
+
+func TestInstallFromArchive_ExplicitName(t *testing.T) {
+	svc, _, tmpDir := testSkillService(t)
+	zipBytes, size := makeSkillZip(t,
+		"name: ignored-name\ndescription: test",
+		"body",
+		nil,
+	)
+
+	msg, err := svc.InstallFromArchive(context.Background(), "my-skill", "", bytes.NewReader(zipBytes), size)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if !strings.Contains(msg, "my-skill") {
+		t.Errorf("expected message to contain explicit name, got %q", msg)
+	}
+
+	target := filepath.Join(tmpDir, "uploaded", "my-skill", "SKILL.md")
+	if _, err := os.Stat(target); err != nil {
+		t.Errorf("target SKILL.md missing: %v", err)
+	}
+}
+
+func TestInstallFromArchive_Idempotent(t *testing.T) {
+	svc, _, _ := testSkillService(t)
+	zipBytes, size := makeSkillZip(t,
+		"name: dup-skill\ndescription: version1",
+		"body1",
+		nil,
+	)
+	if _, err := svc.InstallFromArchive(context.Background(), "", "1.0.0", bytes.NewReader(zipBytes), size); err != nil {
+		t.Fatalf("first install: %v", err)
+	}
+
+	zipBytes2, size2 := makeSkillZip(t,
+		"name: dup-skill\ndescription: version2",
+		"body2",
+		nil,
+	)
+	if _, err := svc.InstallFromArchive(context.Background(), "", "2.0.0", bytes.NewReader(zipBytes2), size2); err != nil {
+		t.Fatalf("second install: %v", err)
+	}
+}
+
+func TestInstallFromArchive_MissingSkillMD(t *testing.T) {
+	svc, _, _ := testSkillService(t)
+	zipBytes, size := makeSkillZipNoSkillMD(t, map[string]string{"other/file.txt": "content"})
+
+	_, err := svc.InstallFromArchive(context.Background(), "test", "", bytes.NewReader(zipBytes), size)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "SKILL.md") {
+		t.Errorf("expected error about missing SKILL.md, got: %v", err)
+	}
+}
+
+func TestInstallFromArchive_BadFrontmatter(t *testing.T) {
+	svc, _, _ := testSkillService(t)
+	// Invalid YAML frontmatter
+	zipBytes, size := makeSkillZip(t, "{{{{invalid yaml", "body", nil)
+
+	_, err := svc.InstallFromArchive(context.Background(), "bad", "", bytes.NewReader(zipBytes), size)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "frontmatter") {
+		t.Errorf("expected error about frontmatter, got: %v", err)
+	}
+}
+
+func TestInstallFromArchive_NameFormatInvalid(t *testing.T) {
+	svc, _, _ := testSkillService(t)
+	zipBytes, size := makeSkillZip(t, "name: Invalid Name!\ndescription: test", "body", nil)
+
+	// Name from frontmatter should be rejected because it has spaces/caps
+	_, err := svc.InstallFromArchive(context.Background(), "", "", bytes.NewReader(zipBytes), size)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "名称格式") {
+		t.Errorf("expected error about invalid name format, got: %v", err)
+	}
+}
+
+func TestInstallFromArchive_NameExplicitInvalid(t *testing.T) {
+	svc, _, _ := testSkillService(t)
+	zipBytes, size := makeSkillZip(t, "name: valid\ndescription: test", "body", nil)
+
+	_, err := svc.InstallFromArchive(context.Background(), "Invalid-Name", "", bytes.NewReader(zipBytes), size)
+	if err == nil {
+		t.Fatalf("expected error, got nil")
+	}
+	if !strings.Contains(err.Error(), "名称格式") {
+		t.Errorf("expected error about invalid name format, got: %v", err)
+	}
+}
+
+func TestInstallFromArchive_ClearsClawHub(t *testing.T) {
+	svc, _, tmpDir := testSkillService(t)
+	zipBytes, size := makeSkillZip(t,
+		"name: no-clawhub\ndescription: test\nclawhub:\n  registry: test\n  slug: test",
+		"body",
+		nil,
+	)
+
+	if _, err := svc.InstallFromArchive(context.Background(), "", "", bytes.NewReader(zipBytes), size); err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	target := filepath.Join(tmpDir, "uploaded", "no-clawhub", "SKILL.md")
+	data, err := os.ReadFile(target)
+	if err != nil {
+		t.Fatalf("SKILL.md missing: %v", err)
+	}
+	if strings.Contains(string(data), "clawhub:") {
+		t.Errorf("expected ClawHub metadata to be cleared, got:\n%s", string(data))
 	}
 }

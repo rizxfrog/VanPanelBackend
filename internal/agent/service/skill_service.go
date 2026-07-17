@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -543,13 +544,18 @@ func (s *SkillService) installFromClawHub(ctx context.Context, slug, version str
 	}
 	defer result.Body.Close()
 
+	buf, err := io.ReadAll(result.Body)
+	if err != nil {
+		return "", fmt.Errorf("read download body failed: %w", err)
+	}
+
 	category := "clawhub"
 	targetDir := filepath.Join(s.cfg.BaseDir, category, slug)
 	if err := os.MkdirAll(targetDir, 0755); err != nil {
 		return "", fmt.Errorf("create target dir failed: %w", err)
 	}
 
-	if err := unzipToDir(result.Body, targetDir); err != nil {
+	if err := UnzipToDir(bytes.NewReader(buf), int64(len(buf)), targetDir); err != nil {
 		return "", fmt.Errorf("extract skill archive failed: %w", err)
 	}
 
@@ -561,12 +567,9 @@ func (s *SkillService) installFromClawHub(ctx context.Context, slug, version str
 	return fmt.Sprintf("Installed %s (%s) from ClawHub", slug, version), nil
 }
 
-func unzipToDir(r io.ReadCloser, targetDir string) error {
-	buf, err := io.ReadAll(r)
-	if err != nil {
-		return err
-	}
-	zr, err := zip.NewReader(bytes.NewReader(buf), int64(len(buf)))
+// UnzipToDir extracts a zip archive into the target directory with path traversal protection.
+func UnzipToDir(r io.ReaderAt, size int64, targetDir string) error {
+	zr, err := zip.NewReader(r, size)
 	if err != nil {
 		return err
 	}
@@ -696,4 +699,91 @@ func (s *SkillService) SecurityVerdicts(ctx context.Context, req SecurityVerdict
 // Bins returns an empty map for now (placeholder for future per-skill binary introspection).
 func (s *SkillService) Bins(ctx context.Context) (map[string]interface{}, error) {
 	return map[string]interface{}{}, nil
+}
+
+// skillNameRegex validates skill names.
+var skillNameRegex = regexp.MustCompile(`^[a-z0-9-]+$`)
+
+// InstallFromArchive installs or updates a skill from a zip archive.
+func (s *SkillService) InstallFromArchive(ctx context.Context, name, version string, r io.ReaderAt, size int64) (string, error) {
+	if version == "" {
+		version = "0.0.0-local"
+	}
+
+	if name != "" && !skillNameRegex.MatchString(name) {
+		return "", fmt.Errorf("skill 名称格式无效，必须匹配 [a-z0-9-]+")
+	}
+	if len(name) > 64 {
+		return "", fmt.Errorf("skill 名称不能超过64个字符")
+	}
+
+	tmpDir, err := os.MkdirTemp("", "skill-upload-*")
+	if err != nil {
+		return "", fmt.Errorf("创建临时目录失败: %w", err)
+	}
+	defer os.RemoveAll(tmpDir)
+
+	if err := UnzipToDir(r, size, tmpDir); err != nil {
+		return "", fmt.Errorf("解压 zip 失败: %w", err)
+	}
+
+	skillMDPath := filepath.Join(tmpDir, "SKILL.md")
+	data, err := os.ReadFile(skillMDPath)
+	if err != nil {
+		return "", fmt.Errorf("压缩包中缺少 SKILL.md")
+	}
+	meta, content, err := agentskill.ParseFullSkillMD(data)
+	if err != nil {
+		return "", fmt.Errorf("SKILL.md frontmatter 解析失败: %w", err)
+	}
+
+	if name == "" {
+		name = meta.Name
+	}
+	if name == "" {
+		return "", fmt.Errorf("无法推断 skill 名称")
+	}
+	if !skillNameRegex.MatchString(name) {
+		return "", fmt.Errorf("skill 名称格式无效，必须匹配 [a-z0-9-]+")
+	}
+
+	meta.Name = name
+	meta.Source = string(agentskill.SkillSourceUploaded)
+	meta.ClawHub = nil
+	if meta.Category == "" {
+		meta.Category = "uploaded"
+	}
+
+	if err := agentskill.WriteSkillMD(skillMDPath, *meta, content); err != nil {
+		return "", fmt.Errorf("重写 SKILL.md frontmatter 失败: %w", err)
+	}
+
+	uploadedRoot := filepath.Join(s.cfg.BaseDir, "uploaded")
+	if err := os.MkdirAll(uploadedRoot, 0755); err != nil {
+		return "", fmt.Errorf("创建上传根目录失败: %w", err)
+	}
+	targetDir := filepath.Join(uploadedRoot, name)
+
+	skills, err := s.store.ListSkills(ctx)
+	if err == nil {
+		for _, sk := range skills {
+			if sk.Meta.Name == name {
+				_ = s.store.DeleteSkill(ctx, name)
+				break
+			}
+		}
+	}
+
+	if _, err := os.Stat(targetDir); err == nil {
+		if err := os.RemoveAll(targetDir); err != nil {
+			return "", fmt.Errorf("清理旧 skill 目录失败: %w", err)
+		}
+	}
+
+	if err := os.Rename(tmpDir, targetDir); err != nil {
+		return "", fmt.Errorf("移动 skill 目录失败: %w", err)
+	}
+
+	s.logger.Info("skill 从压缩包安装成功", zap.String("name", name), zap.String("version", version))
+	return fmt.Sprintf("Installed %s (%s) from archive", name, version), nil
 }
