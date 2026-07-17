@@ -6,9 +6,9 @@ import "time"
 type SkillSource string
 
 const (
-	SkillSourceBundled SkillSource = "bundled"
-	SkillSourceUser    SkillSource = "user"
-	SkillSourceAgent   SkillSource = "agent"
+	SkillSourceBundled  SkillSource = "bundled"
+	SkillSourceUser     SkillSource = "user"
+	SkillSourceAgent    SkillSource = "agent"
 	SkillSourceUploaded SkillSource = "uploaded"
 )
 

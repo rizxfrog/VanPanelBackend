@@ -33,7 +33,21 @@
       "Bash(git fetch *)",
       "Bash(git merge *)",
       "Bash(git stash *)",
-      "Bash(make generate *)"
+      "Bash(make generate *)",
+      "Bash(curl *)",
+      "Bash(sqlite3 data/cloudops.db \"SELECT id, username FROM sys_users LIMIT 10\")",
+      "Bash(mysql -u root -proot cloudops -e \"SELECT id, username FROM sys_users LIMIT 10\")",
+      "Bash(go test *)",
+      "Bash(bash /home/van/.claude/plugins/cache/claude-plugins-official/superpowers/6.1.1/skills/subagent-driven-development/scripts/task-brief docs/superpowers/plans/2026-07-16-skill-archive-upload.md 1)",
+      "Bash(bash /home/van/.claude/plugins/cache/claude-plugins-official/superpowers/6.1.1/skills/subagent-driven-development/scripts/review-package b29c4b7e43aa993d4d0d659d87454037e991c979 HEAD)",
+      "Bash(go vet *)",
+      "Bash(bash /home/van/.claude/plugins/cache/claude-plugins-official/superpowers/6.1.1/skills/subagent-driven-development/scripts/task-brief docs/superpowers/plans/2026-07-16-skill-archive-upload.md 2)",
+      "Bash(bash /home/van/.claude/plugins/cache/claude-plugins-official/superpowers/6.1.1/skills/subagent-driven-development/scripts/review-package 7d01527 HEAD)",
+      "Bash(bash /home/van/.claude/plugins/cache/claude-plugins-official/superpowers/6.1.1/skills/subagent-driven-development/scripts/task-brief docs/superpowers/plans/2026-07-16-skill-archive-upload.md 3)",
+      "Bash(bash /home/van/.claude/plugins/cache/claude-plugins-official/superpowers/6.1.1/skills/subagent-driven-development/scripts/task-brief docs/superpowers/plans/2026-07-16-skill-archive-upload.md 4)",
+      "Bash(bash /home/van/.claude/plugins/cache/claude-plugins-official/superpowers/6.1.1/skills/subagent-driven-development/scripts/task-brief docs/superpowers/plans/2026-07-16-skill-archive-upload.md 6)",
+      "Bash(make fmt *)",
+      "Bash(make lint *)"
     ]
   }
 }

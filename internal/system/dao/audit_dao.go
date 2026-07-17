@@ -259,7 +259,7 @@ func (d *auditDAO) GetAuditStatistics(ctx context.Context) (*model.AuditStatisti
 	go func() {
 		var hourlyTrend []model.HourlyTrendItem
 		err := d.db.WithContext(ctx).Model(&model.AuditLog{}).
-			Select(hourSelectExpr + ", COUNT(*) as count").
+			Select(hourSelectExpr+", COUNT(*) as count").
 			Where("created_at >= ?", time.Now().Add(-24*time.Hour)).
 			Group(hourGroupExpr).
 			Order("hour").

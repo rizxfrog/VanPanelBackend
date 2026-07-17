@@ -16,8 +16,8 @@ import (
 	"go.uber.org/zap"
 
 	agentaudit "github.com/rizxfrog/VanPanelBackend/internal/agent/audit"
-	agentGuard "github.com/rizxfrog/VanPanelBackend/internal/agent/guard"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/dao"
+	agentGuard "github.com/rizxfrog/VanPanelBackend/internal/agent/guard"
 	agentmodel "github.com/rizxfrog/VanPanelBackend/internal/agent/model"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/nudge"
 	"github.com/rizxfrog/VanPanelBackend/internal/agent/pipeline"
@@ -106,7 +106,7 @@ type agentService struct {
 	auditStore    agentaudit.Store
 	cfg           *Config
 	logger        *zap.Logger
-	pipelineStage *pipeline.Stage             // optional pipeline enhancement
+	pipelineStage *pipeline.Stage            // optional pipeline enhancement
 	nudgeReviewer *nudge.MemoryNudgeReviewer // optional memory nudge
 	secureRuntime *agentRuntime.SecureToolRuntime
 	modelFirewall *agentGuard.ModelFirewall
