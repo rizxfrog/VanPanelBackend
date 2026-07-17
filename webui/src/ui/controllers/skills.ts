@@ -1,6 +1,8 @@
 // Control UI controller manages skills gateway state.
 import type { GatewayBrowserClient } from "../gateway.ts";
 import type { SkillClawHubLink, SkillStatusEntry, SkillStatusReport } from "../types.ts";
+import { normalizeBasePath } from "../navigation.ts";
+import { resolveControlUiAuthHeader } from "../control-ui-auth.ts";
 
 export type ClawHubSearchResult = {
   score: number;
@@ -63,10 +65,14 @@ export type ClawHubSkillSecurityVerdict = {
 export type SkillsState = {
   client: GatewayBrowserClient | null;
   connected: boolean;
+  settingsToken?: string;
+  basePath?: string;
   skillsLoading: boolean;
   skillsReport: SkillStatusReport | null;
   skillsError: string | null;
   skillsBusyKey: string | null;
+  uploadBusy: boolean;
+  uploadMessage: { kind: "success" | "error"; text: string } | null;
   skillEdits: Record<string, string>;
   skillMessages: SkillMessageMap;
   clawhubSearchQuery: string;
@@ -164,6 +170,13 @@ export function setClawHubSearchQuery(state: SkillsState, query: string) {
   state.clawhubSearchResults = null;
   state.clawhubSearchError = null;
   state.clawhubSearchLoading = false;
+}
+
+export function initSkillsState(state: SkillsState, settingsToken?: string, basePath?: string) {
+  state.settingsToken = settingsToken;
+  state.basePath = basePath;
+  state.uploadBusy = false;
+  state.uploadMessage = null;
 }
 
 export async function loadSkills(state: SkillsState, options?: { clearMessages?: boolean }) {
@@ -441,5 +454,58 @@ export async function installFromClawHub(state: SkillsState, slug: string) {
     state.clawhubInstallMessage = { kind: "error", text: getErrorMessage(err) };
   } finally {
     state.clawhubInstallSlug = null;
+  }
+}
+
+// UploadSkill uploads a zip archive to install/update a skill via HTTP multipart.
+export async function uploadSkillArchive(
+  state: SkillsState,
+  file: File,
+  opts?: { name?: string; version?: string },
+): Promise<string> {
+  if (!state.settingsToken || !state.basePath) {
+    throw new Error("未登录，无法上传 skill");
+  }
+
+  const base = normalizeBasePath(state.basePath ?? "");
+  const url = `${base}/api/system/agent/skills/upload`;
+
+  const form = new FormData();
+  form.append("file", file);
+  if (opts?.name) form.append("name", opts.name);
+  if (opts?.version) form.append("version", opts.version);
+
+  const res = await fetch(url, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${state.settingsToken}`,
+    },
+    body: form,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`上传失败 (${res.status}): ${text}`);
+  }
+
+  const data = await res.json();
+  return data?.data?.message ?? "安装成功";
+}
+
+// HandleUploadSelected is the view callback for file selection.
+export async function handleUploadSelected(state: SkillsState, file: File) {
+  if (!state.client || !state.connected) {
+    return;
+  }
+  state.uploadBusy = true;
+  state.uploadMessage = null;
+  try {
+    const msg = await uploadSkillArchive(state, file);
+    await loadSkills(state);
+    state.uploadMessage = { kind: "success", text: msg };
+  } catch (err) {
+    state.uploadMessage = { kind: "error", text: getErrorMessage(err) };
+  } finally {
+    state.uploadBusy = false;
   }
 }

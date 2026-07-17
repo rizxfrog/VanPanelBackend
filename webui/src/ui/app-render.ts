@@ -137,6 +137,7 @@ import {
 } from "./controllers/skill-workshop.ts";
 import {
   closeClawHubDetail,
+  handleUploadSelected,
   installFromClawHub,
   loadSkillCard,
   installSkill,
@@ -3224,6 +3225,8 @@ export function renderApp(state: AppViewState) {
                 edits: state.skillEdits,
                 messages: state.skillMessages,
                 busyKey: state.skillsBusyKey,
+                uploadBusy: state.uploadBusy,
+                uploadMessage: state.uploadMessage,
                 detailKey: state.skillsDetailKey,
                 detailTab: state.skillsDetailTab,
                 clawhubVerdicts: state.clawhubVerdicts,
@@ -3273,6 +3276,7 @@ export function renderApp(state: AppViewState) {
                 onClawHubDetailOpen: (slug) => void loadClawHubDetail(state, slug),
                 onClawHubDetailClose: () => closeClawHubDetail(state),
                 onClawHubInstall: (slug) => void installFromClawHub(state, slug),
+                onUploadSelected: (file) => void handleUploadSelected(state, file),
               }),
             )
           : nothing}

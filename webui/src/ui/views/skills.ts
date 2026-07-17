@@ -57,6 +57,8 @@ export type SkillsProps = {
   statusFilter: SkillsStatusFilter;
   edits: Record<string, string>;
   busyKey: string | null;
+  uploadBusy: boolean;
+  uploadMessage: { kind: "success" | "error"; text: string } | null;
   messages: SkillMessageMap;
   detailKey: string | null;
   detailTab: SkillDetailTab;
@@ -90,6 +92,7 @@ export type SkillsProps = {
   onClawHubDetailOpen: (slug: string) => void;
   onClawHubDetailClose: () => void;
   onClawHubInstall: (slug: string) => void;
+  onUploadSelected: (file: File) => void;
 };
 
 type StatusTabDef = { id: SkillsStatusFilter; label: string };
@@ -286,6 +289,39 @@ export function renderSkills(props: SkillsProps) {
             </div>`
           : nothing}
         ${renderClawHubResults(props)}
+      </div>
+
+      <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+          <div style="font-weight: 600;">Upload skill</div>
+          <div class="muted" style="font-size: 13px;">
+            Install a skill from a local zip archive
+          </div>
+        </div>
+        <div style="display: flex; align-items: center; gap: 12px; flex-wrap: wrap;">
+          <label class="field" style="flex: 1; min-width: 180px;">
+            <input
+              type="file"
+              accept=".zip"
+              @change=${(e: Event) => {
+                const input = e.target as HTMLInputElement;
+                const file = input.files?.[0];
+                if (file) props.onUploadSelected(file);
+                input.value = "";
+              }}
+              ?disabled=${props.uploadBusy}
+            />
+          </label>
+          ${props.uploadBusy ? html`<span class="muted">Uploading…</span>` : nothing}
+        </div>
+        ${props.uploadMessage
+          ? html`<div
+              class="callout ${props.uploadMessage.kind === "error" ? "danger" : "success"}"
+              style="margin-top: 8px;"
+            >
+              ${props.uploadMessage.text}
+            </div>`
+          : nothing}
       </div>
 
       ${props.error

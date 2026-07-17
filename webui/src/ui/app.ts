@@ -613,6 +613,8 @@ export class AgentOpsApp extends LitElement {
   @state() skillsStatusFilter: "all" | "ready" | "needs-setup" | "disabled" = "all";
   @state() skillEdits: Record<string, string> = {};
   @state() skillsBusyKey: string | null = null;
+  @state() uploadBusy = false;
+  @state() uploadMessage: { kind: "success" | "error"; text: string } | null = null;
   @state() skillMessages: Record<string, SkillMessage> = {};
   @state() skillsDetailKey: string | null = null;
   @state() skillsDetailTab: "overview" | "card" = "overview";
